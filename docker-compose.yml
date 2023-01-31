@@ -1,0 +1,63 @@
+version: '3.9'
+
+x-config: &x-config
+  ENVIRONMENT: 'dev'
+  KAFKA_BOOTSTRAP_SERVERS: 'PLAINTEXT://redpanda:9092'
+  REDIS_URI: 'redis://redis:6379'
+
+services:
+  redis:
+    image: bitnami/redis:6.2
+    environment:
+      ALLOW_EMPTY_PASSWORD: 'yes'
+    healthcheck:
+      test: 'redis-cli ping'
+      interval: '5s'
+      timeout: '1s'
+      retries: 20
+  redpanda:
+    image: vectorized/redpanda:v22.1.7
+    command:
+      - redpanda
+      - start
+      - --smp
+      - '1'
+      - --reserve-memory
+      - 0M
+      - --overprovisioned
+      - --node-id
+      - '0'
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://redpanda:9092
+      - --pandaproxy-addr
+      - PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+      - --advertise-pandaproxy-addr
+      - PLAINTEXT://redpanda:28082,OUTSIDE://redpanda:8082
+    ports:
+      - '8082' # http pandaproxy rest api
+      - '9092' # kafka wire protocol
+    healthcheck:
+      test: 'curl --fail --silent http://localhost:8082/topics || exit 1'
+      interval: '5s'
+      timeout: '1s'
+      retries: 20
+    volumes:
+      - '/var/lib/redpanda/data'
+  svc:
+    image: 604238712147.dkr.ecr.us-east-1.amazonaws.com/platform-api:${CIRCLE_SHA1:-dev}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      <<: *x-config
+    ports:
+      - '8080'
+networks:
+  default: {}
