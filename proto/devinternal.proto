@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package aircore.media.devinternal.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+enum Tags {
+  UNKNOWN = 0;
+
+  APP_ID = 5;
+  CHANNEL_ID = 10;
+  GROUP_ID = 15;
+  SUB_GROUP_ID = 20;
+  ROOM_ID = 25;
+  USER_ID = 30;
+  SESSION_ID = 35;
+  BLAH_BLAH_ID = 100;
+
+  DB_NAME = 200;
+  DB_TABLE = 210;
+  DB_ROW_ID = 220;
+  DB_COLUMN_ID = 230;
+  DB_BLAH_BLAH_ID = 240;
+}
+
+message KafkaPartitionPathElement {
+  Tags tag = 100;
+  string val = 200;
+}
+
+message KafkaParitionKey {
+  repeated KafkaPartitionPathElement path = 100; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
+}
+
+message DbPathElement {
+  Tags tag = 100;
+  string val = 200;
+}
+
+message DbKey {
+  repeated DbPathElement path = 100;
+}
+
+message ReplyTo {
+  string reply_to_region_id = 100;
+  string reply_to_topic = 200;
+  int32 reply_to_partition = 300;  // request/response and pub/sub between kafka partitions
+  string reply_to_correlation_id = 400;
+}
+
+message Sequencing {
+  google.protobuf.Timestamp epoc = 100;
+  int64 sequence_number = 200;
+}
+
+message AirCoreCoordinate {
+  // global addressing
+  string region_id = 100;
+  string kafka_topic = 200;
+
+  KafkaParitionKey kafka_partition_key = 300; // protobuf deterministic-serialized/deserialized
+  DbKey db_key = 400; // in-mem hash, redis, aurora, etc.
+
+  // correlation
+  ReplyTo reply_to = 500;
+
+  // sequencing
+  Sequencing sequencing = 600;
+
+  // the value, scalar, blob, etc.
+  bytes value = 1000;
+}
