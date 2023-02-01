@@ -116,12 +116,18 @@ export enum Commands {
    * @generated from enum value: DELETE = 20;
    */
   DELETE = 20,
+
+  /**
+   * @generated from enum value: SUBSCRIBE = 30;
+   */
+  SUBSCRIBE = 30,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Commands)
 proto3.util.setEnumType(Commands, "aircore.media.devinternal.v1.Commands", [
   { no: 0, name: "UNKNOWN_COMMAND" },
   { no: 10, name: "UPSERT" },
   { no: 20, name: "DELETE" },
+  { no: 30, name: "SUBSCRIBE" },
 ]);
 
 /**
@@ -452,9 +458,46 @@ export class Sequencing extends Message<Sequencing> {
 }
 
 /**
- * @generated from message aircore.media.devinternal.v1.AirCoreCoordinate
+ * @generated from message aircore.media.devinternal.v1.Payload
  */
-export class AirCoreCoordinate extends Message<AirCoreCoordinate> {
+export class Payload extends Message<Payload> {
+  /**
+   * @generated from field: bytes buffer = 100;
+   */
+  buffer = new Uint8Array(0);
+
+  constructor(data?: PartialMessage<Payload>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.Payload";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 100, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
+    return new Payload().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Payload {
+    return new Payload().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Payload {
+    return new Payload().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Payload | PlainMessage<Payload> | undefined, b: Payload | PlainMessage<Payload> | undefined): boolean {
+    return proto3.util.equals(Payload, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.AirCoreFrame
+ */
+export class AirCoreFrame extends Message<AirCoreFrame> {
   /**
    * global addressing
    *
@@ -465,44 +508,44 @@ export class AirCoreCoordinate extends Message<AirCoreCoordinate> {
   /**
    * correlation of response(s) 1:1, 1:n
    *
-   * @generated from field: aircore.media.devinternal.v1.ReplyTo reply_to = 500;
+   * @generated from field: aircore.media.devinternal.v1.ReplyTo reply_to = 200;
    */
   replyTo?: ReplyTo;
 
   /**
    * the value, scalar, blob, etc.
    *
-   * @generated from field: bytes value = 1000;
+   * @generated from field: aircore.media.devinternal.v1.Payload payload = 300;
    */
-  value = new Uint8Array(0);
+  payload?: Payload;
 
-  constructor(data?: PartialMessage<AirCoreCoordinate>) {
+  constructor(data?: PartialMessage<AirCoreFrame>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime = proto3;
-  static readonly typeName = "aircore.media.devinternal.v1.AirCoreCoordinate";
+  static readonly typeName = "aircore.media.devinternal.v1.AirCoreFrame";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 100, name: "send_to", kind: "message", T: SendTo },
-    { no: 500, name: "reply_to", kind: "message", T: ReplyTo },
-    { no: 1000, name: "value", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 200, name: "reply_to", kind: "message", T: ReplyTo },
+    { no: 300, name: "payload", kind: "message", T: Payload },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AirCoreCoordinate {
-    return new AirCoreCoordinate().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AirCoreFrame {
+    return new AirCoreFrame().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AirCoreCoordinate {
-    return new AirCoreCoordinate().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AirCoreFrame {
+    return new AirCoreFrame().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AirCoreCoordinate {
-    return new AirCoreCoordinate().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AirCoreFrame {
+    return new AirCoreFrame().fromJsonString(jsonString, options);
   }
 
-  static equals(a: AirCoreCoordinate | PlainMessage<AirCoreCoordinate> | undefined, b: AirCoreCoordinate | PlainMessage<AirCoreCoordinate> | undefined): boolean {
-    return proto3.util.equals(AirCoreCoordinate, a, b);
+  static equals(a: AirCoreFrame | PlainMessage<AirCoreFrame> | undefined, b: AirCoreFrame | PlainMessage<AirCoreFrame> | undefined): boolean {
+    return proto3.util.equals(AirCoreFrame, a, b);
   }
 }
 

@@ -29,6 +29,7 @@ enum Commands {
   UNKNOWN_COMMAND = 0;
   UPSERT = 10;
   DELETE = 20;
+  SUBSCRIBE = 30;
 }
 
 message KafkaPartitionPathElement {
@@ -70,13 +71,17 @@ message Sequencing {
   int64 sequence_number = 200;
 }
 
-message AirCoreCoordinate {
+message Payload {
+  bytes buffer = 100;
+}
+
+message AirCoreFrame {
   // global addressing
   SendTo send_to = 100;
 
   // correlation of response(s) 1:1, 1:n
-  ReplyTo reply_to = 500;
+  ReplyTo reply_to = 200;
 
   // the value, scalar, blob, etc.
-  bytes value = 1000;
+  Payload payload = 300;
 }
