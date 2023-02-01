@@ -46,7 +46,7 @@ services:
     volumes:
       - '/var/lib/redpanda/data'
   svc:
-    image: 604238712147.dkr.ecr.us-east-1.amazonaws.com/platform-api:${CIRCLE_SHA1:-dev}
+    image: ubuntu
     build:
       context: .
       dockerfile: Dockerfile

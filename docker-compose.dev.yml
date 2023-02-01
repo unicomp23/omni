@@ -1,0 +1,14 @@
+version: '3.9'
+services:
+  svc:
+    image: ubuntu
+    build:
+      target: dev
+    init: true
+    command: ['sleep', 'infinity']
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    volumes:
+      - '.:/go/src/app' # will mount local source code into the container
+      - '/go/pkg/mod' # cache external dependencies
