@@ -11,9 +11,9 @@ import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
  */
 export enum Tags {
   /**
-   * @generated from enum value: UNKNOWN = 0;
+   * @generated from enum value: UNKNOWN_TAG = 0;
    */
-  UNKNOWN = 0,
+  UNKNOWN_TAG = 0,
 
   /**
    * @generated from enum value: APP_ID = 5;
@@ -82,7 +82,7 @@ export enum Tags {
 }
 // Retrieve enum metadata with: proto3.getEnumType(Tags)
 proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
-  { no: 0, name: "UNKNOWN" },
+  { no: 0, name: "UNKNOWN_TAG" },
   { no: 5, name: "APP_ID" },
   { no: 10, name: "CHANNEL_ID" },
   { no: 15, name: "GROUP_ID" },
@@ -99,13 +99,39 @@ proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
 ]);
 
 /**
+ * @generated from enum aircore.media.devinternal.v1.Commands
+ */
+export enum Commands {
+  /**
+   * @generated from enum value: UNKNOWN_COMMAND = 0;
+   */
+  UNKNOWN_COMMAND = 0,
+
+  /**
+   * @generated from enum value: UPSERT = 10;
+   */
+  UPSERT = 10,
+
+  /**
+   * @generated from enum value: DELETE = 20;
+   */
+  DELETE = 20,
+}
+// Retrieve enum metadata with: proto3.getEnumType(Commands)
+proto3.util.setEnumType(Commands, "aircore.media.devinternal.v1.Commands", [
+  { no: 0, name: "UNKNOWN_COMMAND" },
+  { no: 10, name: "UPSERT" },
+  { no: 20, name: "DELETE" },
+]);
+
+/**
  * @generated from message aircore.media.devinternal.v1.KafkaPartitionPathElement
  */
 export class KafkaPartitionPathElement extends Message<KafkaPartitionPathElement> {
   /**
    * @generated from field: aircore.media.devinternal.v1.Tags tag = 100;
    */
-  tag = Tags.UNKNOWN;
+  tag = Tags.UNKNOWN_TAG;
 
   /**
    * @generated from field: string val = 200;
@@ -187,7 +213,7 @@ export class DbPathElement extends Message<DbPathElement> {
   /**
    * @generated from field: aircore.media.devinternal.v1.Tags tag = 100;
    */
-  tag = Tags.UNKNOWN;
+  tag = Tags.UNKNOWN_TAG;
 
   /**
    * @generated from field: string val = 200;
@@ -261,30 +287,95 @@ export class DbKey extends Message<DbKey> {
 }
 
 /**
+ * @generated from message aircore.media.devinternal.v1.SendTo
+ */
+export class SendTo extends Message<SendTo> {
+  /**
+   * @generated from field: string region_id = 100;
+   */
+  regionId = "";
+
+  /**
+   * @generated from field: string kafka_topic = 200;
+   */
+  kafkaTopic = "";
+
+  /**
+   * protobuf deterministic-serialized/deserialized
+   *
+   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 300;
+   */
+  kafkaPartitionKey?: KafkaParitionKey;
+
+  /**
+   * in-mem hash, redis, aurora, etc.
+   *
+   * @generated from field: aircore.media.devinternal.v1.DbKey db_key = 400;
+   */
+  dbKey?: DbKey;
+
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 500;
+   */
+  sequencing?: Sequencing;
+
+  constructor(data?: PartialMessage<SendTo>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.SendTo";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 100, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 200, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 300, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
+    { no: 400, name: "db_key", kind: "message", T: DbKey },
+    { no: 500, name: "sequencing", kind: "message", T: Sequencing },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTo {
+    return new SendTo().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SendTo {
+    return new SendTo().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SendTo {
+    return new SendTo().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SendTo | PlainMessage<SendTo> | undefined, b: SendTo | PlainMessage<SendTo> | undefined): boolean {
+    return proto3.util.equals(SendTo, a, b);
+  }
+}
+
+/**
  * @generated from message aircore.media.devinternal.v1.ReplyTo
  */
 export class ReplyTo extends Message<ReplyTo> {
   /**
-   * @generated from field: string reply_to_region_id = 100;
+   * @generated from field: string region_id = 100;
    */
-  replyToRegionId = "";
+  regionId = "";
 
   /**
-   * @generated from field: string reply_to_topic = 200;
+   * @generated from field: string topic = 200;
    */
-  replyToTopic = "";
+  topic = "";
 
   /**
    * request/response and pub/sub between kafka partitions
    *
-   * @generated from field: int32 reply_to_partition = 300;
+   * @generated from field: int32 partition = 300;
    */
-  replyToPartition = 0;
+  partition = 0;
 
   /**
-   * @generated from field: string reply_to_correlation_id = 400;
+   * @generated from field: string correlation_id = 400;
    */
-  replyToCorrelationId = "";
+  correlationId = "";
 
   constructor(data?: PartialMessage<ReplyTo>) {
     super();
@@ -294,10 +385,10 @@ export class ReplyTo extends Message<ReplyTo> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.ReplyTo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "reply_to_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 200, name: "reply_to_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 300, name: "reply_to_partition", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 400, name: "reply_to_correlation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 100, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 200, name: "topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 300, name: "partition", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 400, name: "correlation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReplyTo {
@@ -367,42 +458,16 @@ export class AirCoreCoordinate extends Message<AirCoreCoordinate> {
   /**
    * global addressing
    *
-   * @generated from field: string region_id = 100;
+   * @generated from field: aircore.media.devinternal.v1.SendTo send_to = 100;
    */
-  regionId = "";
+  sendTo?: SendTo;
 
   /**
-   * @generated from field: string kafka_topic = 200;
-   */
-  kafkaTopic = "";
-
-  /**
-   * protobuf deterministic-serialized/deserialized
-   *
-   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 300;
-   */
-  kafkaPartitionKey?: KafkaParitionKey;
-
-  /**
-   * in-mem hash, redis, aurora, etc.
-   *
-   * @generated from field: aircore.media.devinternal.v1.DbKey db_key = 400;
-   */
-  dbKey?: DbKey;
-
-  /**
-   * correlation
+   * correlation of response(s) 1:1, 1:n
    *
    * @generated from field: aircore.media.devinternal.v1.ReplyTo reply_to = 500;
    */
   replyTo?: ReplyTo;
-
-  /**
-   * sequencing
-   *
-   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 600;
-   */
-  sequencing?: Sequencing;
 
   /**
    * the value, scalar, blob, etc.
@@ -419,12 +484,8 @@ export class AirCoreCoordinate extends Message<AirCoreCoordinate> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.AirCoreCoordinate";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 200, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 300, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
-    { no: 400, name: "db_key", kind: "message", T: DbKey },
+    { no: 100, name: "send_to", kind: "message", T: SendTo },
     { no: 500, name: "reply_to", kind: "message", T: ReplyTo },
-    { no: 600, name: "sequencing", kind: "message", T: Sequencing },
     { no: 1000, name: "value", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
   ]);
 

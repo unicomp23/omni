@@ -7,7 +7,7 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 enum Tags {
-  UNKNOWN = 0;
+  UNKNOWN_TAG = 0;
 
   APP_ID = 5;
   CHANNEL_ID = 10;
@@ -23,6 +23,12 @@ enum Tags {
   DB_ROW_ID = 220;
   DB_COLUMN_ID = 230;
   DB_BLAH_BLAH_ID = 240;
+}
+
+enum Commands {
+  UNKNOWN_COMMAND = 0;
+  UPSERT = 10;
+  DELETE = 20;
 }
 
 message KafkaPartitionPathElement {
@@ -43,11 +49,20 @@ message DbKey {
   repeated DbPathElement path = 100;
 }
 
+message SendTo {
+  string region_id = 100;
+  string kafka_topic = 200;
+  KafkaParitionKey kafka_partition_key = 300; // protobuf deterministic-serialized/deserialized
+  DbKey db_key = 400; // in-mem hash, redis, aurora, etc.
+
+  Sequencing sequencing = 500;
+}
+
 message ReplyTo {
-  string reply_to_region_id = 100;
-  string reply_to_topic = 200;
-  int32 reply_to_partition = 300;  // request/response and pub/sub between kafka partitions
-  string reply_to_correlation_id = 400;
+  string region_id = 100;
+  string topic = 200;
+  int32 partition = 300;  // request/response and pub/sub between kafka partitions
+  string correlation_id = 400;
 }
 
 message Sequencing {
@@ -57,17 +72,10 @@ message Sequencing {
 
 message AirCoreCoordinate {
   // global addressing
-  string region_id = 100;
-  string kafka_topic = 200;
+  SendTo send_to = 100;
 
-  KafkaParitionKey kafka_partition_key = 300; // protobuf deterministic-serialized/deserialized
-  DbKey db_key = 400; // in-mem hash, redis, aurora, etc.
-
-  // correlation
+  // correlation of response(s) 1:1, 1:n
   ReplyTo reply_to = 500;
-
-  // sequencing
-  Sequencing sequencing = 600;
 
   // the value, scalar, blob, etc.
   bytes value = 1000;
