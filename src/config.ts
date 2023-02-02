@@ -10,8 +10,16 @@ export class config {
         return 'worker-topic';
     }
 
+    get_worker_group_id() {
+        return 'worker-group-id';
+    }
+
     get_reply_to_topic() {
         return 'reply-to-topic';
+    }
+
+    get_reply_to_group_id() {
+        return 'reply-to-group-id';
     }
 
     get_app_id() {
