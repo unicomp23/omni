@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import { Any, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from enum aircore.media.devinternal.v1.Tags
@@ -471,6 +471,11 @@ export class Payload extends Message<Payload> {
    */
   text = "";
 
+  /**
+   * @generated from field: google.protobuf.Any val = 300;
+   */
+  val?: Any;
+
   constructor(data?: PartialMessage<Payload>) {
     super();
     proto3.util.initPartial(data, this);
@@ -481,6 +486,7 @@ export class Payload extends Message<Payload> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 100, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
     { no: 200, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 300, name: "val", kind: "message", T: Any },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
