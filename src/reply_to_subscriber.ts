@@ -7,7 +7,7 @@ import {AirCoreFrame} from "../proto/generated/devinternal_pb";
 
 export class reply_to_subscriber {
     private constructor(
-        private readonly config_ = config.create(),
+        private readonly config_: config,
         readonly topic = config_.get_reply_to_topic(),
         private readonly kafka = new Kafka({
             clientId: config_.get_app_id() + '/reply_to/' + crypto.randomUUID(),
@@ -51,7 +51,7 @@ export class reply_to_subscriber {
         return true;
     });
 
-    public static create() {
-        return new reply_to_subscriber();
+    public static create(config_: config) {
+        return new reply_to_subscriber(config_);
     }
 }

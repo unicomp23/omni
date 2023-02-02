@@ -466,6 +466,11 @@ export class Payload extends Message<Payload> {
    */
   buffer = new Uint8Array(0);
 
+  /**
+   * @generated from field: string text = 200;
+   */
+  text = "";
+
   constructor(data?: PartialMessage<Payload>) {
     super();
     proto3.util.initPartial(data, this);
@@ -475,6 +480,7 @@ export class Payload extends Message<Payload> {
   static readonly typeName = "aircore.media.devinternal.v1.Payload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 100, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 200, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {

@@ -7,10 +7,10 @@ import {AsyncQueue} from "@esfx/async";
 
 export class worker_subscriber {
     private constructor(
-        private readonly config_ = config.create(),
+        private readonly config_: config,
         readonly topic = config_.get_worker_topic(),
         private readonly kafka = new Kafka({
-            clientId: config_.get_app_id() + '/worker/' + crypto.randomUUID(),
+            clientId: config_.get_app_id() + '/client_id/' + crypto.randomUUID(),
             brokers: config_.get_kafka_brokers()
         }),
         private readonly consumer = kafka.consumer({
@@ -36,7 +36,7 @@ export class worker_subscriber {
         return true;
     });
 
-    public static create() {
-        return new worker_subscriber();
+    public static create(config_: config) {
+        return new worker_subscriber(config_);
     }
 }

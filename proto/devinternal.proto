@@ -73,6 +73,7 @@ message Sequencing {
 
 message Payload {
   bytes buffer = 100;
+  string text = 200;
 }
 
 message AirCoreFrame {
