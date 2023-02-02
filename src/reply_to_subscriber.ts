@@ -21,8 +21,23 @@ export class reply_to_subscriber {
 
     public readonly frames = new AsyncQueue<AirCoreFrame>();
 
+    private readonly partitions = new Array<number>();
+    private last_reply_partition = 0;
+    public get_next_reply_partition() {
+        this.last_reply_partition++;
+        const index = this.last_reply_partition % this.partitions.length;
+        this.last_reply_partition = index;
+        return index;
+    }
+
     private readonly runner_ = new runner(async() => {
         await this.consumer.connect()
+        this.consumer.on("consumer.group_join", (event) => {
+            console.log("consumer.group_join", event);
+            const partitions = event.payload.memberAssignment[this.topic];
+            this.partitions.length = 0;
+            this.partitions.concat(partitions);
+        });
         await this.consumer.subscribe({
             topic: this.config_.get_reply_to_topic(),
             fromBeginning: false,
