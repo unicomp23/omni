@@ -1,7 +1,9 @@
-import {AirCoreFrame, SendTo} from "../proto/generated/devinternal_pb";
+import {AirCoreFrame, SendTo, Tags} from "../proto/generated/devinternal_pb";
 import {publisher} from "./publisher";
 import {worker_subscriber} from "./worker_subscriber";
 import {config} from "./config";
+import {reply_to_subscriber} from "./reply_to_subscriber";
+import {delay} from "@esfx/async";
 
 console.log("running")
 
@@ -16,18 +18,39 @@ console.log(`out: ${coord_2.sendTo?.kafkaTopic}`);
 
 const config_ = config.create();
 const publisher_ = publisher.create(config_);
-const subscriber_ = worker_subscriber.create(config_);
+const worker_subscriber_ = worker_subscriber.create(config_);
+const reply_to_subscriber_ = reply_to_subscriber.create(config_);
 
-const strand = async() => {
-    for(;;) {
-        const frame = await subscriber_.frames.get();
-        console.log("frame:", frame.toJson())
+const main = async() => {
+    const strand_worker = async() => {
+        for(;;) {
+            const frame = await worker_subscriber_.frames.get();
+            console.log("worker frame:", frame.toJson())
+        }
     }
+    strand_worker().then(() => { console.log("strand_worker exit")});
+
+    const strand_reply_to = async() => {
+        for(;;) {
+            const frame = await reply_to_subscriber_.frames.get();
+            console.log("reply_to frame:", frame.toJson())
+        }
+    }
+    strand_reply_to().then(() => { console.log("strand_reply_to exit")});
+
+    await delay(1000);
+
+    await publisher_.send(new AirCoreFrame({
+        sendTo: {
+            kafkaPartitionKey: {
+                path: [{tag: Tags.APP_ID, val: "123"}]
+            },
+        },
+        payload: {
+            text: "some text"
+        },
+    }));
+
+    await delay(1000);
 }
-strand().then(() => { console.log("strand exit")});
-
-publisher_.send(new AirCoreFrame({
-    payload: {
-        text: "some text"
-    }
-}));
+main().then(() => { console.log("exit main"); });

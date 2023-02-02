@@ -23,6 +23,7 @@ export class worker_subscriber {
 
     private readonly runner_ = new runner(async() => {
         await this.consumer.connect()
+        console.log("consumer_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
             topic: this.config_.get_worker_topic(),
             fromBeginning: false,

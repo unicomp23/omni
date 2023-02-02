@@ -38,6 +38,7 @@ export class reply_to_subscriber {
             this.partitions.length = 0;
             this.partitions.concat(partitions);
         });
+        console.log("reply_to_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
             topic: this.config_.get_reply_to_topic(),
             fromBeginning: false,
