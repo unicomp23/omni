@@ -51,34 +51,34 @@ export enum Tags {
   SESSION_ID = 35,
 
   /**
-   * @generated from enum value: BLAH_BLAH_ID = 100;
+   * @generated from enum value: BLAH_BLAH_ID = 40;
    */
-  BLAH_BLAH_ID = 100,
+  BLAH_BLAH_ID = 40,
 
   /**
-   * @generated from enum value: DB_NAME = 200;
+   * @generated from enum value: DB_NAME = 50;
    */
-  DB_NAME = 200,
+  DB_NAME = 50,
 
   /**
-   * @generated from enum value: DB_TABLE = 210;
+   * @generated from enum value: DB_TABLE = 55;
    */
-  DB_TABLE = 210,
+  DB_TABLE = 55,
 
   /**
-   * @generated from enum value: DB_ROW_ID = 220;
+   * @generated from enum value: DB_ROW_ID = 60;
    */
-  DB_ROW_ID = 220,
+  DB_ROW_ID = 60,
 
   /**
-   * @generated from enum value: DB_COLUMN_ID = 230;
+   * @generated from enum value: DB_COLUMN_ID = 65;
    */
-  DB_COLUMN_ID = 230,
+  DB_COLUMN_ID = 65,
 
   /**
-   * @generated from enum value: DB_BLAH_BLAH_ID = 240;
+   * @generated from enum value: DB_BLAH_BLAH_ID = 70;
    */
-  DB_BLAH_BLAH_ID = 240,
+  DB_BLAH_BLAH_ID = 70,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Tags)
 proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
@@ -90,12 +90,12 @@ proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
   { no: 25, name: "ROOM_ID" },
   { no: 30, name: "USER_ID" },
   { no: 35, name: "SESSION_ID" },
-  { no: 100, name: "BLAH_BLAH_ID" },
-  { no: 200, name: "DB_NAME" },
-  { no: 210, name: "DB_TABLE" },
-  { no: 220, name: "DB_ROW_ID" },
-  { no: 230, name: "DB_COLUMN_ID" },
-  { no: 240, name: "DB_BLAH_BLAH_ID" },
+  { no: 40, name: "BLAH_BLAH_ID" },
+  { no: 50, name: "DB_NAME" },
+  { no: 55, name: "DB_TABLE" },
+  { no: 60, name: "DB_ROW_ID" },
+  { no: 65, name: "DB_COLUMN_ID" },
+  { no: 70, name: "DB_BLAH_BLAH_ID" },
 ]);
 
 /**
@@ -108,6 +108,8 @@ export enum Commands {
   UNKNOWN_COMMAND = 0,
 
   /**
+   * aka PUBLISH
+   *
    * @generated from enum value: UPSERT = 10;
    */
   UPSERT = 10,
@@ -131,16 +133,42 @@ proto3.util.setEnumType(Commands, "aircore.media.devinternal.v1.Commands", [
 ]);
 
 /**
+ * @generated from enum aircore.media.devinternal.v1.PayloadType
+ */
+export enum PayloadType {
+  /**
+   * @generated from enum value: UNKNOWN_PAYLOAD_TYPE = 0;
+   */
+  UNKNOWN_PAYLOAD_TYPE = 0,
+
+  /**
+   * @generated from enum value: SNAPSHOT = 10;
+   */
+  SNAPSHOT = 10,
+
+  /**
+   * @generated from enum value: DELTA = 20;
+   */
+  DELTA = 20,
+}
+// Retrieve enum metadata with: proto3.getEnumType(PayloadType)
+proto3.util.setEnumType(PayloadType, "aircore.media.devinternal.v1.PayloadType", [
+  { no: 0, name: "UNKNOWN_PAYLOAD_TYPE" },
+  { no: 10, name: "SNAPSHOT" },
+  { no: 20, name: "DELTA" },
+]);
+
+/**
  * @generated from message aircore.media.devinternal.v1.KafkaPartitionPathElement
  */
 export class KafkaPartitionPathElement extends Message<KafkaPartitionPathElement> {
   /**
-   * @generated from field: aircore.media.devinternal.v1.Tags tag = 100;
+   * @generated from field: aircore.media.devinternal.v1.Tags tag = 10;
    */
   tag = Tags.UNKNOWN_TAG;
 
   /**
-   * @generated from field: string val = 200;
+   * @generated from field: string val = 20;
    */
   val = "";
 
@@ -152,8 +180,8 @@ export class KafkaPartitionPathElement extends Message<KafkaPartitionPathElement
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaPartitionPathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 200, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
+    { no: 20, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaPartitionPathElement {
@@ -180,7 +208,7 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   /**
    * push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
    *
-   * @generated from field: repeated aircore.media.devinternal.v1.KafkaPartitionPathElement path = 100;
+   * @generated from field: repeated aircore.media.devinternal.v1.KafkaPartitionPathElement path = 10;
    */
   path: KafkaPartitionPathElement[] = [];
 
@@ -192,7 +220,7 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "path", kind: "message", T: KafkaPartitionPathElement, repeated: true },
+    { no: 10, name: "path", kind: "message", T: KafkaPartitionPathElement, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaParitionKey {
@@ -217,12 +245,12 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
  */
 export class DbPathElement extends Message<DbPathElement> {
   /**
-   * @generated from field: aircore.media.devinternal.v1.Tags tag = 100;
+   * @generated from field: aircore.media.devinternal.v1.Tags tag = 10;
    */
   tag = Tags.UNKNOWN_TAG;
 
   /**
-   * @generated from field: string val = 200;
+   * @generated from field: string val = 20;
    */
   val = "";
 
@@ -234,8 +262,8 @@ export class DbPathElement extends Message<DbPathElement> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.DbPathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 200, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
+    { no: 20, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbPathElement {
@@ -260,7 +288,7 @@ export class DbPathElement extends Message<DbPathElement> {
  */
 export class DbKey extends Message<DbKey> {
   /**
-   * @generated from field: repeated aircore.media.devinternal.v1.DbPathElement path = 100;
+   * @generated from field: repeated aircore.media.devinternal.v1.DbPathElement path = 10;
    */
   path: DbPathElement[] = [];
 
@@ -272,7 +300,7 @@ export class DbKey extends Message<DbKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.DbKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "path", kind: "message", T: DbPathElement, repeated: true },
+    { no: 10, name: "path", kind: "message", T: DbPathElement, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbKey {
@@ -297,31 +325,31 @@ export class DbKey extends Message<DbKey> {
  */
 export class SendTo extends Message<SendTo> {
   /**
-   * @generated from field: string region_id = 100;
+   * @generated from field: string region_id = 10;
    */
   regionId = "";
 
   /**
-   * @generated from field: string kafka_topic = 200;
+   * @generated from field: string kafka_topic = 20;
    */
   kafkaTopic = "";
 
   /**
    * protobuf deterministic-serialized/deserialized
    *
-   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 300;
+   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
    */
   kafkaPartitionKey?: KafkaParitionKey;
 
   /**
    * in-mem hash, redis, aurora, etc.
    *
-   * @generated from field: aircore.media.devinternal.v1.DbKey db_key = 400;
+   * @generated from field: aircore.media.devinternal.v1.DbKey db_key = 40;
    */
   dbKey?: DbKey;
 
   /**
-   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 500;
+   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 50;
    */
   sequencing?: Sequencing;
 
@@ -333,11 +361,11 @@ export class SendTo extends Message<SendTo> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.SendTo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 200, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 300, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
-    { no: 400, name: "db_key", kind: "message", T: DbKey },
-    { no: 500, name: "sequencing", kind: "message", T: Sequencing },
+    { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
+    { no: 40, name: "db_key", kind: "message", T: DbKey },
+    { no: 50, name: "sequencing", kind: "message", T: Sequencing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTo {
@@ -362,24 +390,24 @@ export class SendTo extends Message<SendTo> {
  */
 export class ReplyTo extends Message<ReplyTo> {
   /**
-   * @generated from field: string region_id = 100;
+   * @generated from field: string region_id = 10;
    */
   regionId = "";
 
   /**
-   * @generated from field: string topic = 200;
+   * @generated from field: string topic = 20;
    */
   topic = "";
 
   /**
    * request/response and pub/sub between kafka partitions
    *
-   * @generated from field: int32 partition = 300;
+   * @generated from field: int32 partition = 30;
    */
   partition = 0;
 
   /**
-   * @generated from field: string correlation_id = 400;
+   * @generated from field: string correlation_id = 40;
    */
   correlationId = "";
 
@@ -391,10 +419,10 @@ export class ReplyTo extends Message<ReplyTo> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.ReplyTo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 200, name: "topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 300, name: "partition", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 400, name: "correlation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 30, name: "partition", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 40, name: "correlation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReplyTo {
@@ -419,12 +447,12 @@ export class ReplyTo extends Message<ReplyTo> {
  */
 export class Sequencing extends Message<Sequencing> {
   /**
-   * @generated from field: google.protobuf.Timestamp epoc = 100;
+   * @generated from field: google.protobuf.Timestamp epoc = 10;
    */
   epoc?: Timestamp;
 
   /**
-   * @generated from field: int64 sequence_number = 200;
+   * @generated from field: int64 sequence_number = 20;
    */
   sequenceNumber = protoInt64.zero;
 
@@ -436,8 +464,8 @@ export class Sequencing extends Message<Sequencing> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.Sequencing";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "epoc", kind: "message", T: Timestamp },
-    { no: 200, name: "sequence_number", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 10, name: "epoc", kind: "message", T: Timestamp },
+    { no: 20, name: "sequence_number", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Sequencing {
@@ -462,17 +490,22 @@ export class Sequencing extends Message<Sequencing> {
  */
 export class Payload extends Message<Payload> {
   /**
-   * @generated from field: bytes buffer = 100;
+   * @generated from field: aircore.media.devinternal.v1.PayloadType type = 10;
+   */
+  type = PayloadType.UNKNOWN_PAYLOAD_TYPE;
+
+  /**
+   * @generated from field: bytes buffer = 50;
    */
   buffer = new Uint8Array(0);
 
   /**
-   * @generated from field: string text = 200;
+   * @generated from field: string text = 60;
    */
   text = "";
 
   /**
-   * @generated from field: google.protobuf.Any val = 300;
+   * @generated from field: google.protobuf.Any val = 70;
    */
   val?: Any;
 
@@ -484,9 +517,10 @@ export class Payload extends Message<Payload> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.Payload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 200, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 300, name: "val", kind: "message", T: Any },
+    { no: 10, name: "type", kind: "enum", T: proto3.getEnumType(PayloadType) },
+    { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 70, name: "val", kind: "message", T: Any },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
@@ -511,23 +545,28 @@ export class Payload extends Message<Payload> {
  */
 export class AirCoreFrame extends Message<AirCoreFrame> {
   /**
+   * @generated from field: aircore.media.devinternal.v1.Commands command = 10;
+   */
+  command = Commands.UNKNOWN_COMMAND;
+
+  /**
    * global addressing
    *
-   * @generated from field: aircore.media.devinternal.v1.SendTo send_to = 100;
+   * @generated from field: aircore.media.devinternal.v1.SendTo send_to = 20;
    */
   sendTo?: SendTo;
 
   /**
    * correlation of response(s) 1:1, 1:n
    *
-   * @generated from field: aircore.media.devinternal.v1.ReplyTo reply_to = 200;
+   * @generated from field: aircore.media.devinternal.v1.ReplyTo reply_to = 30;
    */
   replyTo?: ReplyTo;
 
   /**
    * the value, scalar, blob, etc.
    *
-   * @generated from field: aircore.media.devinternal.v1.Payload payload = 300;
+   * @generated from field: aircore.media.devinternal.v1.Payload payload = 40;
    */
   payload?: Payload;
 
@@ -539,9 +578,10 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.AirCoreFrame";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 100, name: "send_to", kind: "message", T: SendTo },
-    { no: 200, name: "reply_to", kind: "message", T: ReplyTo },
-    { no: 300, name: "payload", kind: "message", T: Payload },
+    { no: 10, name: "command", kind: "enum", T: proto3.getEnumType(Commands) },
+    { no: 20, name: "send_to", kind: "message", T: SendTo },
+    { no: 30, name: "reply_to", kind: "message", T: ReplyTo },
+    { no: 40, name: "payload", kind: "message", T: Payload },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AirCoreFrame {

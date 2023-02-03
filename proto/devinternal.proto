@@ -16,74 +16,84 @@ enum Tags {
   ROOM_ID = 25;
   USER_ID = 30;
   SESSION_ID = 35;
-  BLAH_BLAH_ID = 100;
+  BLAH_BLAH_ID = 40;
 
-  DB_NAME = 200;
-  DB_TABLE = 210;
-  DB_ROW_ID = 220;
-  DB_COLUMN_ID = 230;
-  DB_BLAH_BLAH_ID = 240;
+  DB_NAME = 50;
+  DB_TABLE = 55;
+  DB_ROW_ID = 60;
+  DB_COLUMN_ID = 65;
+  DB_BLAH_BLAH_ID = 70;
 }
 
 enum Commands {
   UNKNOWN_COMMAND = 0;
-  UPSERT = 10;
+  UPSERT = 10; // aka PUBLISH
   DELETE = 20;
   SUBSCRIBE = 30;
 }
 
 message KafkaPartitionPathElement {
-  Tags tag = 100;
-  string val = 200;
+  Tags tag = 10;
+  string val = 20;
 }
 
 message KafkaParitionKey {
-  repeated KafkaPartitionPathElement path = 100; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
+  repeated KafkaPartitionPathElement path = 10; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
 }
 
 message DbPathElement {
-  Tags tag = 100;
-  string val = 200;
+  Tags tag = 10;
+  string val = 20;
 }
 
 message DbKey {
-  repeated DbPathElement path = 100;
+  repeated DbPathElement path = 10;
 }
 
 message SendTo {
-  string region_id = 100;
-  string kafka_topic = 200;
-  KafkaParitionKey kafka_partition_key = 300; // protobuf deterministic-serialized/deserialized
-  DbKey db_key = 400; // in-mem hash, redis, aurora, etc.
+  string region_id = 10;
+  string kafka_topic = 20;
+  KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized/deserialized
+  DbKey db_key = 40; // in-mem hash, redis, aurora, etc.
 
-  Sequencing sequencing = 500;
+  Sequencing sequencing = 50;
 }
 
 message ReplyTo {
-  string region_id = 100;
-  string topic = 200;
-  int32 partition = 300;  // request/response and pub/sub between kafka partitions
-  string correlation_id = 400;
+  string region_id = 10;
+  string topic = 20;
+  int32 partition = 30;  // request/response and pub/sub between kafka partitions
+  string correlation_id = 40;
 }
 
 message Sequencing {
-  google.protobuf.Timestamp epoc = 100;
-  int64 sequence_number = 200;
+  google.protobuf.Timestamp epoc = 10;
+  int64 sequence_number = 20;
+}
+
+enum PayloadType {
+  UNKNOWN_PAYLOAD_TYPE = 0;
+  SNAPSHOT = 10;
+  DELTA = 20;
 }
 
 message Payload {
-  bytes buffer = 100;
-  string text = 200;
-  google.protobuf.Any val = 300;
+  PayloadType type = 10;
+
+  bytes buffer = 50;
+  string text = 60;
+  google.protobuf.Any val = 70;
 }
 
 message AirCoreFrame {
+  Commands command = 10;
+
   // global addressing
-  SendTo send_to = 100;
+  SendTo send_to = 20;
 
   // correlation of response(s) 1:1, 1:n
-  ReplyTo reply_to = 200;
+  ReplyTo reply_to = 30;
 
   // the value, scalar, blob, etc.
-  Payload payload = 300;
+  Payload payload = 40;
 }
