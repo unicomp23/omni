@@ -396,9 +396,9 @@ export class DbKey extends Message<DbKey> {
 }
 
 /**
- * @generated from message aircore.media.devinternal.v1.SendTo
+ * @generated from message aircore.media.devinternal.v1.PlanetKey
  */
-export class SendTo extends Message<SendTo> {
+export class PlanetKey extends Message<PlanetKey> {
   /**
    * @generated from field: string region_id = 10;
    */
@@ -416,9 +416,46 @@ export class SendTo extends Message<SendTo> {
    */
   kafkaTopic = "";
 
+  constructor(data?: PartialMessage<PlanetKey>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.PlanetKey";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "sub_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PlanetKey {
+    return new PlanetKey().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PlanetKey {
+    return new PlanetKey().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PlanetKey {
+    return new PlanetKey().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PlanetKey | PlainMessage<PlanetKey> | undefined, b: PlanetKey | PlainMessage<PlanetKey> | undefined): boolean {
+    return proto3.util.equals(PlanetKey, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.SendTo
+ */
+export class SendTo extends Message<SendTo> {
   /**
-   * protobuf deterministic-serialized
-   *
+   * @generated from field: aircore.media.devinternal.v1.PlanetKey planet_key = 10;
+   */
+  planetKey?: PlanetKey;
+
+  /**
    * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
    */
   kafkaPartitionKey?: KafkaParitionKey;
@@ -443,9 +480,7 @@ export class SendTo extends Message<SendTo> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.SendTo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 15, name: "sub_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 10, name: "planet_key", kind: "message", T: PlanetKey },
     { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
     { no: 40, name: "db_key", kind: "message", T: DbKey },
     { no: 50, name: "sequencing", kind: "message", T: Sequencing },

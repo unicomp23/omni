@@ -68,12 +68,16 @@ message DbKey {
   Path path = 10;
 }
 
-message SendTo {
+message PlanetKey {
   string region_id = 10;
   string sub_region_id = 15; // availability zone, etc.
   string kafka_topic = 20;
+}
 
-  KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized
+message SendTo {
+  PlanetKey planet_key = 10;
+
+  KafkaParitionKey kafka_partition_key = 30;
 
   DbKey db_key = 40; // in-mem hash, redis, aurora, etc.
 

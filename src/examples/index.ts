@@ -8,13 +8,13 @@ import {delay} from "@esfx/async";
 console.log("running")
 
 const coord = new AirCoreFrame({
-    sendTo: new SendTo({kafkaTopic: "topic"})
+    sendTo: new SendTo({planetKey: {kafkaTopic: "topic"}})
 });
 
 const bytes = coord.toBinary();
 const coord_2 = AirCoreFrame.fromBinary(bytes);
 
-console.log(`out: ${coord_2.sendTo?.kafkaTopic}`);
+console.log(`out: ${coord_2.sendTo?.planetKey?.kafkaTopic}`);
 
 const main = async() => {
     const config_ = config.create();
