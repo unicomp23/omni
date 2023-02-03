@@ -27,6 +27,16 @@ enum Tags {
   DB_BLAH_BLAH_ID = 70;
 }
 
+enum PathTypes { // ie PATH_TYPE tag
+  UNKNOWN_PATH_TYPE = 0;
+
+  APP_CHAN = 10;
+  APP_CHAN_USER = 15;
+  APP_ROOM_GROUP = 20;
+  APP_ROOM_GROUP_USER = 25;
+  // ...
+}
+
 enum Commands {
   UNKNOWN_COMMAND = 0;
   UPSERT = 10; // aka PUBLISH

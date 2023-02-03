@@ -1,7 +1,7 @@
 import {Kafka, Partitioners} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
-import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, KafkaParitionKey} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export class publisher {
@@ -29,17 +29,19 @@ export class publisher {
             console.log("send.connect")
             this.connected = true;
         }
-        const partition_key = frame.sendTo?.kafkaPartitionKey?.toBinary()
-        if(partition_key) {
-            console.log("producing:", this.topic);
-            await this.producer.send({
-                topic: this.topic,
-                messages: [{
-                    key:Buffer.from(partition_key),
-                    value:Buffer.from(frame.toBinary())
-                }]
-            });
-            console.log("send.produce")
+        if(frame.sendTo?.partitioning.case == "kafkaPartitionKey") {
+            const partition_key = (frame.sendTo?.partitioning.value as KafkaParitionKey)?.toBinary();
+            if(partition_key) {
+                console.log("producing:", this.topic);
+                await this.producer.send({
+                    topic: this.topic,
+                    messages: [{
+                        key: Buffer.from(partition_key),
+                        value: Buffer.from(frame.toBinary())
+                    }]
+                });
+                console.log("send.produce")
+            }
         } else {
             console.log("producer.send, missing partition key");
         }

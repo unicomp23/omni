@@ -3,15 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type {
-  BinaryReadOptions,
-  FieldList,
-  JsonReadOptions,
-  JsonValue,
-  PartialMessage,
-  PlainMessage
-} from "@bufbuild/protobuf";
-import {Any, Message, proto3, protoInt64, Timestamp} from "@bufbuild/protobuf";
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Any, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from enum aircore.media.devinternal.v1.Tags
@@ -109,6 +102,48 @@ proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
   { no: 60, name: "DB_ROW_ID" },
   { no: 65, name: "DB_COLUMN_ID" },
   { no: 70, name: "DB_BLAH_BLAH_ID" },
+]);
+
+/**
+ * ie PATH_TYPE tag
+ *
+ * @generated from enum aircore.media.devinternal.v1.PathTypes
+ */
+export enum PathTypes {
+  /**
+   * @generated from enum value: UNKNOWN_PATH_TYPE = 0;
+   */
+  UNKNOWN_PATH_TYPE = 0,
+
+  /**
+   * @generated from enum value: APP_CHAN = 10;
+   */
+  APP_CHAN = 10,
+
+  /**
+   * @generated from enum value: APP_CHAN_USER = 15;
+   */
+  APP_CHAN_USER = 15,
+
+  /**
+   * @generated from enum value: APP_ROOM_GROUP = 20;
+   */
+  APP_ROOM_GROUP = 20,
+
+  /**
+   * ...
+   *
+   * @generated from enum value: APP_ROOM_GROUP_USER = 25;
+   */
+  APP_ROOM_GROUP_USER = 25,
+}
+// Retrieve enum metadata with: proto3.getEnumType(PathTypes)
+proto3.util.setEnumType(PathTypes, "aircore.media.devinternal.v1.PathTypes", [
+  { no: 0, name: "UNKNOWN_PATH_TYPE" },
+  { no: 10, name: "APP_CHAN" },
+  { no: 15, name: "APP_CHAN_USER" },
+  { no: 20, name: "APP_ROOM_GROUP" },
+  { no: 25, name: "APP_ROOM_GROUP_USER" },
 ]);
 
 /**

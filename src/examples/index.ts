@@ -47,8 +47,11 @@ const main = async() => {
 
         await publisher_.send(new AirCoreFrame({
             sendTo: {
-                kafkaPartitionKey: {
-                    path: [{tag: Tags.APP_ID, val: "123"}]
+                partitioning: {
+                    value: {
+                        path: [{tag: Tags.APP_ID, val: "123"}],
+                    },
+                    case: "kafkaPartitionKey",
                 },
             },
             payload: {

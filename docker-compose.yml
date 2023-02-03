@@ -56,7 +56,7 @@ services:
       test: exit 0
       interval: 10s
     volumes:
-      - '.:/root/src' # will mount local source code into the container
+      - '.:/root/app' # will mount local source code into the container
     depends_on:
       redis:
         condition: service_healthy
