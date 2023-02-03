@@ -38,7 +38,7 @@ const main = async() => {
     }
     strand_reply_to().then(() => { console.log("strand_reply_to exit")});
 
-    await delay(100);
+    await delay(1000);
 
     await publisher_.send(new AirCoreFrame({
         sendTo: {
@@ -51,6 +51,6 @@ const main = async() => {
         },
     }));
 
-    await delay(100);
+    await delay(1000);
 }
 main().then(() => { console.log("exit main"); });
