@@ -16,6 +16,11 @@ export enum Tags {
   UNKNOWN_TAG = 0,
 
   /**
+   * @generated from enum value: PATH_TYPE = 1;
+   */
+  PATH_TYPE = 1,
+
+  /**
    * @generated from enum value: APP_ID = 5;
    */
   APP_ID = 5,
@@ -83,6 +88,7 @@ export enum Tags {
 // Retrieve enum metadata with: proto3.getEnumType(Tags)
 proto3.util.setEnumType(Tags, "aircore.media.devinternal.v1.Tags", [
   { no: 0, name: "UNKNOWN_TAG" },
+  { no: 1, name: "PATH_TYPE" },
   { no: 5, name: "APP_ID" },
   { no: 10, name: "CHANNEL_ID" },
   { no: 15, name: "GROUP_ID" },
@@ -330,16 +336,35 @@ export class SendTo extends Message<SendTo> {
   regionId = "";
 
   /**
+   * availability zone, etc.
+   *
+   * @generated from field: string sub_region_id = 15;
+   */
+  subRegionId = "";
+
+  /**
    * @generated from field: string kafka_topic = 20;
    */
   kafkaTopic = "";
 
   /**
-   * protobuf deterministic-serialized/deserialized
-   *
-   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
+   * @generated from oneof aircore.media.devinternal.v1.SendTo.partitioning
    */
-  kafkaPartitionKey?: KafkaParitionKey;
+  partitioning: {
+    /**
+     * protobuf deterministic-serialized
+     *
+     * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
+     */
+    value: KafkaParitionKey;
+    case: "kafkaPartitionKey";
+  } | {
+    /**
+     * @generated from field: int32 kafka_partition = 35;
+     */
+    value: number;
+    case: "kafkaPartition";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
    * in-mem hash, redis, aurora, etc.
@@ -362,8 +387,10 @@ export class SendTo extends Message<SendTo> {
   static readonly typeName = "aircore.media.devinternal.v1.SendTo";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 15, name: "sub_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
+    { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey, oneof: "partitioning" },
+    { no: 35, name: "kafka_partition", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "partitioning" },
     { no: 40, name: "db_key", kind: "message", T: DbKey },
     { no: 50, name: "sequencing", kind: "message", T: Sequencing },
   ]);

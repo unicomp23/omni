@@ -9,6 +9,8 @@ import "google/protobuf/timestamp.proto";
 enum Tags {
   UNKNOWN_TAG = 0;
 
+  PATH_TYPE = 1;
+
   APP_ID = 5;
   CHANNEL_ID = 10;
   GROUP_ID = 15;
@@ -52,8 +54,14 @@ message DbKey {
 
 message SendTo {
   string region_id = 10;
+  string sub_region_id = 15; // availability zone, etc.
   string kafka_topic = 20;
-  KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized/deserialized
+
+  oneof partitioning {
+    KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized
+    int32 kafka_partition = 35;
+  }
+
   DbKey db_key = 40; // in-mem hash, redis, aurora, etc.
 
   Sequencing sequencing = 50;
