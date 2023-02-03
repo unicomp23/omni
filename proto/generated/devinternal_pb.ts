@@ -270,15 +270,64 @@ export class PathElement extends Message<PathElement> {
 }
 
 /**
+ * @generated from message aircore.media.devinternal.v1.Path
+ */
+export class Path extends Message<Path> {
+  /**
+   * @generated from field: repeated aircore.media.devinternal.v1.PathElement hops = 10;
+   */
+  hops: PathElement[] = [];
+
+  constructor(data?: PartialMessage<Path>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.Path";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "hops", kind: "message", T: PathElement, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Path {
+    return new Path().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Path {
+    return new Path().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Path {
+    return new Path().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Path | PlainMessage<Path> | undefined, b: Path | PlainMessage<Path> | undefined): boolean {
+    return proto3.util.equals(Path, a, b);
+  }
+}
+
+/**
  * @generated from message aircore.media.devinternal.v1.KafkaParitionKey
  */
 export class KafkaParitionKey extends Message<KafkaParitionKey> {
   /**
-   * push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
-   *
-   * @generated from field: repeated aircore.media.devinternal.v1.PathElement path = 10;
+   * @generated from oneof aircore.media.devinternal.v1.KafkaParitionKey.partitioning
    */
-  path: PathElement[] = [];
+  partitioning: {
+    /**
+     * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+     *
+     * @generated from field: aircore.media.devinternal.v1.Path partition_key = 10;
+     */
+    value: Path;
+    case: "partitionKey";
+  } | {
+    /**
+     * @generated from field: int32 partition_integer = 20;
+     */
+    value: number;
+    case: "partitionInteger";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<KafkaParitionKey>) {
     super();
@@ -288,7 +337,8 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "path", kind: "message", T: PathElement, repeated: true },
+    { no: 10, name: "partition_key", kind: "message", T: Path, oneof: "partitioning" },
+    { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "partitioning" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaParitionKey {
@@ -313,9 +363,9 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
  */
 export class DbKey extends Message<DbKey> {
   /**
-   * @generated from field: repeated aircore.media.devinternal.v1.PathElement path = 10;
+   * @generated from field: aircore.media.devinternal.v1.Path path = 10;
    */
-  path: PathElement[] = [];
+  path?: Path;
 
   constructor(data?: PartialMessage<DbKey>) {
     super();
@@ -325,7 +375,7 @@ export class DbKey extends Message<DbKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.DbKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "path", kind: "message", T: PathElement, repeated: true },
+    { no: 10, name: "path", kind: "message", T: Path },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbKey {
@@ -367,23 +417,11 @@ export class SendTo extends Message<SendTo> {
   kafkaTopic = "";
 
   /**
-   * @generated from oneof aircore.media.devinternal.v1.SendTo.partitioning
+   * protobuf deterministic-serialized
+   *
+   * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
    */
-  partitioning: {
-    /**
-     * protobuf deterministic-serialized
-     *
-     * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
-     */
-    value: KafkaParitionKey;
-    case: "kafkaPartitionKey";
-  } | {
-    /**
-     * @generated from field: int32 kafka_partition = 35;
-     */
-    value: number;
-    case: "kafkaPartition";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  kafkaPartitionKey?: KafkaParitionKey;
 
   /**
    * in-mem hash, redis, aurora, etc.
@@ -408,8 +446,7 @@ export class SendTo extends Message<SendTo> {
     { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "sub_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey, oneof: "partitioning" },
-    { no: 35, name: "kafka_partition", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "partitioning" },
+    { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
     { no: 40, name: "db_key", kind: "message", T: DbKey },
     { no: 50, name: "sequencing", kind: "message", T: Sequencing },
   ]);

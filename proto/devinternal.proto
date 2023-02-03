@@ -53,12 +53,19 @@ message PathElement {
   }
 }
 
+message Path {
+  repeated PathElement hops = 10;
+}
+
 message KafkaParitionKey {
-  repeated PathElement path = 10; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
+  oneof partitioning {
+    Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+    int32 partition_integer = 20;
+  }
 }
 
 message DbKey {
-  repeated PathElement path = 10;
+  Path path = 10;
 }
 
 message SendTo {
@@ -66,10 +73,7 @@ message SendTo {
   string sub_region_id = 15; // availability zone, etc.
   string kafka_topic = 20;
 
-  oneof partitioning {
-    KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized
-    int32 kafka_partition = 35;
-  }
+  KafkaParitionKey kafka_partition_key = 30; // protobuf deterministic-serialized
 
   DbKey db_key = 40; // in-mem hash, redis, aurora, etc.
 
