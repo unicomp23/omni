@@ -1,5 +1,5 @@
-import {AirCoreFrame, PathElement, SendTo, Tags} from "../../proto/generated/devinternal_pb";
-import {publisher} from "../kafka/publisher";
+import {AirCoreFrame, PathTypes, SendTo, Tags} from "../../proto/generated/devinternal_pb";
+import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
@@ -45,12 +45,15 @@ const main = async() => {
 
         await delay(1000);
 
-        await publisher_.send(new AirCoreFrame({
+        await publisher_.send(topic_type.worker, new AirCoreFrame({
             sendTo: {
                 kafkaPartitionKey: {
                     partitioning: {
                         value: {
-                            hops: [{tag: Tags.APP_ID, val: {value: 123, case: "integer"}}],
+                            hops: [
+                                {tag: Tags.PATH_TYPE, val: {value: PathTypes.APP, case: "integer"}}, // first hop, always has PATH_TYPE
+                                {tag: Tags.APP_ID, val: {value: 123, case: "integer"}},
+                            ],
                         },
                         case: "partitionKey",
                     }

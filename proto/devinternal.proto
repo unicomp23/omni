@@ -30,6 +30,7 @@ enum Tags {
 enum PathTypes { // ie PATH_TYPE tag
   UNKNOWN_PATH_TYPE = 0;
 
+  APP = 5;
   APP_CHAN = 10;
   APP_CHAN_USER = 15;
   APP_ROOM_GROUP = 20;

@@ -116,6 +116,11 @@ export enum PathTypes {
   UNKNOWN_PATH_TYPE = 0,
 
   /**
+   * @generated from enum value: APP = 5;
+   */
+  APP = 5,
+
+  /**
    * @generated from enum value: APP_CHAN = 10;
    */
   APP_CHAN = 10,
@@ -140,6 +145,7 @@ export enum PathTypes {
 // Retrieve enum metadata with: proto3.getEnumType(PathTypes)
 proto3.util.setEnumType(PathTypes, "aircore.media.devinternal.v1.PathTypes", [
   { no: 0, name: "UNKNOWN_PATH_TYPE" },
+  { no: 5, name: "APP" },
   { no: 10, name: "APP_CHAN" },
   { no: 15, name: "APP_CHAN_USER" },
   { no: 20, name: "APP_ROOM_GROUP" },

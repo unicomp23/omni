@@ -4,8 +4,16 @@ import * as crypto from "crypto";
 import {AirCoreFrame, KafkaParitionKey, Path} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
+export enum topic_type {
+    unknown,
+    worker,
+    reply_to,
+}
+
 export class publisher {
-    private readonly topic: string;
+    private readonly topic_worker: string;
+    private readonly topic_reply_to: string;
+
     private constructor(
         private readonly config_: config,
         private readonly kafka = new Kafka({
@@ -17,12 +25,24 @@ export class publisher {
             createPartitioner: Partitioners.DefaultPartitioner,
         })
     ){
-        this.topic = config_.get_worker_topic();
+        this.topic_worker = config_.get_worker_topic();
+        this.topic_reply_to = config_.get_reply_to_topic();
     }
 
     private connected = false;
 
-    public async send(frame: AirCoreFrame) {
+    public get_topic(topic_type_: topic_type) {
+        switch (topic_type_) {
+            case topic_type.reply_to:
+                return this.topic_reply_to;
+            case topic_type.worker:
+                return this.topic_worker;
+            default:
+                throw new Error(`unhandled topic_type: ${topic_type_}`);
+        }
+    }
+
+    public async send(topic_type_: topic_type, frame: AirCoreFrame) {
         console.log("send");
         if(!this.connected) {
             await this.producer.connect();
@@ -32,9 +52,10 @@ export class publisher {
         if(frame.sendTo?.kafkaPartitionKey?.partitioning.case == "partitionKey") {
             const partition_key = frame.sendTo?.kafkaPartitionKey.partitioning.value?.toBinary();
             if(partition_key) {
-                console.log("producing:", this.topic);
+                console.log("producing:", this.topic_worker);
+                const topic = this.get_topic(topic_type_);
                 await this.producer.send({
-                    topic: this.topic,
+                    topic: topic,
                     messages: [{
                         key: Buffer.from(partition_key),
                         value: Buffer.from(frame.toBinary())
