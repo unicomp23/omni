@@ -4,7 +4,6 @@ import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
-import {Disposable} from "@esfx/disposable";
 
 console.log("running")
 

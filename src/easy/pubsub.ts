@@ -1,7 +1,6 @@
 import {config} from "../config";
 import {publisher} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
-import {worker_subscriber} from "../kafka/worker_subscriber";
 import {AsyncQueue} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 

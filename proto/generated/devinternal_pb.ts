@@ -3,8 +3,15 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Any, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
+import type {
+  BinaryReadOptions,
+  FieldList,
+  JsonReadOptions,
+  JsonValue,
+  PartialMessage,
+  PlainMessage
+} from "@bufbuild/protobuf";
+import {Any, Message, proto3, protoInt64, Timestamp} from "@bufbuild/protobuf";
 
 /**
  * @generated from enum aircore.media.devinternal.v1.Tags
