@@ -1,9 +1,9 @@
-import {config} from "./config";
+import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
-import {runner} from "./runner";
+import {runner} from "../common/runner";
 import {AsyncQueue} from "@esfx/async";
-import {AirCoreFrame} from "../proto/generated/devinternal_pb";
+import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export class reply_to_subscriber {

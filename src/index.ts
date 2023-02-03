@@ -1,8 +1,8 @@
 import {AirCoreFrame, SendTo, Tags} from "../proto/generated/devinternal_pb";
-import {publisher} from "./publisher";
-import {worker_subscriber} from "./worker_subscriber";
+import {publisher} from "./kafka/publisher";
+import {worker_subscriber} from "./kafka/worker_subscriber";
 import {config} from "./config";
-import {reply_to_subscriber} from "./reply_to_subscriber";
+import {reply_to_subscriber} from "./kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
 import {Disposable} from "@esfx/disposable";
 

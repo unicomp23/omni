@@ -1,8 +1,8 @@
-import {config} from "./config";
+import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
-import {runner} from "./runner";
-import {AirCoreFrame} from "../proto/generated/devinternal_pb";
+import {runner} from "../common/runner";
+import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {AsyncQueue} from "@esfx/async";
 import {Disposable} from "@esfx/disposable";
 

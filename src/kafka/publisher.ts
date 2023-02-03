@@ -1,8 +1,8 @@
 import {Kafka, Partitioners} from "kafkajs";
-import {config} from "./config";
+import {config} from "../config";
 import * as crypto from "crypto";
-import {runner} from "./runner";
-import {AirCoreFrame} from "../proto/generated/devinternal_pb";
+import {runner} from "../common/runner";
+import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export class publisher {
