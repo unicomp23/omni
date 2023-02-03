@@ -207,45 +207,65 @@ proto3.util.setEnumType(PayloadType, "aircore.media.devinternal.v1.PayloadType",
 ]);
 
 /**
- * @generated from message aircore.media.devinternal.v1.KafkaPartitionPathElement
+ * @generated from message aircore.media.devinternal.v1.PathElement
  */
-export class KafkaPartitionPathElement extends Message<KafkaPartitionPathElement> {
+export class PathElement extends Message<PathElement> {
   /**
    * @generated from field: aircore.media.devinternal.v1.Tags tag = 10;
    */
   tag = Tags.UNKNOWN_TAG;
 
   /**
-   * @generated from field: string val = 20;
+   * @generated from oneof aircore.media.devinternal.v1.PathElement.val
    */
-  val = "";
+  val: {
+    /**
+     * @generated from field: string text = 20;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: int32 integer = 30;
+     */
+    value: number;
+    case: "integer";
+  } | {
+    /**
+     * @generated from field: float fraction = 40;
+     */
+    value: number;
+    case: "fraction";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
-  constructor(data?: PartialMessage<KafkaPartitionPathElement>) {
+  constructor(data?: PartialMessage<PathElement>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime = proto3;
-  static readonly typeName = "aircore.media.devinternal.v1.KafkaPartitionPathElement";
+  static readonly typeName = "aircore.media.devinternal.v1.PathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 20, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "val" },
+    { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "val" },
+    { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */, oneof: "val" },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaPartitionPathElement {
-    return new KafkaPartitionPathElement().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PathElement {
+    return new PathElement().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KafkaPartitionPathElement {
-    return new KafkaPartitionPathElement().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PathElement {
+    return new PathElement().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KafkaPartitionPathElement {
-    return new KafkaPartitionPathElement().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PathElement {
+    return new PathElement().fromJsonString(jsonString, options);
   }
 
-  static equals(a: KafkaPartitionPathElement | PlainMessage<KafkaPartitionPathElement> | undefined, b: KafkaPartitionPathElement | PlainMessage<KafkaPartitionPathElement> | undefined): boolean {
-    return proto3.util.equals(KafkaPartitionPathElement, a, b);
+  static equals(a: PathElement | PlainMessage<PathElement> | undefined, b: PathElement | PlainMessage<PathElement> | undefined): boolean {
+    return proto3.util.equals(PathElement, a, b);
   }
 }
 
@@ -256,9 +276,9 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   /**
    * push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
    *
-   * @generated from field: repeated aircore.media.devinternal.v1.KafkaPartitionPathElement path = 10;
+   * @generated from field: repeated aircore.media.devinternal.v1.PathElement path = 10;
    */
-  path: KafkaPartitionPathElement[] = [];
+  path: PathElement[] = [];
 
   constructor(data?: PartialMessage<KafkaParitionKey>) {
     super();
@@ -268,7 +288,7 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "path", kind: "message", T: KafkaPartitionPathElement, repeated: true },
+    { no: 10, name: "path", kind: "message", T: PathElement, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaParitionKey {
@@ -289,56 +309,13 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
 }
 
 /**
- * @generated from message aircore.media.devinternal.v1.DbPathElement
- */
-export class DbPathElement extends Message<DbPathElement> {
-  /**
-   * @generated from field: aircore.media.devinternal.v1.Tags tag = 10;
-   */
-  tag = Tags.UNKNOWN_TAG;
-
-  /**
-   * @generated from field: string val = 20;
-   */
-  val = "";
-
-  constructor(data?: PartialMessage<DbPathElement>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime = proto3;
-  static readonly typeName = "aircore.media.devinternal.v1.DbPathElement";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 20, name: "val", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbPathElement {
-    return new DbPathElement().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DbPathElement {
-    return new DbPathElement().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DbPathElement {
-    return new DbPathElement().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: DbPathElement | PlainMessage<DbPathElement> | undefined, b: DbPathElement | PlainMessage<DbPathElement> | undefined): boolean {
-    return proto3.util.equals(DbPathElement, a, b);
-  }
-}
-
-/**
  * @generated from message aircore.media.devinternal.v1.DbKey
  */
 export class DbKey extends Message<DbKey> {
   /**
-   * @generated from field: repeated aircore.media.devinternal.v1.DbPathElement path = 10;
+   * @generated from field: repeated aircore.media.devinternal.v1.PathElement path = 10;
    */
-  path: DbPathElement[] = [];
+  path: PathElement[] = [];
 
   constructor(data?: PartialMessage<DbKey>) {
     super();
@@ -348,7 +325,7 @@ export class DbKey extends Message<DbKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.DbKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "path", kind: "message", T: DbPathElement, repeated: true },
+    { no: 10, name: "path", kind: "message", T: PathElement, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbKey {

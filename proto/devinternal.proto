@@ -44,22 +44,21 @@ enum Commands {
   SUBSCRIBE = 30;
 }
 
-message KafkaPartitionPathElement {
+message PathElement {
   Tags tag = 10;
-  string val = 20;
+  oneof val {
+    string text = 20;
+    int32 integer = 30;
+    float fraction = 40;
+  }
 }
 
 message KafkaParitionKey {
-  repeated KafkaPartitionPathElement path = 10; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
-}
-
-message DbPathElement {
-  Tags tag = 10;
-  string val = 20;
+  repeated PathElement path = 10; // push/pop, could it be used as a distributed call stack?  complex operations across partitions?  ie debouncing
 }
 
 message DbKey {
-  repeated DbPathElement path = 10;
+  repeated PathElement path = 10;
 }
 
 message SendTo {
