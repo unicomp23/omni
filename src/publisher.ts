@@ -3,6 +3,7 @@ import {config} from "./config";
 import * as crypto from "crypto";
 import {runner} from "./runner";
 import {AirCoreFrame} from "../proto/generated/devinternal_pb";
+import {Disposable} from "@esfx/disposable";
 
 export class publisher {
     private readonly topic: string;
@@ -44,6 +45,14 @@ export class publisher {
             console.log("producer.send, missing partition key");
         }
     }
+
+    [Disposable.dispose]() {
+    }
+
+    public close() {
+        this.producer.disconnect();
+    }
+
     public static create(config_: config) {
         return new publisher(config_);
     }

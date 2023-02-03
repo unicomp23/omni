@@ -4,6 +4,7 @@ import crypto from "crypto";
 import {runner} from "./runner";
 import {AirCoreFrame} from "../proto/generated/devinternal_pb";
 import {AsyncQueue} from "@esfx/async";
+import {Disposable} from "@esfx/disposable";
 
 export class worker_subscriber {
     private constructor(
@@ -36,6 +37,15 @@ export class worker_subscriber {
         })
         return true;
     });
+
+    [Disposable.dispose]() {
+        this.close();
+    }
+
+    public close() {
+        this.consumer.stop();
+        this.consumer.disconnect();
+    }
 
     public static create(config_: config) {
         return new worker_subscriber(config_);

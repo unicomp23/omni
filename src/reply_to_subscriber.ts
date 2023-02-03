@@ -4,6 +4,7 @@ import crypto from "crypto";
 import {runner} from "./runner";
 import {AsyncQueue} from "@esfx/async";
 import {AirCoreFrame} from "../proto/generated/devinternal_pb";
+import {Disposable} from "@esfx/disposable";
 
 export class reply_to_subscriber {
     private constructor(
@@ -51,6 +52,15 @@ export class reply_to_subscriber {
         })
         return true;
     });
+
+    [Disposable.dispose]() {
+        this.close();
+    }
+
+    public close() {
+        this.consumer.stop();
+        this.consumer.disconnect();
+    }
 
     public static create(config_: config) {
         return new reply_to_subscriber(config_);
