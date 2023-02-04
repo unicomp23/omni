@@ -27,6 +27,13 @@ const main = async() => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
                 console.log("worker frame:", frame.toJson())
+                const partition = reply_to_subscriber_.get_next_reply_partition();
+                try {
+                    frame.sendTo!.kafkaPartitionKey!.partitioning = {case: "partitionInteger", value: partition};
+                    await publisher_.send(topic_type.reply_to, frame);
+                } catch(e) {
+                    console.error(`send.reply_to: ${partition}`, e);
+                }
             }
         }
         strand_worker().then(() => {

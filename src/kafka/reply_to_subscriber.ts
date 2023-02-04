@@ -23,12 +23,12 @@ export class reply_to_subscriber {
     public readonly frames = new AsyncQueue<AirCoreFrame>();
 
     private readonly partitions = new Array<number>();
-    private last_reply_partition = 0;
+    private last_reply_partition_index = 0;
     public get_next_reply_partition() {
-        this.last_reply_partition++;
-        const index = this.last_reply_partition % this.partitions.length;
-        this.last_reply_partition = index;
-        return index;
+        this.last_reply_partition_index++;
+        const index = this.last_reply_partition_index % this.partitions.length;
+        this.last_reply_partition_index = index;
+        return this.partitions[index];
     }
 
     private readonly runner_ = new runner(async() => {
