@@ -36,6 +36,7 @@ export class reply_to_subscriber {
         this.consumer.on("consumer.group_join", (event) => {
             console.log("consumer.group_join", event);
             const partitions = event.payload.memberAssignment[this.topic];
+            console.log("consumer.group_join.partitions", partitions);
             this.partitions.splice(0);
             this.partitions.concat(partitions);
         });

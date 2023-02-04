@@ -1,4 +1,4 @@
-import {Kafka, Partitioners} from "kafkajs";
+import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame, KafkaParitionKey, Path} from "../../proto/generated/devinternal_pb";
@@ -49,22 +49,36 @@ export class publisher {
             console.log("send.connect")
             this.connected = true;
         }
-        if(frame.sendTo?.kafkaPartitionKey?.partitioning.case == "partitionKey") {
-            const partition_key = frame.sendTo?.kafkaPartitionKey.partitioning.value?.toBinary();
-            if(partition_key) {
-                console.log("producing:", this.topic_worker);
-                const topic = this.get_topic(topic_type_);
-                await this.producer.send({
-                    topic: topic,
-                    messages: [{
-                        key: Buffer.from(partition_key),
-                        value: Buffer.from(frame.toBinary())
-                    }]
-                });
-                console.log("send.produce")
+        const partitioning = frame.sendTo?.kafkaPartitionKey?.partitioning;
+        if(partitioning) {
+            const topic = this.get_topic(topic_type_);
+            const record = {
+                topic: topic,
+                messages: [{
+                    value: Buffer.from(frame.toBinary())
+                }]
+            } as ProducerRecord;
+            console.log("producing:", this.topic_worker);
+            switch (topic_type_) {
+                case topic_type.worker:
+                    if(partitioning.case == "partitionKey")
+                        record.messages[0].key = Buffer.from(partitioning.value.toBinary());
+                    else
+                        throw new Error(`missing ${partitioning.case} value`);
+                    break;
+                case topic_type.reply_to:
+                    if(partitioning.case == "partitionInteger")
+                        record.messages[0].partition = partitioning.value;
+                    else
+                        throw new Error(`missing ${partitioning.case} value`);
+                    break;
+                default:
+                    throw new Error(`unhandled: ${topic_type_}`);
             }
+            await this.producer.send(record);
+            console.log("send.produce")
         } else {
-            console.log("producer.send, missing partition key");
+            console.log("producer.send, missing partitioning info");
         }
     }
 
