@@ -1,4 +1,4 @@
-import {AirCoreFrame, PathTypes, SendTo, Tags} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Coordinates, DbKey, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
 import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
@@ -8,13 +8,15 @@ import {delay} from "@esfx/async";
 console.log("running")
 
 const coord = new AirCoreFrame({
-    sendTo: new SendTo({planetKey: {kafkaTopic: "topic"}})
+    sendTo: new Coordinates({dbKey: {kafkaTopic: "topic"}})
 });
 
 const bytes = coord.toBinary();
 const coord_2 = AirCoreFrame.fromBinary(bytes);
 
-console.log(`out: ${coord_2.sendTo?.planetKey?.kafkaTopic}`);
+const kafkaTopic = coord_2.sendTo?.dbKey?.kafkaTopic;
+if(kafkaTopic) console.log(`out: ${kafkaTopic}`);
+
 
 const main = async() => {
     const config_ = config.create();
@@ -31,7 +33,9 @@ const main = async() => {
                 console.log("worker frame:", frame.toJson())
                 const partition = reply_to_subscriber_.get_next_reply_partition();
                 try {
-                    frame.sendTo!.kafkaPartitionKey!.partitioning = {case: "partitionInteger", value: partition};
+                    const kafkaPartitionKey = frame.sendTo?.dbKey?.kafkaPartitionKey;
+                    if(kafkaPartitionKey) kafkaPartitionKey.partitioning = {case: "partitionInteger", value: partition};
+                    else throw new Error(`missing: frame.sendTo.dbKey.kafkaPartitionKey`);
                     await publisher_.send(topic_type.reply_to, frame);
                 } catch(e) {
                     console.error(`send.reply_to: ${partition}`, e);
@@ -45,7 +49,7 @@ const main = async() => {
         const strand_reply_to = async () => {
             for (; ;) {
                 const frame = await reply_to_subscriber_.frames.get();
-                console.log(`reply_to frame: ${performance.now() - start_time} ms,`, frame.toJson())
+                console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJson())
             }
         }
         strand_reply_to().then(() => {
@@ -57,17 +61,19 @@ const main = async() => {
         start_time = performance.now();
         await publisher_.send(topic_type.worker, new AirCoreFrame({
             sendTo: {
-                kafkaPartitionKey: {
-                    partitioning: {
-                        value: {
-                            hops: [
-                                {tag: Tags.PATH_TYPE, val: {value: PathTypes.APP, case: "integer"}}, // first hop, always has PATH_TYPE
-                                {tag: Tags.APP_ID, val: {value: 123, case: "integer"}},
-                            ],
-                        },
-                        case: "partitionKey",
-                    }
-                },
+                dbKey: {
+                    kafkaPartitionKey: {
+                        partitioning: {
+                            value: {
+                                hops: [
+                                    {tag: Tags.PATH_TYPE, val: {value: PathTypes.APP, case: "integer"}}, // first hop, always has PATH_TYPE
+                                    {tag: Tags.APP_ID, val: {value: 123, case: "integer"}},
+                                ],
+                            },
+                            case: "partitionKey",
+                        }
+                    },
+                }
             },
             payload: {
                 text: "some text"

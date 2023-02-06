@@ -9,22 +9,26 @@ import "google/protobuf/timestamp.proto";
 enum Tags {
   UNKNOWN_TAG = 0;
 
-  PATH_TYPE = 1;
+  PATH_TYPE = 1; // PathTypes
 
   APP_ID = 5;
-  CHANNEL_ID = 10;
-  GROUP_ID = 15;
-  SUB_GROUP_ID = 20;
-  ROOM_ID = 25;
-  USER_ID = 30;
-  SESSION_ID = 35;
-  BLAH_BLAH_ID = 40;
+  APP_CHANNEL_ID = 10;
+  APP_GROUP_ID = 15;
+  APP_SUB_GROUP_ID = 20;
+  APP_ROOM_ID = 25;
+  APP_USER_ID = 30;
+  APP_SESSION_ID = 35;
+  APP_BLAH_BLAH_ID = 40;
 
   DB_NAME = 50;
   DB_TABLE = 55;
   DB_ROW_ID = 60;
   DB_COLUMN_ID = 65;
   DB_BLAH_BLAH_ID = 70;
+
+  PK_PLANET = 100;
+  PK_REGION = 110;
+  PK_SUB_REGION = 120;
 }
 
 enum PathTypes { // ie PATH_TYPE tag
@@ -36,6 +40,10 @@ enum PathTypes { // ie PATH_TYPE tag
   APP_ROOM_GROUP = 20;
   APP_ROOM_GROUP_USER = 25;
   // ...
+
+  DB_NAME_TABLE_ROW_COLUMN = 50;
+
+  PK_PLANET_REGION_SUBREGION = 100;
 }
 
 enum Commands {
@@ -66,31 +74,22 @@ message KafkaParitionKey {
 }
 
 message DbKey {
-  Path path = 10;
+  string kafka_topic = 20;
+  KafkaParitionKey kafka_partition_key = 30;
+
+  Path path = 50;
 }
 
 message PlanetKey {
-  string planet = 5; // earth, moon, mars, etc.
-  string region_id = 10;
-  string sub_region_id = 15; // availability zone, etc.
-  string kafka_topic = 20;
+  Path path = 10;
 }
 
-message SendTo {
+message Coordinates {
   PlanetKey planet_key = 10;
-
-  KafkaParitionKey kafka_partition_key = 30;
 
   DbKey db_key = 40; // in-mem hash, redis, aurora, etc.
 
-  Sequencing sequencing = 50;
-}
-
-message ReplyTo {
-  string region_id = 10;
-  string topic = 20;
-  int32 partition = 30;  // request/response and pub/sub between kafka partitions
-  string correlation_id = 40;
+  string correlation_id = 50;
 }
 
 message Sequencing {
@@ -116,11 +115,13 @@ message AirCoreFrame {
   Commands command = 10;
 
   // global addressing
-  SendTo send_to = 20;
+  Coordinates send_to = 20;
 
   // correlation of response(s) 1:1, 1:n
-  ReplyTo reply_to = 30;
+  Coordinates reply_to = 30;
+
+  Sequencing sequencing = 40;
 
   // the value, scalar, blob, etc.
-  Payload payload = 40;
+  Payload payload = 50;
 }

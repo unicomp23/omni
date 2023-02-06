@@ -1,7 +1,7 @@
 import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
-import {AirCoreFrame, KafkaParitionKey, Path, PlanetKey} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, DbKey, KafkaParitionKey, Path, PlanetKey} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export enum topic_type {
@@ -52,12 +52,9 @@ export class publisher {
         const send_to = frame.sendTo;
         const topic = this.get_topic(topic_type_);
         if(send_to) {
-            if (!send_to.planetKey) {
-                send_to.planetKey = new PlanetKey({
-                    kafkaTopic: topic
-                });
-            }
-            const partitioning = send_to.kafkaPartitionKey?.partitioning;
+            if(!send_to.dbKey) send_to.dbKey = new DbKey();
+            send_to.dbKey.kafkaTopic = topic;
+            const partitioning = send_to.dbKey.kafkaPartitionKey?.partitioning;
             if(partitioning) {
                 const record = {
                     topic: topic,
