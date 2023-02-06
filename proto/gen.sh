@@ -1,1 +1,1 @@
-buf generate devinternal.proto
+npx buf generate devinternal.proto
