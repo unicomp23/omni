@@ -2,7 +2,7 @@ import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue, delay} from "@esfx/async";
-import {AirCoreFrame, ReplyTo, SendTo, Sequencing} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Commands, ReplyTo, SendTo, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
 import {runner} from "../common/runner";
 import {HashMap} from "@esfx/collections";
@@ -57,6 +57,7 @@ export class pubsub {
     }
     public async publish(frame: AirCoreFrame) {
         await this.reply_to_flushed();
+
         if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
         if(!frame.sendTo?.dbKey) throw new Error("missing db key");
         if(!frame.sendTo?.kafkaPartitionKey) throw new Error("missing kafka partition key");
@@ -65,16 +66,27 @@ export class pubsub {
         if(!frame.sendTo.sequencing) frame.sendTo.sequencing = new Sequencing()
         frame.sendTo.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
         frame.sendTo.sequencing.sequenceNumber = this.next_seqno;
+
         await this.publisher_.send(topic_type.worker, frame);
     }
     private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
-    public async subscribe(reply_to: ReplyTo) {
+    public async subscribe(send_to: SendTo) {
         await this.reply_to_flushed();
-        // todo
+
         const stream_id = crypto.randomUUID();
+        await this.publisher_.send(topic_type.worker, new AirCoreFrame({
+            command: Commands.SUBSCRIBE,
+            replyTo: {
+                correlationId: stream_id,
+
+            }
+        }));
         const stream = new AsyncQueue<AirCoreFrame>();
         this.subscriptions.set(stream_id, stream);
-        return stream_id;
+        return {
+            stream_id,
+            stream
+        };
     }
     private reply_to_flushed_ = false;
     public async reply_to_flushed() {

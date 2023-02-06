@@ -1,7 +1,7 @@
 import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
-import {AirCoreFrame, KafkaParitionKey, Path} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, KafkaParitionKey, Path, PlanetKey} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export enum topic_type {
@@ -49,36 +49,46 @@ export class publisher {
             console.log("send.connect")
             this.connected = true;
         }
-        const partitioning = frame.sendTo?.kafkaPartitionKey?.partitioning;
-        if(partitioning) {
-            const topic = this.get_topic(topic_type_);
-            const record = {
-                topic: topic,
-                messages: [{
-                    value: Buffer.from(frame.toBinary())
-                }]
-            } as ProducerRecord;
-            console.log("producing:", this.topic_worker);
-            switch (topic_type_) {
-                case topic_type.worker:
-                    if(partitioning.case == "partitionKey")
-                        record.messages[0].key = Buffer.from(partitioning.value.toBinary());
-                    else
-                        throw new Error(`missing ${partitioning.case} value`);
-                    break;
-                case topic_type.reply_to:
-                    if(partitioning.case == "partitionInteger")
-                        record.messages[0].partition = partitioning.value;
-                    else
-                        throw new Error(`missing ${partitioning.case} value`);
-                    break;
-                default:
-                    throw new Error(`unhandled: ${topic_type_}`);
+        const send_to = frame.sendTo;
+        const topic = this.get_topic(topic_type_);
+        if(send_to) {
+            if (!send_to.planetKey) {
+                send_to.planetKey = new PlanetKey({
+                    kafkaTopic: topic
+                });
             }
-            await this.producer.send(record);
-            console.log("send.produce")
+            const partitioning = send_to.kafkaPartitionKey?.partitioning;
+            if(partitioning) {
+                const record = {
+                    topic: topic,
+                    messages: [{
+                        value: Buffer.from(frame.toBinary())
+                    }]
+                } as ProducerRecord;
+                console.log("producing:", this.topic_worker);
+                switch (topic_type_) {
+                    case topic_type.worker:
+                        if (partitioning.case == "partitionKey")
+                            record.messages[0].key = Buffer.from(partitioning.value.toBinary());
+                        else
+                            throw new Error(`missing ${partitioning.case} value`);
+                        break;
+                    case topic_type.reply_to:
+                        if (partitioning.case == "partitionInteger")
+                            record.messages[0].partition = partitioning.value;
+                        else
+                            throw new Error(`missing ${partitioning.case} value`);
+                        break;
+                    default:
+                        throw new Error(`unhandled: ${topic_type_}`);
+                }
+                await this.producer.send(record);
+                console.log("send.produce")
+            } else {
+                console.log("producer.send, missing partitioning info");
+            }
         } else {
-            console.log("producer.send, missing partitioning info");
+            console.log("producer.send, missing send_to info");
         }
     }
 
