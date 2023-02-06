@@ -70,6 +70,7 @@ message DbKey {
 }
 
 message PlanetKey {
+  string planet = 5; // earth, moon, mars, etc.
   string region_id = 10;
   string sub_region_id = 15; // availability zone, etc.
   string kafka_topic = 20;

@@ -406,6 +406,13 @@ export class DbKey extends Message<DbKey> {
  */
 export class PlanetKey extends Message<PlanetKey> {
   /**
+   * earth, moon, mars, etc.
+   *
+   * @generated from field: string planet = 5;
+   */
+  planet = "";
+
+  /**
    * @generated from field: string region_id = 10;
    */
   regionId = "";
@@ -430,6 +437,7 @@ export class PlanetKey extends Message<PlanetKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.PlanetKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 5, name: "planet", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 15, name: "sub_region_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },

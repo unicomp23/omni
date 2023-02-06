@@ -57,6 +57,10 @@ export class pubsub {
     }
     public async publish(frame: AirCoreFrame) {
         await this.reply_to_flushed();
+        if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
+        if(!frame.sendTo?.dbKey) throw new Error("missing db key");
+        if(!frame.sendTo?.kafkaPartitionKey) throw new Error("missing kafka partition key");
+
         if(!frame.sendTo) frame.sendTo = new SendTo();
         if(!frame.sendTo.sequencing) frame.sendTo.sequencing = new Sequencing()
         frame.sendTo.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
