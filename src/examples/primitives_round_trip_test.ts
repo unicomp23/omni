@@ -1,4 +1,4 @@
-import {AirCoreFrame, Coordinates, DbKey, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Coordinates, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
 import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";

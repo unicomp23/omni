@@ -2,7 +2,7 @@ import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue, delay} from "@esfx/async";
-import {AirCoreFrame, Commands, ReplyTo, SendTo, Sequencing} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Commands, Coordinates, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
 import {runner} from "../common/runner";
 import {HashMap} from "@esfx/collections";
@@ -41,12 +41,14 @@ export class pubsub {
         const client = new pubsub(config_);
         await client.publisher_.send(topic_type.reply_to, new AirCoreFrame({
             sendTo: {
-                kafkaPartitionKey: {
-                    partitioning: {
-                        case: "partitionInteger",
-                        value: client.reply_to_subscriber_.get_next_reply_partition(),
-                    }
-                },
+                dbKey: {
+                    kafkaPartitionKey: {
+                        partitioning: {
+                            case: "partitionInteger",
+                            value: client.reply_to_subscriber_.get_next_reply_partition(),
+                        }
+                    },
+                }
             },
             replyTo: {
                 correlationId: client.warmup_correlation_id,
@@ -60,17 +62,17 @@ export class pubsub {
 
         if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
         if(!frame.sendTo?.dbKey) throw new Error("missing db key");
-        if(!frame.sendTo?.kafkaPartitionKey) throw new Error("missing kafka partition key");
+        if(!frame.sendTo?.dbKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
-        if(!frame.sendTo) frame.sendTo = new SendTo();
-        if(!frame.sendTo.sequencing) frame.sendTo.sequencing = new Sequencing()
-        frame.sendTo.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
-        frame.sendTo.sequencing.sequenceNumber = this.next_seqno;
+        if(!frame.sendTo) frame.sendTo = new Coordinates();
+        if(!frame.sequencing) frame.sequencing = new Sequencing()
+        frame.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
+        frame.sequencing.sequenceNumber = this.next_seqno;
 
         await this.publisher_.send(topic_type.worker, frame);
     }
     private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
-    public async subscribe(send_to: SendTo) {
+    public async subscribe(send_to: Coordinates) {
         await this.reply_to_flushed();
 
         const stream_id = crypto.randomUUID();

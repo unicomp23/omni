@@ -1,7 +1,7 @@
 import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
-import {AirCoreFrame, DbKey, KafkaParitionKey, Path, PlanetKey} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, DbKey} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export enum topic_type {
