@@ -22,6 +22,8 @@ const main = async() => {
     const worker_subscriber_ = worker_subscriber.create(config_);
     const reply_to_subscriber_ = reply_to_subscriber.create(config_);
 
+    let start_time = performance.now();
+
     try {
         const strand_worker = async () => {
             for (; ;) {
@@ -43,7 +45,7 @@ const main = async() => {
         const strand_reply_to = async () => {
             for (; ;) {
                 const frame = await reply_to_subscriber_.frames.get();
-                console.log("reply_to frame:", frame.toJson())
+                console.log(`reply_to frame: ${performance.now() - start_time} ms,`, frame.toJson())
             }
         }
         strand_reply_to().then(() => {
@@ -52,6 +54,7 @@ const main = async() => {
 
         await delay(1000);
 
+        start_time = performance.now();
         await publisher_.send(topic_type.worker, new AirCoreFrame({
             sendTo: {
                 kafkaPartitionKey: {
