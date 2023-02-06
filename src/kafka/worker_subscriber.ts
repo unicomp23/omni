@@ -39,10 +39,6 @@ export class worker_subscriber {
     });
 
     [Disposable.dispose]() {
-        this.close();
-    }
-
-    public close() {
         this.consumer.stop();
         this.consumer.disconnect();
     }

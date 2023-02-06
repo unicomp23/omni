@@ -90,9 +90,6 @@ export class publisher {
     }
 
     [Disposable.dispose]() {
-    }
-
-    public close() {
         this.producer.disconnect();
     }
 

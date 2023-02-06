@@ -4,6 +4,7 @@ import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
+import {DisposableStack} from "@esfx/disposable";
 
 console.log("running")
 
@@ -19,14 +20,21 @@ if(kafkaTopic) console.log(`out: ${kafkaTopic}`);
 
 
 const main = async() => {
-    const config_ = config.create();
-    const publisher_ = publisher.create(config_);
-    const worker_subscriber_ = worker_subscriber.create(config_);
-    const reply_to_subscriber_ = reply_to_subscriber.create(config_);
-
-    let start_time = performance.now();
-
+    const stack = new DisposableStack();
     try {
+        const config_ = config.create();
+
+        const publisher_ = publisher.create(config_);
+        stack.use(publisher_);
+
+        const worker_subscriber_ = worker_subscriber.create(config_);
+        stack.use(worker_subscriber_);
+
+        const reply_to_subscriber_ = reply_to_subscriber.create(config_);
+        stack.use(reply_to_subscriber_);
+
+        let start_time = performance.now();
+
         const strand_worker = async () => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
@@ -34,10 +42,13 @@ const main = async() => {
                 const partition = reply_to_subscriber_.get_next_reply_partition();
                 try {
                     const kafkaPartitionKey = frame.sendTo?.dbKey?.kafkaPartitionKey;
-                    if(kafkaPartitionKey) kafkaPartitionKey.partitioning = {case: "partitionInteger", value: partition};
+                    if (kafkaPartitionKey) kafkaPartitionKey.partitioning = {
+                        case: "partitionInteger",
+                        value: partition
+                    };
                     else throw new Error(`missing: frame.sendTo.dbKey.kafkaPartitionKey`);
                     await publisher_.send(topic_type.reply_to, frame);
-                } catch(e) {
+                } catch (e) {
                     console.error(`send.reply_to: ${partition}`, e);
                 }
             }
@@ -85,9 +96,7 @@ const main = async() => {
 
         await delay(1000);
     } finally {
-        try { publisher_.close(); } catch {}
-        try { worker_subscriber_.close(); } catch {}
-        try { reply_to_subscriber_.close(); } catch {}
+        stack.dispose();
     }
 }
 main().then(() => { console.log("exit main"); });
