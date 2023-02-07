@@ -56,7 +56,9 @@ export class publisher {
                 value: Buffer.from(frame.toBinary())
             }]
         } as ProducerRecord;
-        console.log("producing:", this.topic_worker);
+        if(frame.sendTo?.dbKey) frame.sendTo.dbKey.kafkaTopic = topic;
+        if(frame.replyTo?.dbKey) frame.replyTo.dbKey.kafkaTopic = topic;
+        console.log("producing:", frame.toJson());
         switch (topic_type_) {
             case topic_type.worker: {
                 const partitioning = frame.sendTo?.dbKey?.kafkaPartitionKey?.partitioning;

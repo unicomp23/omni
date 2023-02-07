@@ -69,9 +69,19 @@ const main = async() => {
                                 ],
                             },
                             case: "partitionKey",
-                        }
+                        },
                     },
-                }
+                },
+            },
+            replyTo: {
+              dbKey: {
+                  kafkaPartitionKey: {
+                      partitioning: {
+                          case: "partitionInteger",
+                          value: reply_to_subscriber_.get_next_reply_partition(),
+                      },
+                  },
+              },
             },
             payload: {
                 x: {
