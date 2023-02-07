@@ -53,11 +53,9 @@ export class publisher {
         const record = {
             topic: topic,
             messages: [{
-                value: Buffer.from(frame.toBinary())
+                value: Buffer.from("")
             }]
         } as ProducerRecord;
-        if(frame.sendTo?.dbKey) frame.sendTo.dbKey.kafkaTopic = topic;
-        if(frame.replyTo?.dbKey) frame.replyTo.dbKey.kafkaTopic = topic;
         console.log("producing:", frame.toJsonString({prettySpaces: 2}));
         switch (topic_type_) {
             case topic_type.worker: {
@@ -65,18 +63,20 @@ export class publisher {
                     record.messages[0].key = Buffer.from(frame.sendTo?.dbKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
                     throw new Error(`missing partitionKey`);
+                if(frame.sendTo?.dbKey) frame.sendTo.dbKey.kafkaTopic = topic;
                 break;
             }
             case topic_type.reply_to: {
-                if (frame.sendTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionInteger")
-                    record.messages[0].partition = frame.sendTo?.dbKey?.kafkaPartitionKey?.x.value;
-                else
-                    record.messages[0].partition = 0; // protobuf serialize drops zero val
+                if (frame.replyTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionInteger")
+                    record.messages[0].partition = frame.replyTo?.dbKey?.kafkaPartitionKey?.x.value | 0; // protobuf serialize drops zero val's
+                else throw new Error(`missing partitionKey`);
+                if(frame.replyTo?.dbKey) frame.replyTo.dbKey.kafkaTopic = topic;
                 break;
             }
             default:
                 throw new Error(`unhandled: ${topic_type_}`);
         }
+        record.messages[0].value = Buffer.from(frame.toBinary());
         await this.producer.send(record);
         console.log("send.produce")
     }
