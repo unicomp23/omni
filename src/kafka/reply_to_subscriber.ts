@@ -31,7 +31,7 @@ export class reply_to_subscriber {
         return this.partitions[index];
     }
 
-    private readonly runner_ = new runner(async() => {
+    private readonly runner_ = runner.create(async() => {
         await this.consumer.connect()
         this.consumer.on("consumer.group_join", (event) => {
             console.log("consumer.group_join", event);

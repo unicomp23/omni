@@ -3,15 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import type {
-  BinaryReadOptions,
-  FieldList,
-  JsonReadOptions,
-  JsonValue,
-  PartialMessage,
-  PlainMessage
-} from "@bufbuild/protobuf";
-import {Any, Message, proto3, protoInt64, Timestamp} from "@bufbuild/protobuf";
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Any, Message, proto3, protoInt64, Timestamp } from "@bufbuild/protobuf";
 
 /**
  * @generated from enum aircore.media.devinternal.v1.Tags
@@ -710,6 +703,82 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
 
   static equals(a: AirCoreFrame | PlainMessage<AirCoreFrame> | undefined, b: AirCoreFrame | PlainMessage<AirCoreFrame> | undefined): boolean {
     return proto3.util.equals(AirCoreFrame, a, b);
+  }
+}
+
+/**
+ * / in-mem tracking data structures
+ *
+ * @generated from message aircore.media.devinternal.v1.Subscriptions
+ */
+export class Subscriptions extends Message<Subscriptions> {
+  /**
+   * @generated from field: map<string, aircore.media.devinternal.v1.DbKey> callbacks = 10;
+   */
+  callbacks: { [key: string]: DbKey } = {};
+
+  constructor(data?: PartialMessage<Subscriptions>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.Subscriptions";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "callbacks", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: DbKey} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Subscriptions {
+    return new Subscriptions().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Subscriptions {
+    return new Subscriptions().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Subscriptions {
+    return new Subscriptions().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: Subscriptions | PlainMessage<Subscriptions> | undefined, b: Subscriptions | PlainMessage<Subscriptions> | undefined): boolean {
+    return proto3.util.equals(Subscriptions, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.DbSnapshot
+ */
+export class DbSnapshot extends Message<DbSnapshot> {
+  /**
+   * @generated from field: map<string, aircore.media.devinternal.v1.Payload> entries = 10;
+   */
+  entries: { [key: string]: Payload } = {};
+
+  constructor(data?: PartialMessage<DbSnapshot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.DbSnapshot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "entries", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Payload} },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbSnapshot {
+    return new DbSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DbSnapshot {
+    return new DbSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DbSnapshot {
+    return new DbSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DbSnapshot | PlainMessage<DbSnapshot> | undefined, b: DbSnapshot | PlainMessage<DbSnapshot> | undefined): boolean {
+    return proto3.util.equals(DbSnapshot, a, b);
   }
 }
 

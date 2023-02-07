@@ -6,19 +6,6 @@ import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
 
-console.log("running")
-
-const coord = new AirCoreFrame({
-    sendTo: new Coordinates({dbKey: {kafkaTopic: "topic"}})
-});
-
-const bytes = coord.toBinary();
-const coord_2 = AirCoreFrame.fromBinary(bytes);
-
-const kafkaTopic = coord_2.sendTo?.dbKey?.kafkaTopic;
-if(kafkaTopic) console.log(`out: ${kafkaTopic}`);
-
-
 const main = async() => {
     const stack = new DisposableStack();
     try {

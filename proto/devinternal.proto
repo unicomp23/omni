@@ -127,3 +127,12 @@ message AirCoreFrame {
   // the value, scalar, blob, etc.
   Payload payload = 50;
 }
+
+/// in-mem tracking data structures
+message Subscriptions {
+  map<string/*correlation_id*/, DbKey> callbacks = 10;
+}
+
+message DbSnapshot {
+  map<string/*DbKey.path*/, Payload> entries = 10;
+}

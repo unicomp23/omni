@@ -22,7 +22,7 @@ export class worker_subscriber {
 
     public readonly frames = new AsyncQueue<AirCoreFrame>();
 
-    private readonly runner_ = new runner(async() => {
+    private readonly runner_ = runner.create(async() => {
         await this.consumer.connect()
         console.log("consumer_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({

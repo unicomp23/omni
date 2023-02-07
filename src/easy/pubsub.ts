@@ -7,17 +7,23 @@ import crypto from "crypto";
 import {runner} from "../common/runner";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
+import {Disposable, DisposableStack} from "@esfx/disposable";
 
 export class pubsub {
+    private readonly publisher_: publisher;
+    private readonly reply_to_subscriber_: reply_to_subscriber;
     private constructor(
         private readonly config_: config,
-        private readonly publisher_ = publisher.create(config_),
-        private readonly reply_to_subscriber_ = reply_to_subscriber.create(config_),
         private readonly warmup_correlation_id = crypto.randomUUID(),
         private epoch = Timestamp.now(),
     ) {
+        this.publisher_ = publisher.create(config_);
+        this.stack.use(this.publisher_);
+        this.reply_to_subscriber_ = reply_to_subscriber.create(config_);
+        this.stack.use(this.reply_to_subscriber_);
     }
-    private runner_ = new runner(async() => {
+    private stack = new DisposableStack();
+    private runner_ = runner.create(async() => {
         for(;;) {
             const frame = await this.reply_to_subscriber_.frames.get();
             if(frame.replyTo?.correlationId === this.warmup_correlation_id) {
@@ -80,7 +86,14 @@ export class pubsub {
             command: Commands.SUBSCRIBE,
             replyTo: {
                 correlationId: stream_id,
-
+                dbKey: {
+                    kafkaPartitionKey: {
+                        partitioning: {
+                            case: "partitionInteger",
+                            value: this.reply_to_subscriber_.get_next_reply_partition(),
+                        }
+                    }
+                }
             }
         }));
         const stream = new AsyncQueue<AirCoreFrame>();
@@ -97,5 +110,8 @@ export class pubsub {
                 return true;
             await delay(100);
         }
+    }
+    [Disposable.dispose]() {
+        this.stack.dispose();
     }
 }
