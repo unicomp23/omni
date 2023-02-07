@@ -56,9 +56,11 @@ enum Commands {
 message PathElement {
   Tags tag = 10;
 
-  string text = 20;
-  int32 integer = 30;
-  float fraction = 40;
+  oneof x {
+    string text = 20;
+    int32 integer = 30;
+    float fraction = 40;
+  }
 }
 
 message Path {

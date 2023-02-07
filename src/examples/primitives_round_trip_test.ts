@@ -5,7 +5,6 @@ import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
-import {protoInt64} from "@bufbuild/protobuf";
 
 const main = async() => {
     const stack = new DisposableStack();
@@ -65,8 +64,8 @@ const main = async() => {
                     kafkaPartitionKey: {
                         partitionKey: {
                             hops: [
-                                {tag: Tags.PATH_TYPE, integer: PathTypes.APP}, // first hop, always has PATH_TYPE
-                                {tag: Tags.APP_ID, integer: 123},
+                                {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.APP}}, // first hop, always has PATH_TYPE
+                                {tag: Tags.APP_ID, x: { case: "integer", value: 123}},
                             ],
                         },
                     },

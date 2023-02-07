@@ -69,7 +69,7 @@ export class pubsub {
         if(!frame.sendTo) frame.sendTo = new Coordinates();
         if(!frame.sequencing) frame.sequencing = new Sequencing()
         frame.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
-        frame.sequencing.sequenceNumber = this.next_seqno;
+        frame.sequencing.sequenceNumber = BigInt(this.next_seqno);
 
         await this.publisher_.send(topic_type.worker, frame);
     }

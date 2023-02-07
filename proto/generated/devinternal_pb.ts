@@ -254,19 +254,27 @@ export class PathElement extends Message<PathElement> {
   tag = Tags.UNKNOWN_TAG;
 
   /**
-   * @generated from field: string text = 20;
+   * @generated from oneof aircore.media.devinternal.v1.PathElement.x
    */
-  text = "";
-
-  /**
-   * @generated from field: int32 integer = 30;
-   */
-  integer = 0;
-
-  /**
-   * @generated from field: float fraction = 40;
-   */
-  fraction = 0;
+  x: {
+    /**
+     * @generated from field: string text = 20;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: int32 integer = 30;
+     */
+    value: number;
+    case: "integer";
+  } | {
+    /**
+     * @generated from field: float fraction = 40;
+     */
+    value: number;
+    case: "fraction";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<PathElement>) {
     super();
@@ -277,9 +285,9 @@ export class PathElement extends Message<PathElement> {
   static readonly typeName = "aircore.media.devinternal.v1.PathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
+    { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
+    { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "x" },
+    { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */, oneof: "x" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PathElement {
