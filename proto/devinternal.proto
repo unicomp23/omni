@@ -68,8 +68,10 @@ message Path {
 }
 
 message KafkaParitionKey {
-  Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
-  int32 partition_integer = 20;
+  oneof x {
+    Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+    int32 partition_integer = 20;
+  }
 }
 
 message DbKey {

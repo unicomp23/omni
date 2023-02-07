@@ -349,16 +349,23 @@ export class Path extends Message<Path> {
  */
 export class KafkaParitionKey extends Message<KafkaParitionKey> {
   /**
-   * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
-   *
-   * @generated from field: aircore.media.devinternal.v1.Path partition_key = 10;
+   * @generated from oneof aircore.media.devinternal.v1.KafkaParitionKey.x
    */
-  partitionKey?: Path;
-
-  /**
-   * @generated from field: int32 partition_integer = 20;
-   */
-  partitionInteger = 0;
+  x: {
+    /**
+     * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+     *
+     * @generated from field: aircore.media.devinternal.v1.Path partition_key = 10;
+     */
+    value: Path;
+    case: "partitionKey";
+  } | {
+    /**
+     * @generated from field: int32 partition_integer = 20;
+     */
+    value: number;
+    case: "partitionInteger";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<KafkaParitionKey>) {
     super();
@@ -368,8 +375,8 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "partition_key", kind: "message", T: Path },
-    { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 10, name: "partition_key", kind: "message", T: Path, oneof: "x" },
+    { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "x" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaParitionKey {

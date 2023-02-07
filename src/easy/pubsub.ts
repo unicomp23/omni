@@ -48,7 +48,10 @@ export class pubsub {
             sendTo: {
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitionInteger: client.reply_to_subscriber_.get_next_reply_partition(),
+                        x: {
+                            case: "partitionInteger",
+                            value: client.reply_to_subscriber_.get_next_reply_partition(),
+                        },
                     },
                 }
             },
@@ -84,10 +87,13 @@ export class pubsub {
                 correlationId: stream_id,
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitionInteger: this.reply_to_subscriber_.get_next_reply_partition(),
-                    }
-                }
-            }
+                        x: {
+                            case: "partitionInteger",
+                            value: this.reply_to_subscriber_.get_next_reply_partition(),
+                        },
+                    },
+                },
+            },
         }));
         const stream = new AsyncQueue<AirCoreFrame>();
         this.subscriptions.set(stream_id, stream);

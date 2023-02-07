@@ -61,17 +61,15 @@ export class publisher {
         console.log("producing:", frame.toJsonString({prettySpaces: 2}));
         switch (topic_type_) {
             case topic_type.worker: {
-                const partitionKey = frame.sendTo?.dbKey?.kafkaPartitionKey?.partitionKey;
-                if (partitionKey)
-                    record.messages[0].key = Buffer.from(partitionKey.toBinary());
+                if (frame.sendTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionKey")
+                    record.messages[0].key = Buffer.from(frame.sendTo?.dbKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
                     throw new Error(`missing partitionKey`);
                 break;
             }
             case topic_type.reply_to: {
-                const partitionInteger = frame.replyTo?.dbKey?.kafkaPartitionKey?.partitionInteger;
-                if (partitionInteger)
-                    record.messages[0].partition = partitionInteger;
+                if (frame.sendTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionInteger")
+                    record.messages[0].partition = frame.sendTo?.dbKey?.kafkaPartitionKey?.x.value;
                 else
                     record.messages[0].partition = 0; // protobuf serialize drops zero val
                 break;

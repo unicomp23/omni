@@ -26,12 +26,13 @@ const main = async() => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
                 console.log("worker frame.3:", frame.toJsonString({prettySpaces: 2}))
-                const partitionInteger = frame.replyTo?.dbKey?.kafkaPartitionKey?.partitionInteger;
-                try {
-                    await publisher_.send(topic_type.reply_to, frame);
-                } catch (e) {
-                    console.error(`send.reply_to: ${partitionInteger}`, e);
-                }
+                if(frame.replyTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionInteger") {
+                    try {
+                        await publisher_.send(topic_type.reply_to, frame);
+                    } catch (e) {
+                        console.error(`send.reply_to:`, e);
+                    }
+                } else throw new Error(`missing partitionInteger`);
             }
         }
         strand_worker().then(() => {
@@ -55,18 +56,24 @@ const main = async() => {
             replyTo: {
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitionInteger: reply_to_subscriber_.get_next_reply_partition(),
+                        x: {
+                            case: "partitionInteger",
+                            value: reply_to_subscriber_.get_next_reply_partition(),
+                        },
                     },
                 },
             },
             sendTo: {
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitionKey: {
-                            hops: [
-                                {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.APP}}, // first hop, always has PATH_TYPE
-                                {tag: Tags.APP_ID, x: { case: "integer", value: 123}},
-                            ],
+                        x: {
+                            case: "partitionKey",
+                            value: {
+                                hops: [
+                                    {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.APP}}, // first hop, always has PATH_TYPE
+                                    {tag: Tags.APP_ID, x: { case: "integer", value: 123}},
+                                ],
+                            }
                         },
                     },
                 },
