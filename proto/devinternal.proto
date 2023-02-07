@@ -105,9 +105,11 @@ enum PayloadType {
 message Payload {
   PayloadType type = 10;
 
-  bytes buffer = 50;
-  string text = 60;
-  google.protobuf.Any val = 70;
+  oneof x {
+    bytes buffer = 50;
+    string text = 60;
+    google.protobuf.Any val = 70;
+  }
 }
 
 message AirCoreFrame {

@@ -579,19 +579,27 @@ export class Payload extends Message<Payload> {
   type = PayloadType.UNKNOWN_PAYLOAD_TYPE;
 
   /**
-   * @generated from field: bytes buffer = 50;
+   * @generated from oneof aircore.media.devinternal.v1.Payload.x
    */
-  buffer = new Uint8Array(0);
-
-  /**
-   * @generated from field: string text = 60;
-   */
-  text = "";
-
-  /**
-   * @generated from field: google.protobuf.Any val = 70;
-   */
-  val?: Any;
+  x: {
+    /**
+     * @generated from field: bytes buffer = 50;
+     */
+    value: Uint8Array;
+    case: "buffer";
+  } | {
+    /**
+     * @generated from field: string text = 60;
+     */
+    value: string;
+    case: "text";
+  } | {
+    /**
+     * @generated from field: google.protobuf.Any val = 70;
+     */
+    value: Any;
+    case: "val";
+  } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<Payload>) {
     super();
@@ -602,9 +610,9 @@ export class Payload extends Message<Payload> {
   static readonly typeName = "aircore.media.devinternal.v1.Payload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "type", kind: "enum", T: proto3.getEnumType(PayloadType) },
-    { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 70, name: "val", kind: "message", T: Any },
+    { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
+    { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
+    { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {

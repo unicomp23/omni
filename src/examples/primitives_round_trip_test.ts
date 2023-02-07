@@ -72,7 +72,10 @@ const main = async() => {
                 },
             },
             payload: {
-                text: "some text"
+                x: {
+                    case: "text",
+                    value: "some text"
+                },
             },
         });
         console.log(`publisher.send`, frame.toJsonString({prettySpaces: 2}));
