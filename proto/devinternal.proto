@@ -55,11 +55,10 @@ enum Commands {
 
 message PathElement {
   Tags tag = 10;
-  oneof val {
-    string text = 20;
-    int32 integer = 30;
-    float fraction = 40;
-  }
+
+  string text = 20;
+  int32 integer = 30;
+  float fraction = 40;
 }
 
 message Path {
@@ -67,10 +66,8 @@ message Path {
 }
 
 message KafkaParitionKey {
-  oneof partitioning {
-    Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
-    int32 partition_integer = 20;
-  }
+  Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+  int32 partition_integer = 20;
 }
 
 message DbKey {
@@ -106,11 +103,9 @@ enum PayloadType {
 message Payload {
   PayloadType type = 10;
 
-  oneof x {
-    bytes buffer = 50;
-    string text = 60;
-    google.protobuf.Any val = 70;
-  }
+  bytes buffer = 50;
+  string text = 60;
+  google.protobuf.Any val = 70;
 }
 
 message AirCoreFrame {

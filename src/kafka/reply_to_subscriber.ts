@@ -1,7 +1,6 @@
 import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
-import {runner} from "../common/runner";
 import {AsyncQueue} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
@@ -22,23 +21,28 @@ export class reply_to_subscriber {
 
     public readonly frames = new AsyncQueue<AirCoreFrame>();
 
-    private readonly partitions = new Array<number>();
+    private partitions = new Array<number>();
     private last_reply_partition_index = 0;
     public get_next_reply_partition() {
+        if(!this.partitions_stable)
+            throw new Error(`partitions not stable`);
         this.last_reply_partition_index++;
         const index = this.last_reply_partition_index % this.partitions.length;
         this.last_reply_partition_index = index;
-        return this.partitions[index];
+        const result = this.partitions[index];
+        console.log(`get_next_reply_partition.index: ${index}, ${this.partitions.length}, ${result}`);
+        return result;
     }
-
-    private readonly runner_ = runner.create(async() => {
+    private partitions_stable = false;
+    private readonly runner_ = (async() => {
         await this.consumer.connect()
         this.consumer.on("consumer.group_join", (event) => {
-            console.log("consumer.group_join", event);
             const partitions = event.payload.memberAssignment[this.topic];
             console.log("consumer.group_join.partitions", partitions);
-            this.partitions.splice(0);
-            this.partitions.concat(partitions);
+            this.partitions = new Array();
+            for(const partition of partitions)
+                this.partitions.push(partition);
+            this.partitions_stable = true;
         });
         console.log("reply_to_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
@@ -52,7 +56,7 @@ export class reply_to_subscriber {
             },
         })
         return true;
-    });
+    })();
 
     [Disposable.dispose]() {
         this.consumer.stop();

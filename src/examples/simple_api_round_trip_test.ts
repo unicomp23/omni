@@ -1,11 +1,9 @@
 import {DisposableStack} from "@esfx/disposable";
 import {worker} from "../easy/worker";
 import {config} from "../config";
-import {Commands, DbSnapshot, Payload, Subscriptions} from "../../proto/generated/devinternal_pb";
+import {Commands, DbSnapshot, Subscriptions} from "../../proto/generated/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
-import {runner} from "../common/runner";
-import {HashMap} from "@esfx/collections";
 
 const main = async() => {
     const stack = new DisposableStack();
@@ -43,11 +41,6 @@ const main = async() => {
 
         const pubsub_ = await pubsub.create(config_);
         stack.use(pubsub_);
-
-        const runner_ = runner.create(async() => {
-
-            return true;
-        });
 
         await quit.promise;
     } finally {

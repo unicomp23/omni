@@ -1,10 +1,11 @@
-import {AirCoreFrame, Coordinates, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
 import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
+import {protoInt64} from "@bufbuild/protobuf";
 
 const main = async() => {
     const stack = new DisposableStack();
@@ -25,18 +26,12 @@ const main = async() => {
         const strand_worker = async () => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
-                console.log("worker frame:", frame.toJson())
-                const partition = reply_to_subscriber_.get_next_reply_partition();
+                console.log("worker frame.3:", frame.toJsonString({prettySpaces: 2}))
+                const partitionInteger = frame.replyTo?.dbKey?.kafkaPartitionKey?.partitionInteger;
                 try {
-                    const kafkaPartitionKey = frame.sendTo?.dbKey?.kafkaPartitionKey;
-                    if (kafkaPartitionKey) kafkaPartitionKey.partitioning = {
-                        case: "partitionInteger",
-                        value: partition
-                    };
-                    else throw new Error(`missing: frame.sendTo.dbKey.kafkaPartitionKey`);
                     await publisher_.send(topic_type.reply_to, frame);
                 } catch (e) {
-                    console.error(`send.reply_to: ${partition}`, e);
+                    console.error(`send.reply_to: ${partitionInteger}`, e);
                 }
             }
         }
@@ -47,7 +42,7 @@ const main = async() => {
         const strand_reply_to = async () => {
             for (; ;) {
                 const frame = await reply_to_subscriber_.frames.get();
-                console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJson())
+                console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJsonString({prettySpaces: 2}))
             }
         }
         strand_reply_to().then(() => {
@@ -57,39 +52,32 @@ const main = async() => {
         await delay(1000);
 
         start_time = performance.now();
-        await publisher_.send(topic_type.worker, new AirCoreFrame({
+        const frame = new AirCoreFrame({
+            replyTo: {
+                dbKey: {
+                    kafkaPartitionKey: {
+                        partitionInteger: reply_to_subscriber_.get_next_reply_partition(),
+                    },
+                },
+            },
             sendTo: {
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitioning: {
-                            value: {
-                                hops: [
-                                    {tag: Tags.PATH_TYPE, val: {value: PathTypes.APP, case: "integer"}}, // first hop, always has PATH_TYPE
-                                    {tag: Tags.APP_ID, val: {value: 123, case: "integer"}},
-                                ],
-                            },
-                            case: "partitionKey",
+                        partitionKey: {
+                            hops: [
+                                {tag: Tags.PATH_TYPE, integer: PathTypes.APP}, // first hop, always has PATH_TYPE
+                                {tag: Tags.APP_ID, integer: 123},
+                            ],
                         },
                     },
                 },
             },
-            replyTo: {
-              dbKey: {
-                  kafkaPartitionKey: {
-                      partitioning: {
-                          case: "partitionInteger",
-                          value: reply_to_subscriber_.get_next_reply_partition(),
-                      },
-                  },
-              },
-            },
             payload: {
-                x: {
-                    case: "text",
-                    value: "some text",
-                }
+                text: "some text"
             },
-        }));
+        });
+        console.log(`publisher.send`, frame.toJsonString({prettySpaces: 2}));
+        await publisher_.send(topic_type.worker, frame);
 
         await delay(1000);
     } finally {

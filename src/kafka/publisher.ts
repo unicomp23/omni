@@ -1,7 +1,7 @@
 import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
-import {AirCoreFrame, DbKey} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
 export enum topic_type {
@@ -58,22 +58,22 @@ export class publisher {
         } as ProducerRecord;
         if(frame.sendTo?.dbKey) frame.sendTo.dbKey.kafkaTopic = topic;
         if(frame.replyTo?.dbKey) frame.replyTo.dbKey.kafkaTopic = topic;
-        console.log("producing:", frame.toJson());
+        console.log("producing:", frame.toJsonString({prettySpaces: 2}));
         switch (topic_type_) {
             case topic_type.worker: {
-                const partitioning = frame.sendTo?.dbKey?.kafkaPartitionKey?.partitioning;
-                if (partitioning?.case == "partitionKey")
-                    record.messages[0].key = Buffer.from(partitioning.value.toBinary());
+                const partitionKey = frame.sendTo?.dbKey?.kafkaPartitionKey?.partitionKey;
+                if (partitionKey)
+                    record.messages[0].key = Buffer.from(partitionKey.toBinary());
                 else
-                    throw new Error(`missing partitioning`);
+                    throw new Error(`missing partitionKey`);
                 break;
             }
             case topic_type.reply_to: {
-                const partitioning = frame.replyTo?.dbKey?.kafkaPartitionKey?.partitioning;
-                if (partitioning?.case == "partitionInteger")
-                    record.messages[0].partition = partitioning.value;
+                const partitionInteger = frame.replyTo?.dbKey?.kafkaPartitionKey?.partitionInteger;
+                if (partitionInteger)
+                    record.messages[0].partition = partitionInteger;
                 else
-                    throw new Error(`missing partitioning`);
+                    record.messages[0].partition = 0; // protobuf serialize drops zero val
                 break;
             }
             default:

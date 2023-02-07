@@ -4,7 +4,6 @@ import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame, Commands, Coordinates, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
-import {runner} from "../common/runner";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
 import {Disposable, DisposableStack} from "@esfx/disposable";
@@ -23,7 +22,7 @@ export class pubsub {
         this.stack.use(this.reply_to_subscriber_);
     }
     private stack = new DisposableStack();
-    private runner_ = runner.create(async() => {
+    private runner_ = (async() => {
         for(;;) {
             const frame = await this.reply_to_subscriber_.frames.get();
             if(frame.replyTo?.correlationId === this.warmup_correlation_id) {
@@ -41,18 +40,15 @@ export class pubsub {
             }
         }
         return true;
-    });
-    private next_seqno = BigInt(0);
+    })();
+    private next_seqno = 0;
     public static async create(config_: config) {
         const client = new pubsub(config_);
         await client.publisher_.send(topic_type.reply_to, new AirCoreFrame({
             sendTo: {
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitioning: {
-                            case: "partitionInteger",
-                            value: client.reply_to_subscriber_.get_next_reply_partition(),
-                        }
+                        partitionInteger: client.reply_to_subscriber_.get_next_reply_partition(),
                     },
                 }
             },
@@ -88,10 +84,7 @@ export class pubsub {
                 correlationId: stream_id,
                 dbKey: {
                     kafkaPartitionKey: {
-                        partitioning: {
-                            case: "partitionInteger",
-                            value: this.reply_to_subscriber_.get_next_reply_partition(),
-                        }
+                        partitionInteger: this.reply_to_subscriber_.get_next_reply_partition(),
                     }
                 }
             }

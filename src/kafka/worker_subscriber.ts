@@ -1,7 +1,6 @@
 import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
-import {runner} from "../common/runner";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {AsyncQueue} from "@esfx/async";
 import {Disposable} from "@esfx/disposable";
@@ -22,7 +21,7 @@ export class worker_subscriber {
 
     public readonly frames = new AsyncQueue<AirCoreFrame>();
 
-    private readonly runner_ = runner.create(async() => {
+    private readonly runner_ = (async() => {
         await this.consumer.connect()
         console.log("consumer_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
@@ -36,7 +35,7 @@ export class worker_subscriber {
             },
         })
         return true;
-    });
+    })();
 
     [Disposable.dispose]() {
         this.consumer.stop();

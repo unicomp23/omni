@@ -254,27 +254,19 @@ export class PathElement extends Message<PathElement> {
   tag = Tags.UNKNOWN_TAG;
 
   /**
-   * @generated from oneof aircore.media.devinternal.v1.PathElement.val
+   * @generated from field: string text = 20;
    */
-  val: {
-    /**
-     * @generated from field: string text = 20;
-     */
-    value: string;
-    case: "text";
-  } | {
-    /**
-     * @generated from field: int32 integer = 30;
-     */
-    value: number;
-    case: "integer";
-  } | {
-    /**
-     * @generated from field: float fraction = 40;
-     */
-    value: number;
-    case: "fraction";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  text = "";
+
+  /**
+   * @generated from field: int32 integer = 30;
+   */
+  integer = 0;
+
+  /**
+   * @generated from field: float fraction = 40;
+   */
+  fraction = 0;
 
   constructor(data?: PartialMessage<PathElement>) {
     super();
@@ -285,9 +277,9 @@ export class PathElement extends Message<PathElement> {
   static readonly typeName = "aircore.media.devinternal.v1.PathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
-    { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "val" },
-    { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "val" },
-    { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */, oneof: "val" },
+    { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PathElement {
@@ -349,23 +341,16 @@ export class Path extends Message<Path> {
  */
 export class KafkaParitionKey extends Message<KafkaParitionKey> {
   /**
-   * @generated from oneof aircore.media.devinternal.v1.KafkaParitionKey.partitioning
+   * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+   *
+   * @generated from field: aircore.media.devinternal.v1.Path partition_key = 10;
    */
-  partitioning: {
-    /**
-     * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
-     *
-     * @generated from field: aircore.media.devinternal.v1.Path partition_key = 10;
-     */
-    value: Path;
-    case: "partitionKey";
-  } | {
-    /**
-     * @generated from field: int32 partition_integer = 20;
-     */
-    value: number;
-    case: "partitionInteger";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  partitionKey?: Path;
+
+  /**
+   * @generated from field: int32 partition_integer = 20;
+   */
+  partitionInteger = 0;
 
   constructor(data?: PartialMessage<KafkaParitionKey>) {
     super();
@@ -375,8 +360,8 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "partition_key", kind: "message", T: Path, oneof: "partitioning" },
-    { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "partitioning" },
+    { no: 10, name: "partition_key", kind: "message", T: Path },
+    { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaParitionKey {
@@ -586,27 +571,19 @@ export class Payload extends Message<Payload> {
   type = PayloadType.UNKNOWN_PAYLOAD_TYPE;
 
   /**
-   * @generated from oneof aircore.media.devinternal.v1.Payload.x
+   * @generated from field: bytes buffer = 50;
    */
-  x: {
-    /**
-     * @generated from field: bytes buffer = 50;
-     */
-    value: Uint8Array;
-    case: "buffer";
-  } | {
-    /**
-     * @generated from field: string text = 60;
-     */
-    value: string;
-    case: "text";
-  } | {
-    /**
-     * @generated from field: google.protobuf.Any val = 70;
-     */
-    value: Any;
-    case: "val";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  buffer = new Uint8Array(0);
+
+  /**
+   * @generated from field: string text = 60;
+   */
+  text = "";
+
+  /**
+   * @generated from field: google.protobuf.Any val = 70;
+   */
+  val?: Any;
 
   constructor(data?: PartialMessage<Payload>) {
     super();
@@ -617,9 +594,9 @@ export class Payload extends Message<Payload> {
   static readonly typeName = "aircore.media.devinternal.v1.Payload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "type", kind: "enum", T: proto3.getEnumType(PayloadType) },
-    { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
-    { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
-    { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
+    { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
+    { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 70, name: "val", kind: "message", T: Any },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
