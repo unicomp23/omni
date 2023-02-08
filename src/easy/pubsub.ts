@@ -46,7 +46,7 @@ export class pubsub {
         const client = new pubsub(config_);
         await client.publisher_.send(topic_type.reply_to, new AirCoreFrame({
             sendTo: {
-                dbKey: {
+                kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
@@ -66,8 +66,8 @@ export class pubsub {
         await this.reply_to_flushed();
 
         if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
-        if(!frame.sendTo?.dbKey) throw new Error("missing db key");
-        if(!frame.sendTo?.dbKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
+        if(!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
+        if(!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
         if(!frame.sendTo) frame.sendTo = new Coordinates();
         if(!frame.sequencing) frame.sequencing = new Sequencing()
@@ -85,13 +85,18 @@ export class pubsub {
         await this.publisher_.send(topic_type.worker, new AirCoreFrame({
             command: Commands.SUBSCRIBE,
             sendTo: {
-                dbKey: {
-                    path,
+                kafkaKey: {
+                    kafkaPartitionKey: {
+                        x: {
+                            case: "partitionKey",
+                            value: path,
+                        }
+                    },
                 },
             },
             replyTo: {
                 correlationId: stream_id,
-                dbKey: {
+                kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
