@@ -1,7 +1,7 @@
 import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
-import {AsyncQueue} from "@esfx/async";
+import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
 
@@ -23,9 +23,9 @@ export class reply_to_subscriber {
 
     private partitions = new Array<number>();
     private last_reply_partition_index = 0;
-    public get_next_reply_partition() {
-        if(!this.partitions_stable)
-            throw new Error(`partitions not stable`);
+    public async get_next_reply_partition() {
+        while(!this.partitions_stable)
+            await delay(100);
         this.last_reply_partition_index++;
         const index = this.last_reply_partition_index % this.partitions.length;
         this.last_reply_partition_index = index;

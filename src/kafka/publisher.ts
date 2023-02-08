@@ -62,14 +62,14 @@ export class publisher {
                 if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")
                     record.messages[0].key = Buffer.from(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
-                    throw new Error(`missing partitionKey`);
+                    throw new Error(`missing partitionKey, worker`);
                 if(frame.sendTo?.kafkaKey) frame.sendTo.kafkaKey.kafkaTopic = topic;
                 break;
             }
             case topic_type.reply_to: {
                 if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionInteger")
                     record.messages[0].partition = frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.value | 0; // protobuf serialize drops zero val's
-                else throw new Error(`missing partitionKey`);
+                else throw new Error(`missing partitionKey, reply_to`);
                 if(frame.replyTo?.kafkaKey) frame.replyTo.kafkaKey.kafkaTopic = topic;
                 break;
             }

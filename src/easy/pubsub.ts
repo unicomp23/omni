@@ -20,9 +20,10 @@ export class pubsub {
         this.stack.use(this.publisher_);
         this.reply_to_subscriber_ = reply_to_subscriber.create(config_);
         this.stack.use(this.reply_to_subscriber_);
+        this.run().then(() => { console.log(`pubsub.run exit`); });
     }
     private stack = new DisposableStack();
-    private runner_ = (async() => {
+    private async run() {
         for(;;) {
             const frame = await this.reply_to_subscriber_.frames.get();
             if(frame.replyTo?.correlationId === this.warmup_correlation_id) {
@@ -40,7 +41,7 @@ export class pubsub {
             }
         }
         return true;
-    })();
+    }
     private next_seqno = 0;
     public static async create(config_: config) {
         const client = new pubsub(config_);
@@ -50,7 +51,7 @@ export class pubsub {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
-                            value: client.reply_to_subscriber_.get_next_reply_partition(),
+                            value: await client.reply_to_subscriber_.get_next_reply_partition(),
                         },
                     },
                 }
@@ -100,7 +101,7 @@ export class pubsub {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
-                            value: this.reply_to_subscriber_.get_next_reply_partition(),
+                            value: await this.reply_to_subscriber_.get_next_reply_partition(),
                         },
                     },
                 },

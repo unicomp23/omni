@@ -58,7 +58,7 @@ const main = async() => {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
-                            value: reply_to_subscriber_.get_next_reply_partition(),
+                            value: await reply_to_subscriber_.get_next_reply_partition(),
                         },
                     },
                 },

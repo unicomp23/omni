@@ -83,7 +83,7 @@ const main = async() => {
         const runner_publish = async() => {
             const count = 5;
             for (const i of range(0, count)) {
-                pubsub_.publish(new AirCoreFrame({
+                await pubsub_.publish(new AirCoreFrame({
                     command: Commands.UPSERT,
                     sendTo: {
                         kafkaKey: {
@@ -102,6 +102,7 @@ const main = async() => {
 
         const runner_subscribe = async() => {
             const stream = pubsub_.subscribe(make_path_chan());
+            // todo
         }
         runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
 
