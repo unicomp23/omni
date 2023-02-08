@@ -52,6 +52,7 @@ const main = async() => {
         stack.use(new worker(config_, async(stream) => {
             for(;;) {
                 const frame = await stream.get();
+                console.log(`worker.received`, frame);
                 switch(frame.command) {
                     case Commands.SUBSCRIBE:
                         const correlationId = frame.replyTo?.correlationId;
@@ -81,7 +82,7 @@ const main = async() => {
         stack.use(pubsub_);
 
         const runner_publish = async() => {
-            const count = 5;
+            const count = 1;
             for (const i of range(0, count)) {
                 await pubsub_.publish(new AirCoreFrame({
                     command: Commands.UPSERT,

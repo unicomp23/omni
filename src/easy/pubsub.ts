@@ -1,7 +1,7 @@
 import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
-import {AsyncQueue, delay} from "@esfx/async";
+import {AsyncQueue} from "@esfx/async";
 import {AirCoreFrame, Commands, Coordinates, Path, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
@@ -13,7 +13,6 @@ export class pubsub {
     private readonly reply_to_subscriber_: reply_to_subscriber;
     private constructor(
         private readonly config_: config,
-        private readonly warmup_correlation_id = crypto.randomUUID(),
         private epoch = Timestamp.now(),
     ) {
         this.publisher_ = publisher.create(config_);
@@ -24,49 +23,29 @@ export class pubsub {
     }
     private stack = new DisposableStack();
     private async run() {
-        for(;;) {
+        for (; ;) {
             const frame = await this.reply_to_subscriber_.frames.get();
-            if(frame.replyTo?.correlationId === this.warmup_correlation_id) {
-                this.reply_to_flushed_ = true;
-            } else {
-                const correlation_id = frame.replyTo?.correlationId;
-                if(correlation_id) {
-                    const stream = this.subscriptions.get(correlation_id);
-                    if(stream) {
-                        stream.put(frame);
-                    } else {
-                        console.log(`missing handler: ${correlation_id}`);
-                    }
+            const correlation_id = frame.replyTo?.correlationId;
+            if (correlation_id) {
+                const stream = this.subscriptions.get(correlation_id);
+                if (stream) {
+                    stream.put(frame);
+                } else {
+                    console.log(`missing handler: ${correlation_id}`);
                 }
             }
         }
-        return true;
     }
     private next_seqno = 0;
     public static async create(config_: config) {
         const client = new pubsub(config_);
-        await client.publisher_.send(topic_type.reply_to, new AirCoreFrame({
-            sendTo: {
-                kafkaKey: {
-                    kafkaPartitionKey: {
-                        x: {
-                            case: "partitionInteger",
-                            value: await client.reply_to_subscriber_.get_next_reply_partition(),
-                        },
-                    },
-                }
-            },
-            replyTo: {
-                correlationId: client.warmup_correlation_id,
-            }
-        }));
-        await client.reply_to_flushed();
+        await client.reply_to_active();
         return client;
     }
     public async publish(frame: AirCoreFrame) {
-        await this.reply_to_flushed();
+        await this.reply_to_active();
 
-        if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
+        // todo if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
         if(!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
         if(!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
@@ -80,7 +59,7 @@ export class pubsub {
     }
     private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
     public async subscribe(path: Path) {
-        await this.reply_to_flushed();
+        await this.reply_to_active();
 
         const stream_id = crypto.randomUUID();
         await this.publisher_.send(topic_type.worker, new AirCoreFrame({
@@ -114,13 +93,8 @@ export class pubsub {
             stream
         };
     }
-    private reply_to_flushed_ = false;
-    public async reply_to_flushed() {
-        for(;;) {
-            if(this.reply_to_flushed_)
-                return true;
-            await delay(100);
-        }
+    public async reply_to_active() {
+        await this.reply_to_subscriber_.reply_to_active();
     }
     [Disposable.dispose]() {
         this.stack.dispose();

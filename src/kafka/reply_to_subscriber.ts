@@ -23,9 +23,14 @@ export class reply_to_subscriber {
 
     private partitions = new Array<number>();
     private last_reply_partition_index = 0;
-    public async get_next_reply_partition() {
+    public async reply_to_active() {
         while(!this.partitions_stable)
             await delay(100);
+        // todo timeout
+        return true;
+    }
+    public async get_next_reply_partition() {
+        await this.reply_to_active();
         this.last_reply_partition_index++;
         const index = this.last_reply_partition_index % this.partitions.length;
         this.last_reply_partition_index = index;
