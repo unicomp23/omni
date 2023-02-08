@@ -26,7 +26,7 @@ const main = async() => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
                 console.log("worker frame.3:", frame.toJsonString({prettySpaces: 2}))
-                if(frame.replyTo?.dbKey?.kafkaPartitionKey?.x.case == "partitionInteger") {
+                if(frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionInteger") {
                     try {
                         await publisher_.send(topic_type.reply_to, frame);
                     } catch (e) {
@@ -54,7 +54,7 @@ const main = async() => {
         start_time = performance.now();
         const frame = new AirCoreFrame({
             replyTo: {
-                dbKey: {
+                kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionInteger",
@@ -64,7 +64,7 @@ const main = async() => {
                 },
             },
             sendTo: {
-                dbKey: {
+                kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
                             case: "partitionKey",

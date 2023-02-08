@@ -258,6 +258,12 @@ export class PathElement extends Message<PathElement> {
    */
   x: {
     /**
+     * @generated from field: aircore.media.devinternal.v1.PathTypes path_type = 15;
+     */
+    value: PathTypes;
+    case: "pathType";
+  } | {
+    /**
      * @generated from field: string text = 20;
      */
     value: string;
@@ -285,6 +291,7 @@ export class PathElement extends Message<PathElement> {
   static readonly typeName = "aircore.media.devinternal.v1.PathElement";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "tag", kind: "enum", T: proto3.getEnumType(Tags) },
+    { no: 15, name: "path_type", kind: "enum", T: proto3.getEnumType(PathTypes), oneof: "x" },
     { no: 20, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 30, name: "integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "x" },
     { no: 40, name: "fraction", kind: "scalar", T: 2 /* ScalarType.FLOAT */, oneof: "x" },
@@ -397,9 +404,9 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
 }
 
 /**
- * @generated from message aircore.media.devinternal.v1.DbKey
+ * @generated from message aircore.media.devinternal.v1.KafkaKey
  */
-export class DbKey extends Message<DbKey> {
+export class KafkaKey extends Message<KafkaKey> {
   /**
    * @generated from field: string kafka_topic = 20;
    */
@@ -410,38 +417,32 @@ export class DbKey extends Message<DbKey> {
    */
   kafkaPartitionKey?: KafkaParitionKey;
 
-  /**
-   * @generated from field: aircore.media.devinternal.v1.Path path = 50;
-   */
-  path?: Path;
-
-  constructor(data?: PartialMessage<DbKey>) {
+  constructor(data?: PartialMessage<KafkaKey>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime = proto3;
-  static readonly typeName = "aircore.media.devinternal.v1.DbKey";
+  static readonly typeName = "aircore.media.devinternal.v1.KafkaKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
-    { no: 50, name: "path", kind: "message", T: Path },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbKey {
-    return new DbKey().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KafkaKey {
+    return new KafkaKey().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DbKey {
-    return new DbKey().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KafkaKey {
+    return new KafkaKey().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DbKey {
-    return new DbKey().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KafkaKey {
+    return new KafkaKey().fromJsonString(jsonString, options);
   }
 
-  static equals(a: DbKey | PlainMessage<DbKey> | undefined, b: DbKey | PlainMessage<DbKey> | undefined): boolean {
-    return proto3.util.equals(DbKey, a, b);
+  static equals(a: KafkaKey | PlainMessage<KafkaKey> | undefined, b: KafkaKey | PlainMessage<KafkaKey> | undefined): boolean {
+    return proto3.util.equals(KafkaKey, a, b);
   }
 }
 
@@ -494,9 +495,9 @@ export class Coordinates extends Message<Coordinates> {
   /**
    * in-mem hash, redis, aurora, etc.
    *
-   * @generated from field: aircore.media.devinternal.v1.DbKey db_key = 40;
+   * @generated from field: aircore.media.devinternal.v1.KafkaKey kafka_key = 40;
    */
-  dbKey?: DbKey;
+  kafkaKey?: KafkaKey;
 
   /**
    * @generated from field: string correlation_id = 50;
@@ -512,7 +513,7 @@ export class Coordinates extends Message<Coordinates> {
   static readonly typeName = "aircore.media.devinternal.v1.Coordinates";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "planet_key", kind: "message", T: PlanetKey },
-    { no: 40, name: "db_key", kind: "message", T: DbKey },
+    { no: 40, name: "kafka_key", kind: "message", T: KafkaKey },
     { no: 50, name: "correlation_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -713,9 +714,9 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
  */
 export class Subscriptions extends Message<Subscriptions> {
   /**
-   * @generated from field: map<string, aircore.media.devinternal.v1.DbKey> callbacks = 10;
+   * @generated from field: map<string, aircore.media.devinternal.v1.KafkaKey> callbacks = 10;
    */
-  callbacks: { [key: string]: DbKey } = {};
+  callbacks: { [key: string]: KafkaKey } = {};
 
   constructor(data?: PartialMessage<Subscriptions>) {
     super();
@@ -725,7 +726,7 @@ export class Subscriptions extends Message<Subscriptions> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.Subscriptions";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "callbacks", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: DbKey} },
+    { no: 10, name: "callbacks", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: KafkaKey} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Subscriptions {

@@ -2,7 +2,7 @@ import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue, delay} from "@esfx/async";
-import {AirCoreFrame, Commands, Coordinates, Sequencing} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Commands, Coordinates, Path, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
@@ -73,16 +73,22 @@ export class pubsub {
         if(!frame.sequencing) frame.sequencing = new Sequencing()
         frame.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
         frame.sequencing.sequenceNumber = BigInt(this.next_seqno);
+        this.next_seqno++;
 
         await this.publisher_.send(topic_type.worker, frame);
     }
     private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
-    public async subscribe(send_to: Coordinates) {
+    public async subscribe(path: Path) {
         await this.reply_to_flushed();
 
         const stream_id = crypto.randomUUID();
         await this.publisher_.send(topic_type.worker, new AirCoreFrame({
             command: Commands.SUBSCRIBE,
+            sendTo: {
+                dbKey: {
+                    path,
+                },
+            },
             replyTo: {
                 correlationId: stream_id,
                 dbKey: {

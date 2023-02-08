@@ -5,8 +5,9 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "watch": "ts-node-dev src/examples/primitives_round_trip_test.ts",
-    "start": "ts-node src/examples/primitives_round_trip_test.ts"
+    "start": "echo \"Error: no start specified\" && exit 1",
+    "ex1": "ts-node-dev src/examples/primitives_round_trip_test.ts",
+    "ex2": "ts-node-dev src/examples/simple_api_round_trip_test.ts"
   },
   "author": "",
   "license": "ISC",
