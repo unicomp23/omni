@@ -2,7 +2,7 @@
 
 ```mermaid
 flowchart TD
-    Kafka_ -->PubSubApi_(PubSubApi)
+    Kafka_{Kafka} -->PubSubApi_(PubSubApi)
     PubSubApi_ -->Kafka_
     Vandenberg_(Vandenberg) -->|publish-recording-start| PubSubApi_
     PubSubApi_ -->|subscribe-recording-start| StreamNotifier_(StreamNotifier)
