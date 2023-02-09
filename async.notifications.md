@@ -2,11 +2,12 @@
 
 ```mermaid
 flowchart TD
-    Vandenberg_(Vandenberg) -->|publish-stream-start| Kafka_{Kafka}
-    Kafka_ -->|subscribe-stream-start| StreamNotifier_(StreamNotifier)
-    StreamNotifier_ -->|publish-stream-start| Kafka_(Kafka)
-    Client_(Client) -->|subscribe-stream-start| StreamNotifier_
+    Kafka_ -->PubSubApi_(PubSubApi)
+    PubSubApi_ -->Kafka_
+    Vandenberg_(Vandenberg) -->|publish-recording-start| PubSubApi_
+    PubSubApi_ -->|subscribe-recording-start| StreamNotifier_(StreamNotifier)
+    StreamNotifier_ -->|publish-recording-start| PubSubApi_
+    Client_(Client) -->|listener-registration| StreamNotifier_
+    StreamNotifier_ -->|recording-start-event| Client_
 ```
 <br/>
-publish-stream-start: publish stream start notification</br>
-subscribe-stream-start: subscribe for stream start notifications</br>
