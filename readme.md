@@ -1,10 +1,9 @@
 ## Async notifications architecture
 
 ```mermaid
-flowchart LR
-
-A[Hard] -->|Text| B(Round)
-B --> C{Decision}
-C -->|One| D[Result 1]
-C -->|Two| E[Result 2]
+flowchart TD
+    Vandenberg(Vandenberg) -->|publish-stream-start| Kafka{Kafka}
+    Kafka -->|subscribe-stream-start| StreamNotifier(StreamNotifier)
+    StreamNotifier -->|publish-stream-start| Kafka(Kafka)
+    Kafka -->|subscribe-stream-start| Client(Client)
 ```
