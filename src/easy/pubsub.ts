@@ -93,7 +93,7 @@ export class pubsub {
             stream
         };
     }
-    public async reply_to_active() {
+    private async reply_to_active() {
         await this.reply_to_subscriber_.reply_to_active();
     }
     [Disposable.dispose]() {
