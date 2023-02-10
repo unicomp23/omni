@@ -37,8 +37,8 @@ flowchart TD
             PartitionIndex_2(PartitionIndex) --> Kafka_2{Kafka}
             Kafka_2 --> ConsumerGroup_2(ConsumerGroup)
             ConsumerGroup_2 -->|partition_indexes| ConsumerGroupSubscriber_21(ConsumerGroupSubscriber)
-            ConsumerGroup_2 -->|partition_indexes| ConsumerGroupSubscriber_22(...)
-            ConsumerGroup_2 -->|partition_indexes| ConsumerGroupSubscriber_23(...)
+            ConsumerGroup_2 -->ConsumerGroupSubscriber_22(...)
+            ConsumerGroup_2 -->ConsumerGroupSubscriber_23(...)
             ConsumerGroupSubscriber_21 -->|subscribe| ConsumerGroup_2
             ConsumerGroupSubscriber_21 -->|raise_hand_event<br>appid/xxx/chanid/xxx/userid/xxx<br>handUpDown:xxx| Worker_21(Worker)
             Worker_21 -->|appid/xxx/chanid/xxx/userid/xxx<br>handUpDown:xxx<br>replyToPartitionIndex:xxx<br>replyToCorrelationID:xxx| SubscribeRaiseHand_
