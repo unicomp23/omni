@@ -7,18 +7,18 @@ import {delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
 
 const main = async() => {
-    const stack = new DisposableStack();
+    const disposable_stack = new DisposableStack();
     try {
         const config_ = config.create();
 
         const publisher_ = publisher.create(config_);
-        stack.use(publisher_);
+        disposable_stack.use(publisher_);
 
         const worker_subscriber_ = worker_subscriber.create(config_);
-        stack.use(worker_subscriber_);
+        disposable_stack.use(worker_subscriber_);
 
         const reply_to_subscriber_ = reply_to_subscriber.create(config_);
-        stack.use(reply_to_subscriber_);
+        disposable_stack.use(reply_to_subscriber_);
 
         let start_time = performance.now();
 
@@ -90,7 +90,7 @@ const main = async() => {
 
         await delay(1000);
     } finally {
-        stack.dispose();
+        disposable_stack.dispose();
     }
 }
 main().then(() => { console.log("exit main"); });

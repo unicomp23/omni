@@ -10,12 +10,12 @@ export class worker {
         private readonly run_worker: (stream: AsyncQueue<AirCoreFrame>) => Promise<boolean>,
     ) {
         this.worker_subscriber_ = worker_subscriber.create(config_);
-        this.stack.use(this.worker_subscriber_);
+        this.disposable_stack.use(this.worker_subscriber_);
     }
-    private readonly stack = new DisposableStack();
+    private readonly disposable_stack = new DisposableStack();
     private readonly worker_subscriber_: worker_subscriber;
 
     [Disposable.dispose]() {
-        this.stack.dispose();
+        this.disposable_stack.dispose();
     }
 }

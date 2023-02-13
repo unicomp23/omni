@@ -16,12 +16,12 @@ export class pubsub {
         private epoch = Timestamp.now(),
     ) {
         this.publisher_ = publisher.create(config_);
-        this.stack.use(this.publisher_);
+        this.disposable_stack.use(this.publisher_);
         this.reply_to_subscriber_ = reply_to_subscriber.create(config_);
-        this.stack.use(this.reply_to_subscriber_);
+        this.disposable_stack.use(this.reply_to_subscriber_);
         this.run().then(() => { console.log(`pubsub.run exit`); });
     }
-    private stack = new DisposableStack();
+    private disposable_stack = new DisposableStack();
     private async run() {
         for (; ;) {
             const frame = await this.reply_to_subscriber_.frames.get();
@@ -97,6 +97,6 @@ export class pubsub {
         await this.reply_to_subscriber_.reply_to_active();
     }
     [Disposable.dispose]() {
-        this.stack.dispose();
+        this.disposable_stack.dispose();
     }
 }

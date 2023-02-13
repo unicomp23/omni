@@ -42,14 +42,14 @@ function make_path_user(user_id: string) {
 }
 
 const main = async() => {
-    const stack = new DisposableStack();
+    const disposable_stack = new DisposableStack();
     try {
         const config_ = config.create();
         const db_snapshot = new DbSnapshot();
         const subscriptions = new Subscriptions();
         const quit = new Deferred<boolean>();
 
-        stack.use(new worker(config_, async(stream) => {
+        disposable_stack.use(new worker(config_, async(stream) => {
             for(;;) {
                 const frame = await stream.get();
                 console.log(`worker.received`, frame);
@@ -79,7 +79,7 @@ const main = async() => {
         }));
 
         const pubsub_ = await pubsub.create(config_);
-        stack.use(pubsub_);
+        disposable_stack.use(pubsub_);
 
         const runner_publish = async() => {
             const count = 1;
@@ -109,7 +109,7 @@ const main = async() => {
 
         await quit.promise;
     } finally {
-        stack.dispose();
+        disposable_stack.dispose();
     }
 }
 main().then(() => { console.log("exit main"); });
