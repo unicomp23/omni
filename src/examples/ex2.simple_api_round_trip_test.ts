@@ -47,34 +47,37 @@ const main = async() => {
     const disposable_stack = new DisposableStack();
     try {
         const config_ = config.create();
-        const db_snapshot = new DbSnapshot();
-        const subscriptions = new Subscriptions();
         const quit = new Deferred<boolean>();
 
         disposable_stack.use(new worker(config_, async(stream) => {
+            const db_snapshot = new DbSnapshot();
+            const subscriptions = new Subscriptions();
+
             for(;;) {
                 const frame = await stream.get();
                 console.log(`worker.received`, frame.toJsonString({prettySpaces}));
-                switch(frame.command) {
-                    case Commands.SUBSCRIBE:
-                        const correlationId = frame.replyTo?.correlationId;
-                        const dbKey = frame.sendTo?.kafkaKey;
-                        if(correlationId && dbKey) {
-                            subscriptions.callbacks[correlationId] = dbKey;
-                            // todo, send snapshot
-                        } else throw new Error(`missing correlationId or dbKey`);
+                switch (frame.command) {
+                    case Commands.SUBSCRIBE: {
+                        if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "partitionKey") throw new Error(`missing sendTo.kafkaKey.partitionKey.case`);
+                        const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
+                        const key = Buffer.from(kafkaPartitionKey).toString("base64");
+                        if (!frame.replyTo?.correlationId) throw new Error(`missing correlationId`);
+                        if (!frame.replyTo?.kafkaKey?.kafkaPartitionKey) throw new Error(`missing replyTo.kafkaPartitionKey`);
+                        if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x?.case != "partitionInteger") throw new Error(`missing replyTo.partitionInteger`);
+                        subscriptions.callbacks[key] = frame.replyTo.kafkaKey;
+                        // todo, send snapshot (ie late joiner support)
                         break;
-                    case Commands.UPSERT:
-                        if(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey") {
-                            const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
-                            const payload = frame.payload;
-                            if(!kafkaPartitionKey){ throw new Error(`missing kafkaPartitionKey`); }
-                            if(!payload){ throw new Error(`missing payload`); }
-                            db_snapshot.entries[Buffer.from(kafkaPartitionKey).toString("base64")] = payload;
-                        } else {
-                            throw new Error(`missing partitionKey`);
-                        }
+                    }
+                    case Commands.UPSERT: {
+                        if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")) throw new Error(`missing sendTo.partitionKey.case`);
+                        const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
+                        if (!kafkaPartitionKey) throw new Error(`missing sendTo.kafkaPartitionKey.value`);
+                        const payload = frame.payload;
+                        if (!payload) throw new Error(`missing payload`);
+                        const key = Buffer.from(kafkaPartitionKey).toString("base64");
+                        db_snapshot.entries[key] = payload;
                         break;
+                    }
                     default:
                         throw new Error(`unhandled: ${Commands[frame.command].toString()}`);
                 }
@@ -113,8 +116,12 @@ const main = async() => {
         runner_publish().then(() => { console.log(`runner_publish exit`);})
 
         const runner_subscribe = async() => {
-            const stream = pubsub_.subscribe(make_path_chan());
-            // todo
+            const frames = await pubsub_.subscribe(make_path_chan());
+            const stream = frames.stream;
+            for(;;) {
+                const frame = await stream.get();
+                console.log(`runner.subscribe: `, frame.toJsonString({prettySpaces}));
+            }
         }
         runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
 
