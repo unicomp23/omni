@@ -3,6 +3,7 @@ import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {Disposable} from "@esfx/disposable";
+import {prettySpaces} from "../common/constants";
 
 export enum topic_type {
     unknown,
@@ -56,7 +57,7 @@ export class publisher {
                 value: Buffer.from("")
             }]
         } as ProducerRecord;
-        console.log("producing:", frame.toJsonString({prettySpaces: 2}));
+        console.log("producing:", frame.toJsonString({prettySpaces}));
         switch (topic_type_) {
             case topic_type.worker: {
                 if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")

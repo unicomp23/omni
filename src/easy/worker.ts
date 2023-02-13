@@ -11,6 +11,7 @@ export class worker {
     ) {
         this.worker_subscriber_ = worker_subscriber.create(config_);
         this.disposable_stack.use(this.worker_subscriber_);
+        this.run_worker(this.worker_subscriber_.frames).then(() => { console.log(`worker.run_worker.exit`); });
     }
     private readonly disposable_stack = new DisposableStack();
     private readonly worker_subscriber_: worker_subscriber;

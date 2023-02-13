@@ -5,6 +5,7 @@ import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
+import {prettySpaces} from "../common/constants";
 
 const main = async() => {
     const disposable_stack = new DisposableStack();
@@ -25,7 +26,7 @@ const main = async() => {
         const strand_worker = async () => {
             for (; ;) {
                 const frame = await worker_subscriber_.frames.get();
-                console.log("worker frame.3:", frame.toJsonString({prettySpaces: 2}))
+                console.log("worker frame.3:", frame.toJsonString({prettySpaces}))
                 if(frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionInteger") {
                     try {
                         await publisher_.send(topic_type.reply_to, frame);
@@ -42,7 +43,7 @@ const main = async() => {
         const strand_reply_to = async () => {
             for (; ;) {
                 const frame = await reply_to_subscriber_.frames.get();
-                console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJsonString({prettySpaces: 2}))
+                console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJsonString({prettySpaces}))
             }
         }
         strand_reply_to().then(() => {
@@ -85,7 +86,7 @@ const main = async() => {
                 },
             },
         });
-        console.log(`publisher.send`, frame.toJsonString({prettySpaces: 2}));
+        console.log(`publisher.send`, frame.toJsonString({prettySpaces}));
         await publisher_.send(topic_type.worker, frame);
 
         await delay(1000);

@@ -7,11 +7,13 @@ import {
     DbSnapshot,
     Path,
     PathTypes,
+    PayloadType,
     Subscriptions,
     Tags
 } from "../../proto/generated/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
+import {prettySpaces} from "../common/constants";
 
 function *range(start: number, end: number) {
     for(let i = start; i < end; i++)
@@ -52,7 +54,7 @@ const main = async() => {
         disposable_stack.use(new worker(config_, async(stream) => {
             for(;;) {
                 const frame = await stream.get();
-                console.log(`worker.received`, frame);
+                console.log(`worker.received`, frame.toJsonString({prettySpaces}));
                 switch(frame.command) {
                     case Commands.SUBSCRIBE:
                         const correlationId = frame.replyTo?.correlationId;
@@ -64,12 +66,14 @@ const main = async() => {
                         break;
                     case Commands.UPSERT:
                         if(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey") {
-                            const buffer = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
+                            const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                             const payload = frame.payload;
-                            if (buffer && payload) {
-                                db_snapshot.entries[Buffer.from(buffer).toString("base64")] = payload;
-                            } else throw new Error(`missing buffer or payload`);
-                        } else throw new Error(`missing partitionKey`);
+                            if(!kafkaPartitionKey){ throw new Error(`missing kafkaPartitionKey`); }
+                            if(!payload){ throw new Error(`missing payload`); }
+                            db_snapshot.entries[Buffer.from(kafkaPartitionKey).toString("base64")] = payload;
+                        } else {
+                            throw new Error(`missing partitionKey`);
+                        }
                         break;
                     default:
                         throw new Error(`unhandled: ${Commands[frame.command].toString()}`);
@@ -95,8 +99,15 @@ const main = async() => {
                                 }
                             }
                         },
-                    }
-                }))
+                    },
+                    payload: {
+                        type: PayloadType.DELTA,
+                        x: {
+                            case: "text",
+                            value: "some text",
+                        },
+                    },
+                }));
             }
         }
         runner_publish().then(() => { console.log(`runner_publish exit`);})
