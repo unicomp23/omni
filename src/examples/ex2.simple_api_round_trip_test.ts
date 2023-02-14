@@ -3,17 +3,18 @@ import {worker} from "../easy/worker";
 import {config} from "../config";
 import {
     AirCoreFrame,
-    Commands,
+    Commands, Coordinates,
     DbSnapshot,
+    KafkaKey,
     Path,
     PathTypes,
     PayloadType,
-    Subscriptions,
     Tags
 } from "../../proto/generated/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {prettySpaces} from "../common/constants";
+import {publisher, topic_type} from "../kafka/publisher";
 
 function *range(start: number, end: number) {
     for(let i = start; i < end; i++)
@@ -31,7 +32,7 @@ function make_path_chan() {
     return key_path;
 }
 
-function make_path_user(user_id: string) {
+function todo_make_path_user(user_id: string) {
     const key_path = new Path({
         hops: [
             {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},
@@ -49,9 +50,9 @@ const main = async() => {
         const config_ = config.create();
         const quit = new Deferred<boolean>();
 
-        disposable_stack.use(new worker(config_, async(stream) => {
+        disposable_stack.use(new worker(config_, async(stream, publisher_) => {
             const db_snapshot = new DbSnapshot();
-            const subscriptions = new Subscriptions();
+            const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, KafkaKey>>();
 
             for(;;) {
                 const frame = await stream.get();
@@ -64,8 +65,14 @@ const main = async() => {
                         if (!frame.replyTo?.correlationId) throw new Error(`missing correlationId`);
                         if (!frame.replyTo?.kafkaKey?.kafkaPartitionKey) throw new Error(`missing replyTo.kafkaPartitionKey`);
                         if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x?.case != "partitionInteger") throw new Error(`missing replyTo.partitionInteger`);
-                        subscriptions.callbacks[key] = frame.replyTo.kafkaKey;
-                        // todo, send snapshot (ie late joiner support)
+                        if(!subscriptions.has(key))
+                            subscriptions.set(key, new Map<string, KafkaKey>());
+                        const subscribers = subscriptions.get(key);
+                        if(subscribers) {
+                            subscribers.set(frame.replyTo?.correlationId, frame.replyTo.kafkaKey.clone());
+                            // todo, send snapshot (ie late joiner support)
+                            console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
+                        }
                         break;
                     }
                     case Commands.UPSERT: {
@@ -76,6 +83,19 @@ const main = async() => {
                         if (!payload) throw new Error(`missing payload`);
                         const key = Buffer.from(kafkaPartitionKey).toString("base64");
                         db_snapshot.entries[key] = payload;
+                        const subscribers = subscriptions.get(key);
+                        if(subscribers) {
+                            for(const entry of subscribers.entries()) {
+                                const kafkaKey = entry[1];
+                                console.log(`send.to.subscriber.2`);
+                                if(kafkaKey) {
+                                    frame.replyTo = new Coordinates();
+                                    frame.replyTo.kafkaKey = kafkaKey.clone();
+                                    await publisher_.send(topic_type.reply_to, frame);
+                                    console.log(`send.to.subscriber: `, frame.toJsonString({prettySpaces}));
+                                }
+                            }
+                        }
                         break;
                     }
                     default:
@@ -88,6 +108,16 @@ const main = async() => {
         const pubsub_ = await pubsub.create(config_);
         disposable_stack.use(pubsub_);
 
+        const runner_subscribe = async() => {
+            const frames = await pubsub_.subscribe(make_path_chan());
+            const stream = frames.stream;
+            for(;;) {
+                const frame = await stream.get();
+                console.log(`runner.subscribe: `, frame.toJsonString({prettySpaces}));
+            }
+        }
+        runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
+
         const runner_publish = async() => {
             const count = 1;
             for (const i of range(0, count)) {
@@ -98,7 +128,7 @@ const main = async() => {
                             kafkaPartitionKey: {
                                 x: {
                                     case: "partitionKey",
-                                    value: make_path_user(i.toString()),
+                                    value: make_path_chan(),
                                 }
                             }
                         },
@@ -114,16 +144,6 @@ const main = async() => {
             }
         }
         runner_publish().then(() => { console.log(`runner_publish exit`);})
-
-        const runner_subscribe = async() => {
-            const frames = await pubsub_.subscribe(make_path_chan());
-            const stream = frames.stream;
-            for(;;) {
-                const frame = await stream.get();
-                console.log(`runner.subscribe: `, frame.toJsonString({prettySpaces}));
-            }
-        }
-        runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
 
         await quit.promise;
     } finally {

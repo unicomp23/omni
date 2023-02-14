@@ -319,6 +319,8 @@ export class PathElement extends Message<PathElement> {
  */
 export class Path extends Message<Path> {
   /**
+   * first hop is always a PATH_TYPE:PathTypes.xxx
+   *
    * @generated from field: repeated aircore.media.devinternal.v1.PathElement hops = 10;
    */
   hops: PathElement[] = [];
@@ -408,11 +410,8 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
  */
 export class KafkaKey extends Message<KafkaKey> {
   /**
-   * @generated from field: string kafka_topic = 20;
-   */
-  kafkaTopic = "";
-
-  /**
+   * string kafka_topic = 20;
+   *
    * @generated from field: aircore.media.devinternal.v1.KafkaParitionKey kafka_partition_key = 30;
    */
   kafkaPartitionKey?: KafkaParitionKey;
@@ -425,7 +424,6 @@ export class KafkaKey extends Message<KafkaKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.devinternal.v1.KafkaKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 20, name: "kafka_topic", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 30, name: "kafka_partition_key", kind: "message", T: KafkaParitionKey },
   ]);
 

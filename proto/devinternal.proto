@@ -76,7 +76,7 @@ message KafkaParitionKey {
 }
 
 message KafkaKey {
-  string kafka_topic = 20;
+  //string kafka_topic = 20;
   KafkaParitionKey kafka_partition_key = 30;
 }
 

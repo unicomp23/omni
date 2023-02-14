@@ -61,7 +61,7 @@ export class pubsub {
     public async subscribe(path: Path) {
         await this.reply_to_active();
 
-        const stream_id = crypto.randomUUID();
+        const correlationId = crypto.randomUUID();
         await this.publisher_.send(topic_type.worker, new AirCoreFrame({
             command: Commands.SUBSCRIBE,
             sendTo: {
@@ -75,7 +75,7 @@ export class pubsub {
                 },
             },
             replyTo: {
-                correlationId: stream_id,
+                correlationId,
                 kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
@@ -87,9 +87,9 @@ export class pubsub {
             },
         }));
         const stream = new AsyncQueue<AirCoreFrame>();
-        this.subscriptions.set(stream_id, stream);
+        this.subscriptions.set(correlationId, stream);
         return {
-            stream_id,
+            correlationId,
             stream
         };
     }

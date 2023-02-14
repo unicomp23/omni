@@ -44,7 +44,6 @@ export class publisher {
     }
 
     public async send(topic_type_: topic_type, frame: AirCoreFrame) {
-        console.log("send");
         if (!this.connected) {
             await this.producer.connect();
             console.log("send.connect")
@@ -64,14 +63,12 @@ export class publisher {
                     record.messages[0].key = Buffer.from(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
                     throw new Error(`missing partitionKey, worker`);
-                if(frame.sendTo?.kafkaKey) frame.sendTo.kafkaKey.kafkaTopic = topic;
                 break;
             }
             case topic_type.reply_to: {
                 if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionInteger")
                     record.messages[0].partition = frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.value | 0; // protobuf serialize drops zero val's
                 else throw new Error(`missing partitionKey, reply_to`);
-                if(frame.replyTo?.kafkaKey) frame.replyTo.kafkaKey.kafkaTopic = topic;
                 break;
             }
             default:
@@ -79,7 +76,7 @@ export class publisher {
         }
         record.messages[0].value = Buffer.from(frame.toBinary());
         await this.producer.send(record);
-        console.log("send.produce")
+        console.log("publisher.send: ", frame.toJsonString({prettySpaces}));
     }
 
     [Disposable.dispose]() {
