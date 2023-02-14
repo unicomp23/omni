@@ -50,8 +50,8 @@ const main = async() => {
         const config_ = config.create();
         const quit = new Deferred<boolean>();
 
-        disposable_stack.use(new worker(config_, async(stream, publisher_) => {
-            const db_snapshot = new DbSnapshot();
+        const late_join_server = new worker(config_, async(stream, publisher_) => {
+            const db_snapshot = new DbSnapshot(); // todo replace w/ redis
             const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, KafkaKey>>();
 
             for(;;) {
@@ -103,7 +103,8 @@ const main = async() => {
                 }
             }
             return true;
-        }));
+        });
+        disposable_stack.use(late_join_server);
 
         const pubsub_ = await pubsub.create(config_);
         disposable_stack.use(pubsub_);

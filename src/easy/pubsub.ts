@@ -7,6 +7,7 @@ import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
 import {Disposable, DisposableStack} from "@esfx/disposable";
+import {prettySpaces} from "../common/constants";
 
 export class pubsub {
     private readonly publisher_: publisher;
@@ -26,6 +27,7 @@ export class pubsub {
         for (; ;) {
             const frame = await this.reply_to_subscriber_.frames.get();
             const correlation_id = frame.replyTo?.correlationId;
+            console.log(`firing.correlationid`, frame.toJsonString({prettySpaces}));
             if (correlation_id) {
                 const stream = this.subscriptions.get(correlation_id);
                 if (stream) {

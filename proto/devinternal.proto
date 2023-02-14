@@ -80,15 +80,8 @@ message KafkaKey {
   KafkaParitionKey kafka_partition_key = 30;
 }
 
-message PlanetKey {
-  Path path = 10;
-}
-
 message Coordinates {
-  PlanetKey planet_key = 10;
-
   KafkaKey kafka_key = 40; // in-mem hash, redis, aurora, etc.
-
   string correlation_id = 50;
 }
 
