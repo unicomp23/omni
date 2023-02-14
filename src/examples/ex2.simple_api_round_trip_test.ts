@@ -32,19 +32,8 @@ function make_path_chan() {
     return key_path;
 }
 
-function todo_make_path_user(user_id: string) {
-    const key_path = new Path({
-        hops: [
-            {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},
-            {tag: Tags.APP_ID, x: {case: "text", value: "app_id_123"}},
-            {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "chan_id_123"}},
-            {tag: Tags.APP_USER_ID, x: {case: "text", value: user_id}},
-        ]
-    });
-    return key_path;
-}
-
 const main = async() => {
+    const some_text = "some text 123";
     const disposable_stack = new DisposableStack();
     try {
         const config_ = config.create();
@@ -52,7 +41,7 @@ const main = async() => {
 
         const late_join_server = new worker(config_, async(stream, publisher_) => {
             const db_snapshot = new DbSnapshot(); // todo replace w/ redis
-            const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, KafkaKey>>();
+            const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, Coordinates>>();
 
             for(;;) {
                 const frame = await stream.get();
@@ -66,10 +55,10 @@ const main = async() => {
                         if (!frame.replyTo?.kafkaKey?.kafkaPartitionKey) throw new Error(`missing replyTo.kafkaPartitionKey`);
                         if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x?.case != "partitionInteger") throw new Error(`missing replyTo.partitionInteger`);
                         if(!subscriptions.has(key))
-                            subscriptions.set(key, new Map<string, KafkaKey>());
+                            subscriptions.set(key, new Map<string, Coordinates>());
                         const subscribers = subscriptions.get(key);
                         if(subscribers) {
-                            subscribers.set(frame.replyTo?.correlationId, frame.replyTo.kafkaKey.clone());
+                            subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone());
                             // todo, send snapshot (ie late joiner support)
                             console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         }
@@ -86,11 +75,10 @@ const main = async() => {
                         const subscribers = subscriptions.get(key);
                         if(subscribers) {
                             for(const entry of subscribers.entries()) {
-                                const kafkaKey = entry[1];
+                                const coordinates = entry[1];
                                 console.log(`send.to.subscriber.2`);
-                                if(kafkaKey) {
-                                    frame.replyTo = new Coordinates();
-                                    frame.replyTo.kafkaKey = kafkaKey.clone();
+                                if(coordinates) {
+                                    frame.replyTo = coordinates.clone();
                                     await publisher_.send(topic_type.reply_to, frame);
                                     console.log(`send.to.subscriber: `, frame.toJsonString({prettySpaces}));
                                 }
@@ -115,6 +103,10 @@ const main = async() => {
             for(;;) {
                 const frame = await stream.get();
                 console.log(`runner.subscribe: `, frame.toJsonString({prettySpaces}));
+                if(frame?.payload?.x.case == "text" && frame.payload.x.value == some_text) {
+                    quit.resolve(true);
+                    break;
+                }
             }
         }
         runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
@@ -138,7 +130,7 @@ const main = async() => {
                         type: PayloadType.DELTA,
                         x: {
                             case: "text",
-                            value: "some text",
+                            value: some_text,
                         },
                     },
                 }));
@@ -146,6 +138,7 @@ const main = async() => {
         }
         runner_publish().then(() => { console.log(`runner_publish exit`);})
 
+        console.log(`await'ing quit signal`);
         await quit.promise;
     } finally {
         disposable_stack.dispose();

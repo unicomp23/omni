@@ -11,8 +11,9 @@ export class worker {
         private readonly run_worker: (stream: AsyncQueue<AirCoreFrame>, publisher_: publisher) => Promise<boolean>,
     ) {
         this.worker_subscriber_ = worker_subscriber.create(config_);
-        this.worker_publisher_ = publisher.create(config_);
         this.disposable_stack.use(this.worker_subscriber_);
+        this.worker_publisher_ = publisher.create(config_);
+        this.disposable_stack.use(this.worker_publisher_);
         this.run_worker(this.worker_subscriber_.frames, this.worker_publisher_).then(() => { console.log(`worker.run_worker.exit`); });
     }
     private readonly disposable_stack = new DisposableStack();
