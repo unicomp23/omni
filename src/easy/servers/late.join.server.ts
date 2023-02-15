@@ -1,5 +1,5 @@
 import {worker} from "../worker";
-import {Commands, Coordinates, DbSnapshot, PayloadType} from "../../../proto/generated/devinternal_pb";
+import {Commands, Coordinates, DbSnapshot, Payload, PayloadType} from "../../../proto/generated/devinternal_pb";
 import {prettySpaces} from "../../common/constants";
 import {topic_type} from "../../kafka/publisher";
 import {config} from "../../config";
@@ -26,14 +26,13 @@ export function spawn_server(config_: config) {
                     if(subscribers) {
                         subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone());
                         console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
-                        // todo, send snapshot (ie late joiner support)
+                        // send snapshot (ie late joiner support)
                         const payload = db_snapshot.entries[key];
-                        if(payload) {
-                            frame.payload = payload;
-                            frame.payload.type = PayloadType.SNAPSHOT;
-                            await publisher_.send(topic_type.reply_to, frame);
-                            console.log(`send.snapshot.to.subscriber: `, frame.toJsonString({prettySpaces}));
-                        }
+                        const payload_2 = payload ? payload : new Payload();
+                        frame.payload = payload_2;
+                        frame.payload.type = PayloadType.SNAPSHOT;
+                        await publisher_.send(topic_type.reply_to, frame);
+                        console.log(`send.snapshot.to.subscriber: `, frame.toJsonString({prettySpaces}));
                     }
                     break;
                 }

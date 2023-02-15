@@ -6,8 +6,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "echo \"Error: no start specified\" && exit 1",
-    "ex1": "ts-node-dev src/examples/ex1.primitives_round_trip_test.ts",
-    "ex2": "ts-node-dev src/examples/ex2.simple_api_round_trip_test.ts"
+    "ex1": "ts-node-dev src/examples/ex1.primitives_round_trip.ts",
+    "ex2": "ts-node-dev src/examples/ex2.simple_api_round_trip.ts",
+    "ex3": "ts-node-dev src/examples/ex3.simple_api_round_trip.ts"
   },
   "author": "",
   "license": "ISC",
