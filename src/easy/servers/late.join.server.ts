@@ -24,7 +24,7 @@ export function spawn_server(config_: config) {
                         subscriptions.set(key, new Map<string, Coordinates>());
                     const subscribers = subscriptions.get(key);
                     if(subscribers) {
-                        subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone());
+                        subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // save subscriber return path
                         console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
                         const payload = db_snapshot.entries[key];
@@ -46,7 +46,7 @@ export function spawn_server(config_: config) {
                     db_snapshot.entries[key] = payload;
                     const subscribers = subscriptions.get(key);
                     if(subscribers) {
-                        for(const entry of subscribers.entries()) {
+                        for(const entry of subscribers.entries()) { // iterate subscriber return paths
                             const coordinates = entry[1];
                             console.log(`send.to.subscriber.2`);
                             if(coordinates) {
