@@ -38,9 +38,11 @@ const main = async() => {
             const frames = await pubsub_.subscribe(make_path_chan());
             const stream = frames.stream;
             for(;;) {
+                // snapshot
                 const frame = await stream.get();
                 console.log(`runner.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
                 if(frame.payload?.type == PayloadType.SNAPSHOT) {
+                    // delta(s)
                     const frame = await stream.get();
                     console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
                     if(frame?.payload?.x.case == "text" && frame.payload.x.value == some_text && frame.payload.type == PayloadType.DELTA) {

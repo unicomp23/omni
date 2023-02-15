@@ -22,8 +22,13 @@ function make_path_chan() {
     return key_path;
 }
 
+function make_some_text(i: number) {
+    return `some text ${i}`;
+}
+
+const count = 3;
+
 const main = async() => {
-    const some_text = "some text 123";
     const disposable_stack = new DisposableStack();
     try {
         const config_ = config.create();
@@ -37,19 +42,25 @@ const main = async() => {
         const runner_subscribe = async() => {
             const frames = await pubsub_.subscribe(make_path_chan());
             const stream = frames.stream;
+            // snapshot
+            const frame = await stream.get();
+            console.log(`runner.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
+            let i = 0;
             for(;;) {
+                // delta(s)
                 let frame = await stream.get();
                 console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
-                if(frame?.payload?.x.case == "text" && frame.payload.x.value == some_text && frame.payload.type == PayloadType.DELTA) {
-                    quit.resolve(true);
-                    break;
+                if(frame?.payload?.x.case == "text" && frame.payload.x.value == make_some_text(i) && frame.payload.type == PayloadType.DELTA) {
+                    if(i == (count - 1)) {
+                        break;
+                    }
+                    i++;
                 }
             }
         }
         runner_subscribe().then(() => { console.log(`runner_subscribe exit`);})
 
         const runner_publish = async() => {
-            const count = 1;
             for (const i of range(0, count)) {
                 await pubsub_.publish(new AirCoreFrame({
                     command: Commands.UPSERT,
@@ -67,10 +78,20 @@ const main = async() => {
                         type: PayloadType.DELTA,
                         x: {
                             case: "text",
-                            value: some_text,
+                            value: make_some_text(i),
                         },
                     },
                 }));
+            }
+            // late joiner
+            const frames = await pubsub_.subscribe(make_path_chan());
+            const stream = frames.stream;
+            const frame = await stream.get();
+            console.log(`runner.publish.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
+            if(frame?.payload?.x.case == "text" && frame.payload.x.value == make_some_text(count - 1) && frame.payload.type == PayloadType.SNAPSHOT) {
+                quit.resolve(true);
+            } else {
+                throw new Error(`unexpected payload`);
             }
         }
         runner_publish().then(() => { console.log(`runner_publish exit`);})
