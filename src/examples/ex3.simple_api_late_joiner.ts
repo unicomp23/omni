@@ -17,6 +17,7 @@ function make_path_chan() {
             {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},
             {tag: Tags.APP_ID, x: {case: "text", value: "app_id_123"}},
             {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "chan_id_123"}},
+            {tag: Tags.APP_USER_ID, x: {case: "text", value: "user_id_123"}},
         ]
     });
     return key_path;
