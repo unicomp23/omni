@@ -4,6 +4,7 @@
 flowchart TD
     Redis_(Redis) -->|late-joiner-snapshot|Kafka_
     Kafka_ -->|late-joiner-snapshot-request|Redis_
+    Kafka_ -->|delta-updates|Redis_
     Kafka_{Kafka} -->|responses topic|PubSubApi_(PubSubApi)
     PubSubApi_ -->|requests topic|Kafka_
     Vandenberg_(Vandenberg) -->|publish-recording-start<br>publish-recording-stop| PubSubApi_
