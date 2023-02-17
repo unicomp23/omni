@@ -47,7 +47,6 @@ export class pubsub {
     public async publish(frame: AirCoreFrame) {
         await this.reply_to_active();
 
-        // todo if(!frame.sendTo?.planetKey) throw new Error("missing planet key");
         if(!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
         if(!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
