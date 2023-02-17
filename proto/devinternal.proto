@@ -104,6 +104,8 @@ message Payload {
     string text = 60;
     google.protobuf.Any val = 70;
   }
+
+  map<string, string> tags = 200;
 }
 
 message AirCoreFrame {

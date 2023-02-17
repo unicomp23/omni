@@ -564,6 +564,11 @@ export class Payload extends Message<Payload> {
     case: "val";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
+  /**
+   * @generated from field: map<string, string> tags = 200;
+   */
+  tags: { [key: string]: string } = {};
+
   constructor(data?: PartialMessage<Payload>) {
     super();
     proto3.util.initPartial(data, this);
@@ -576,6 +581,7 @@ export class Payload extends Message<Payload> {
     { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
     { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
+    { no: 200, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
