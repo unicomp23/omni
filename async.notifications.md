@@ -5,10 +5,9 @@ flowchart TD
     Redis_(Redis) -->|late-joiner-<br>snapshot|Kafka_
     Kafka_ -->|late-joiner-<br>snapshot-request|Redis_
     Kafka_ -->|delta-updates|Redis_
+    Vandenberg_(Vandenberg) -->|publish-recording-start<br>publish-recording-stop<br>publish-still-alive-heartbeat| PubSubApi_
     Kafka_{Kafka} -->|responses topic|PubSubApi_(PubSubApi)
     PubSubApi_ -->|requests topic|Kafka_
-    Vandenberg_(Vandenberg) -->|publish-recording-start<br>publish-recording-stop| PubSubApi_
-    Vandenberg_(Vandenberg) -->|publish-still-<br>alive-heartbeat| PubSubApi_
     CrashMonitor_(CrashMonitor) -->|subscribe-still-<br>alive-heartbeat| PubSubApi_
     CrashMonitor_(CrashMonitor) -->|publish-recording-stop-event| PubSubApi_
     PubSubApi_ -->|notify-still-<br>alive-heartbeat| CrashMonitor_
