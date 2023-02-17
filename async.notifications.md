@@ -9,7 +9,7 @@ flowchart TD
     Kafka_{Kafka} -->|responses topic|PubSubApi_(PubSubApi)
     PubSubApi_ -->|requests topic|Kafka_
     CrashMonitor_(CrashMonitor) -->|subscribe-still-<br>alive-heartbeat| PubSubApi_
-    CrashMonitor_(CrashMonitor) -->|publish-recording-stop-event| PubSubApi_
+    CrashMonitor_(CrashMonitor) -->|publish-recording-stop| PubSubApi_
     PubSubApi_ -->|notify-still-<br>alive-heartbeat| CrashMonitor_
     PubSubApi_ -->|notify-recording-start<br>notify-recording-stop| StreamNotifier_(StreamNotifier)
     StreamNotifier_ -->|subscribe-recording-start<br>subscribe-recording-stop| PubSubApi_
