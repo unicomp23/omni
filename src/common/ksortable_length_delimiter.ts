@@ -7,11 +7,11 @@ export class tag_val {
     public val: string = "";
 }
 
-export class length_delimiter {
+export class ksortable_length_delimiter {
     private constructor() {
     }
     public static create() {
-        return new length_delimiter();
+        return new ksortable_length_delimiter();
     }
     public static length_delimiter_to_string(len: number) {
         if(len < min_token_len) throw new Error(`cannot be negative`);
@@ -23,7 +23,7 @@ export class length_delimiter {
         return body_len + body;
     }
     public static token_to_string(tag: string) {
-        return length_delimiter.length_delimiter_to_string(tag.length) + tag;
+        return ksortable_length_delimiter.length_delimiter_to_string(tag.length) + tag;
     }
     public static length_delimiter_from_string(index: number, payload: string) {
         if(index != Math.floor(index)) throw new Error(`must be integer`);
@@ -50,8 +50,8 @@ export class length_delimiter {
     public serialize(tags: Array<tag_val>) {
         const arr = new Array<string>();
         for(const iter of tags) {
-            arr.push(length_delimiter.token_to_string(iter.tag));
-            arr.push(length_delimiter.token_to_string(iter.val));
+            arr.push(ksortable_length_delimiter.token_to_string(iter.tag));
+            arr.push(ksortable_length_delimiter.token_to_string(iter.val));
         }
         return arr.join();
     }
@@ -59,9 +59,9 @@ export class length_delimiter {
         const tags = new Array<tag_val>();
         let index = 0;
         while(index < payload.length) {
-            const next_tag = length_delimiter.token_from_string(index, payload);
+            const next_tag = ksortable_length_delimiter.token_from_string(index, payload);
             index = next_tag.next_offset;
-            const next_val = length_delimiter.token_from_string(index, payload);
+            const next_val = ksortable_length_delimiter.token_from_string(index, payload);
             index = next_val.next_offset;
             tags.push({
                 tag: next_tag.val,
