@@ -2,16 +2,13 @@ const delimiter_encode_radix = 16;
 const max_token_len = 255;
 const min_token_len = 0;
 
-export class tag_val {
-    public tag: string = "";
-    public val: string = "";
+export interface tag_val {
+    tag: string;
+    val: string;
 }
 
 export class ksortable_length_delimiter {
     private constructor() {
-    }
-    public static create() {
-        return new ksortable_length_delimiter();
     }
     public static length_delimiter_to_string(len: number) {
         if(len < min_token_len) throw new Error(`cannot be negative`);
@@ -47,15 +44,16 @@ export class ksortable_length_delimiter {
             next_offset: next.next_offset + next.val,
         }
     }
-    public serialize(tags: Array<tag_val>) {
+    // topics which are serialized/deserialized as arrays of tag/value's, for use in redis sorted sets and kafka partition keys
+    public static serialize(tags: Array<tag_val>) {
         const arr = new Array<string>();
         for(const iter of tags) {
             arr.push(ksortable_length_delimiter.token_to_string(iter.tag));
             arr.push(ksortable_length_delimiter.token_to_string(iter.val));
         }
-        return arr.join();
+        return arr.join(``);
     }
-    public deserialize_tags(payload: string) {
+    public static deserialize_tags(payload: string) {
         const tags = new Array<tag_val>();
         let index = 0;
         while(index < payload.length) {
