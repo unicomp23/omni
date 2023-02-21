@@ -7,6 +7,8 @@ export interface tag_val {
     val: string;
 }
 
+export class TopicArray extends Array<tag_val>{}
+
 export class ksortable_length_delimiter {
     private constructor() {
     }
@@ -45,7 +47,7 @@ export class ksortable_length_delimiter {
         }
     }
     // topics which are serialized/deserialized as arrays of tag/value's, for use in redis sorted sets and kafka partition keys
-    public static serialize(tags: Array<tag_val>) {
+    public static serialize(tags: TopicArray) {
         const arr = new Array<string>();
         for(const iter of tags) {
             arr.push(ksortable_length_delimiter.token_to_string(iter.tag));
@@ -54,7 +56,7 @@ export class ksortable_length_delimiter {
         return arr.join(``);
     }
     public static deserialize_tags(payload: string) {
-        const tags = new Array<tag_val>();
+        const tags = new TopicArray();
         let index = 0;
         while(index < payload.length) {
             const next_tag = ksortable_length_delimiter.token_from_string(index, payload);
