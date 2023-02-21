@@ -5,8 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "echo \"Error: no start specified\" && exit 1",
-    "ex3": "ts-node-dev src/examples/ex3.simple_api_late_joiner.ts"
+    "start": "echo \"Error: no start specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",

@@ -1,9 +1,6 @@
 import {ksortable_length_delimiter, tag_val} from "./ksortable_length_delimiter";
 
 describe(`length delimited tokens`, () => {
-    test(`todo remove`, () => {
-        //expect(false).toBe(true);
-    })
     test(`length delimiter serde`, () => {
         const val = 231;
         const serialized = ksortable_length_delimiter.length_delimiter_to_string(val);
