@@ -52,8 +52,6 @@ const main = async() => {
             console.log("strand_reply_to exit")
         });
 
-        await delay(1000);
-
         start_time = performance.now();
         const frame = new AirCoreFrame({
             replyTo: {
