@@ -64,8 +64,8 @@ export class reply_to_subscriber {
     })();
 
     [Disposable.dispose]() {
-        this.consumer.stop();
-        this.consumer.disconnect();
+        this.consumer.stop().then(() => { console.info(`kafka.stop`)});
+        this.consumer.disconnect().then(() => { console.info(`kafka.disconnect`)});
     }
 
     public static create(config_: config) {

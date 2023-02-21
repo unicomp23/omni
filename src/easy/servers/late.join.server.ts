@@ -24,10 +24,10 @@ export function spawn_server(config_: config) {
                         subscriptions.set(key, new Map<string, Coordinates>());
                     const subscribers = subscriptions.get(key);
                     if(subscribers) {
-                        subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // todo save subscriber return path
+                        subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // save subscriber return path
                         console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
-                        const payload = db_snapshot.entries[key]; // todo fetch snapshot
+                        const payload = db_snapshot.entries[key]; // fetch snapshot
                         const payload_2 = payload ? payload : new Payload();
                         frame.payload = payload_2;
                         frame.payload.type = PayloadType.SNAPSHOT;
@@ -43,10 +43,10 @@ export function spawn_server(config_: config) {
                     const payload = frame.payload;
                     if (!payload) throw new Error(`missing payload`);
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
-                    db_snapshot.entries[key] = payload; // todo set snapshot
+                    db_snapshot.entries[key] = payload; // update snapshot
                     const subscribers = subscriptions.get(key);
                     if(subscribers) {
-                        for(const entry of subscribers.entries()) { // todo iterate subscriber return paths
+                        for(const entry of subscribers.entries()) { // iterate subscriber return paths
                             const coordinates = entry[1];
                             console.log(`send.to.subscriber.2`);
                             if(coordinates) {
