@@ -3,12 +3,13 @@ import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
-import {delay} from "@esfx/async";
+import {Deferred, delay} from "@esfx/async";
 import {DisposableStack} from "@esfx/disposable";
 import {prettySpaces} from "../common/constants";
 
 const main = async() => {
     const disposable_stack = new DisposableStack();
+    const quit = new Deferred<boolean>();
     try {
         const config_ = config.create();
 
@@ -44,6 +45,7 @@ const main = async() => {
             for (; ;) {
                 const frame = await reply_to_subscriber_.frames.get();
                 console.log(`reply_to frame(rtt): ${performance.now() - start_time} ms,`, frame.toJsonString({prettySpaces}))
+                quit.resolve(true);
             }
         }
         strand_reply_to().then(() => {
@@ -89,7 +91,7 @@ const main = async() => {
         console.log(`publisher.send`, frame.toJsonString({prettySpaces}));
         await publisher_.send(topic_type.worker, frame);
 
-        await delay(1000);
+        await quit.promise;
     } finally {
         disposable_stack.dispose();
     }
