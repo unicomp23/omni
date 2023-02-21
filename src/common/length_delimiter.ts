@@ -8,19 +8,24 @@ export class tag_val {
 }
 
 export class length_delimiter {
-    private static length_delimiter_to_string(len: number) {
-        if(len != Math.floor(len)) throw new Error(`must be integer`);
+    private constructor() {
+    }
+    public static create() {
+        return new length_delimiter();
+    }
+    public static length_delimiter_to_string(len: number) {
         if(len < min_token_len) throw new Error(`cannot be negative`);
         if(len > max_token_len) throw new Error(`cannot be > ${max_token_len}`);
+        if(len != Math.floor(len)) throw new Error(`must be integer`);
         const body = len.toString(delimiter_encode_radix);
         const body_len = body.length.toString(delimiter_encode_radix);
-        if(body.length > 1) throw new Error(`f is max prefix`);
+        if(body.length > 0xf) throw new Error(`f is max prefix: ${body_len}`);
         return body_len + body;
     }
     public static token_to_string(tag: string) {
         return length_delimiter.length_delimiter_to_string(tag.length) + tag;
     }
-    private static length_delimiter_from_string(index: number, payload: string) {
+    public static length_delimiter_from_string(index: number, payload: string) {
         if(index != Math.floor(index)) throw new Error(`must be integer`);
         const tmp = payload.at(index);
         if(tmp) {
