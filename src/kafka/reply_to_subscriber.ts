@@ -3,7 +3,7 @@ import {Kafka} from "kafkajs";
 import crypto from "crypto";
 import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
-import {Disposable} from "@esfx/disposable";
+import {AsyncDisposable, Disposable} from "@esfx/disposable";
 
 export class reply_to_subscriber {
     private constructor(
@@ -35,7 +35,7 @@ export class reply_to_subscriber {
         const index = this.last_reply_partition_index % this.partitions.length;
         this.last_reply_partition_index = index;
         const result = this.partitions[index];
-        console.log(`get_next_reply_partition.index: ${index}, ${this.partitions.length}, ${result}`);
+        //console.log(`get_next_reply_partition.index: ${index}, ${this.partitions.length}, ${result}`);
         return result;
     }
     private partitions_stable = false;
@@ -43,13 +43,13 @@ export class reply_to_subscriber {
         await this.consumer.connect()
         this.consumer.on("consumer.group_join", (event) => {
             const partitions = event.payload.memberAssignment[this.topic];
-            console.log("consumer.group_join.partitions", partitions);
+            //console.log("consumer.group_join.partitions", partitions);
             this.partitions = new Array();
             for(const partition of partitions)
                 this.partitions.push(partition);
             this.partitions_stable = true;
         });
-        console.log("reply_to_worker: ", this.config_.get_worker_topic());
+        //console.log("reply_to_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
             topic: this.config_.get_reply_to_topic(),
             fromBeginning: false,
@@ -63,9 +63,9 @@ export class reply_to_subscriber {
         return true;
     })();
 
-    [Disposable.dispose]() {
-        this.consumer.stop().then(() => { console.info(`kafka.stop`)});
-        this.consumer.disconnect().then(() => { console.info(`kafka.disconnect`)});
+    async [AsyncDisposable.asyncDispose]() {
+        await this.consumer.stop();
+        await this.consumer.disconnect();
     }
 
     public static create(config_: config) {

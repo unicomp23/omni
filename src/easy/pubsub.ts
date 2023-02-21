@@ -6,7 +6,7 @@ import {AirCoreFrame, Commands, Coordinates, Path, Sequencing} from "../../proto
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
-import {Disposable, DisposableStack} from "@esfx/disposable";
+import {AsyncDisposable, AsyncDisposableStack, Disposable, DisposableStack} from "@esfx/disposable";
 import {prettySpaces} from "../common/constants";
 
 export class pubsub {
@@ -22,7 +22,7 @@ export class pubsub {
         this.disposable_stack.use(this.reply_to_subscriber_);
         this.run().then(() => { console.log(`pubsub.run exit`); });
     }
-    private disposable_stack = new DisposableStack();
+    private disposable_stack = new AsyncDisposableStack();
     private async run() {
         for (; ;) {
             const frame = await this.reply_to_subscriber_.frames.get();
@@ -97,7 +97,7 @@ export class pubsub {
     private async reply_to_active() {
         await this.reply_to_subscriber_.reply_to_active();
     }
-    [Disposable.dispose]() {
-        this.disposable_stack.dispose();
+    async[AsyncDisposable.asyncDispose]() {
+        await this.disposable_stack.disposeAsync();
     }
 }

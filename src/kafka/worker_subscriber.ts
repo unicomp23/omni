@@ -3,7 +3,7 @@ import {Kafka} from "kafkajs";
 import crypto from "crypto";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {AsyncQueue} from "@esfx/async";
-import {Disposable} from "@esfx/disposable";
+import {AsyncDisposable, Disposable} from "@esfx/disposable";
 
 export class worker_subscriber {
     private constructor(
@@ -23,7 +23,7 @@ export class worker_subscriber {
 
     private readonly runner_ = (async() => {
         await this.consumer.connect()
-        console.log("consumer_worker: ", this.config_.get_worker_topic());
+        //console.log("consumer_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
             topic: this.config_.get_worker_topic(),
             fromBeginning: false,
@@ -37,9 +37,9 @@ export class worker_subscriber {
         return true;
     })();
 
-    [Disposable.dispose]() {
-        this.consumer.stop();
-        this.consumer.disconnect();
+    async[AsyncDisposable.asyncDispose]() {
+        await this.consumer.stop();
+        await this.consumer.disconnect();
     }
 
     public static create(config_: config) {

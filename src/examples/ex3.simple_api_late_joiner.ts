@@ -1,4 +1,4 @@
-import {DisposableStack} from "@esfx/disposable";
+import {AsyncDisposableStack, DisposableStack} from "@esfx/disposable";
 import {config} from "../config";
 import {AirCoreFrame, Commands, Path, PathTypes, PayloadType, Tags} from "../../proto/generated/devinternal_pb";
 import {Deferred} from "@esfx/async";
@@ -30,7 +30,7 @@ function make_some_text(i: number) {
 const count = 3;
 
 const main = async() => {
-    const disposable_stack = new DisposableStack();
+    const disposable_stack = new AsyncDisposableStack();
     try {
         const config_ = config.create();
         const quit = new Deferred<boolean>();
@@ -100,7 +100,7 @@ const main = async() => {
         console.log(`await'ing quit signal`);
         await quit.promise;
     } finally {
-        disposable_stack.dispose();
+        await disposable_stack.disposeAsync();
     }
 }
 main().then(() => { console.log("exit main"); });

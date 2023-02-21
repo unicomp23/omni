@@ -2,7 +2,7 @@ import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
-import {Disposable} from "@esfx/disposable";
+import {AsyncDisposable, Disposable} from "@esfx/disposable";
 import {prettySpaces} from "../common/constants";
 
 export enum topic_type {
@@ -46,7 +46,7 @@ export class publisher {
     public async send(topic_type_: topic_type, frame: AirCoreFrame) {
         if (!this.connected) {
             await this.producer.connect();
-            console.log("send.connect")
+            //console.log("send.connect")
             this.connected = true;
         }
         const topic = this.get_topic(topic_type_);
@@ -56,7 +56,7 @@ export class publisher {
                 value: Buffer.from("")
             }]
         } as ProducerRecord;
-        console.log("producing:", frame.toJsonString({prettySpaces}));
+        //console.log("producing:", frame.toJsonString({prettySpaces}));
         switch (topic_type_) {
             case topic_type.worker: {
                 if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")
@@ -76,11 +76,11 @@ export class publisher {
         }
         record.messages[0].value = Buffer.from(frame.toBinary());
         await this.producer.send(record);
-        console.log("publisher.send: ", frame.toJsonString({prettySpaces}));
+        //console.log("publisher.send: ", frame.toJsonString({prettySpaces}));
     }
 
-    [Disposable.dispose]() {
-        this.producer.disconnect();
+    async[AsyncDisposable.asyncDispose]() {
+        await this.producer.disconnect();
     }
 
     public static create(config_: config) {
