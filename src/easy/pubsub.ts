@@ -27,7 +27,7 @@ export class pubsub {
         for (; ;) {
             const frame = await this.reply_to_subscriber_.frames.get();
             const correlation_id = frame.replyTo?.correlationId;
-            console.log(`firing.correlationid`, frame.toJsonString({prettySpaces}));
+            //console.log(`firing.correlationid`, frame.toJsonString({prettySpaces}));
             if (correlation_id) {
                 const stream = this.subscriptions.get(correlation_id);
                 if (stream) {

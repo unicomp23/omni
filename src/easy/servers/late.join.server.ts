@@ -11,7 +11,7 @@ export function spawn_server(config_: config) {
 
         for(;;) {
             const frame = await stream.get();
-            console.log(`worker.received`, frame.toJsonString({prettySpaces}));
+            //console.log(`worker.received`, frame.toJsonString({prettySpaces}));
             switch (frame.command) {
                 case Commands.SUBSCRIBE: {
                     if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "partitionKey") throw new Error(`missing sendTo.kafkaKey.partitionKey.case`);
@@ -25,14 +25,14 @@ export function spawn_server(config_: config) {
                     const subscribers = subscriptions.get(key);
                     if(subscribers) {
                         subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // save subscriber return path
-                        console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
+                        //console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
                         const payload = db_snapshot.entries[key]; // fetch snapshot
                         const payload_2 = payload ? payload : new Payload();
                         frame.payload = payload_2;
                         frame.payload.type = PayloadType.SNAPSHOT;
                         await publisher_.send(topic_type.reply_to, frame);
-                        console.log(`send.snapshot.to.subscriber: `, frame.toJsonString({prettySpaces}));
+                        //console.log(`send.snapshot.to.subscriber: `, frame.toJsonString({prettySpaces}));
                     }
                     break;
                 }
@@ -48,11 +48,11 @@ export function spawn_server(config_: config) {
                     if(subscribers) {
                         for(const entry of subscribers.entries()) { // iterate subscriber return paths
                             const coordinates = entry[1];
-                            console.log(`send.to.subscriber.2`);
+                            //console.log(`send.to.subscriber.2`);
                             if(coordinates) {
                                 frame.replyTo = coordinates.clone();
                                 await publisher_.send(topic_type.reply_to, frame);
-                                console.log(`send.delta.to.subscriber: `, frame.toJsonString({prettySpaces}));
+                                //console.log(`send.delta.to.subscriber: `, frame.toJsonString({prettySpaces}));
                             }
                         }
                     }
