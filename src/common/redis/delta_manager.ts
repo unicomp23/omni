@@ -49,13 +49,14 @@ export class delta_manager {
     public async upsert(sequence_number_path: TopicArray, topic_path: TopicArray, payload: Payload) {
         if(!topic_path.contains_path(sequence_number_path))
             throw new Error(
-                `topic_path does not contain sequence_number_path, ` +
+                `topic_path is not parent of sequence_number_path, ` +
                 `topic_path: ${topic_path}, sequence_number_path: ${sequence_number_path}`);
 
         const sequence_number_key = sequence_number_path.serialize();
         const encoded = protoBase64.enc(payload.toBinary())
         await this.client.zAdd(this.name, [{score: 0, value: topic_path.serialize_zkey(encoded)}]);
         await this.increment_sequence_number(sequence_number_key);
+        // todo append redis stream
     }
     private async* fetch_snapshot(sequence_number_path: TopicArray) {
         const sequence_number_key = `[` + sequence_number_path.serialize();
