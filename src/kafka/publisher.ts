@@ -2,8 +2,7 @@ import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
-import {AsyncDisposable, Disposable} from "@esfx/disposable";
-import {prettySpaces} from "../common/constants";
+import {AsyncDisposable} from "@esfx/disposable";
 
 export enum topic_type {
     unknown,

@@ -1,4 +1,5 @@
-import {ksortable_length_delimiter, tag_val, TopicArray} from "./ksortable_length_delimiter";
+import {ksortable_length_delimiter} from "./ksortable_length_delimiter";
+import {TopicArray} from "./topic_array";
 
 describe(`length delimited tokens`, () => {
     test(`length delimiter serde`, () => {
@@ -17,7 +18,8 @@ describe(`length delimited tokens`, () => {
         const arr = new TopicArray();
         arr.push({tag: `type`, val: `dog`});
         const serialized = ksortable_length_delimiter.serialize(arr);
-        const arr_2 = ksortable_length_delimiter.deserialize_tags(serialized);
+        const arr_2 = new TopicArray();
+        ksortable_length_delimiter.deserialize_tags(serialized, arr_2);
         expect(arr_2[0].tag).toBe(arr[0].tag);
         expect(arr_2[0].val).toBe(arr[0].val);
     })

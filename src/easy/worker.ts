@@ -2,7 +2,7 @@ import {AsyncQueue} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {config} from "../config";
-import {AsyncDisposable, AsyncDisposableStack, Disposable, DisposableStack} from "@esfx/disposable";
+import {AsyncDisposable, AsyncDisposableStack} from "@esfx/disposable";
 import {publisher} from "../kafka/publisher";
 
 export class worker {

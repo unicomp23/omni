@@ -6,8 +6,7 @@ import {AirCoreFrame, Commands, Coordinates, Path, Sequencing} from "../../proto
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
-import {AsyncDisposable, AsyncDisposableStack, Disposable, DisposableStack} from "@esfx/disposable";
-import {prettySpaces} from "../common/constants";
+import {AsyncDisposable, AsyncDisposableStack} from "@esfx/disposable";
 
 export class pubsub {
     private readonly publisher_: publisher;

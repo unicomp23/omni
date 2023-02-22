@@ -3,7 +3,7 @@ import {Kafka} from "kafkajs";
 import crypto from "crypto";
 import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
-import {AsyncDisposable, Disposable} from "@esfx/disposable";
+import {AsyncDisposable} from "@esfx/disposable";
 
 export class reply_to_subscriber {
     private constructor(

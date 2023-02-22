@@ -1,5 +1,7 @@
+import {TopicArray} from "./topic_array";
+
 const delimiter_encode_radix = 16;
-const max_token_len = 255;
+const max_token_len = 1024;
 const min_token_len = 0;
 
 export interface tag_val {
@@ -7,7 +9,10 @@ export interface tag_val {
     val: string;
 }
 
-export class TopicArray extends Array<tag_val>{}
+export function check_integer(val: number) {
+    if(val != Math.floor(val))
+        throw new Error(`not an integer: ${val}`);
+}
 
 export class ksortable_length_delimiter {
     private constructor() {
@@ -15,7 +20,7 @@ export class ksortable_length_delimiter {
     public static length_delimiter_to_string(len: number) {
         if(len < min_token_len) throw new Error(`cannot be negative`);
         if(len > max_token_len) throw new Error(`cannot be > ${max_token_len}`);
-        if(len != Math.floor(len)) throw new Error(`must be integer`);
+        check_integer(len);
         const body = len.toString(delimiter_encode_radix);
         const body_len = body.length.toString(delimiter_encode_radix);
         if(body.length > 0xf) throw new Error(`f is max prefix: ${body_len}`);
@@ -25,7 +30,7 @@ export class ksortable_length_delimiter {
         return ksortable_length_delimiter.length_delimiter_to_string(tag.length) + tag;
     }
     public static length_delimiter_from_string(index: number, payload: string) {
-        if(index != Math.floor(index)) throw new Error(`must be integer`);
+        check_integer(index);
         const tmp = payload.at(index);
         if(tmp) {
             const body_len = parseInt(tmp, delimiter_encode_radix);
@@ -55,8 +60,7 @@ export class ksortable_length_delimiter {
         }
         return arr.join(``);
     }
-    public static deserialize_tags(payload: string) {
-        const tags = new TopicArray();
+    public static deserialize_tags(payload: string, tags: TopicArray) {
         let index = 0;
         while(index < payload.length) {
             const next_tag = ksortable_length_delimiter.token_from_string(index, payload);
@@ -68,6 +72,5 @@ export class ksortable_length_delimiter {
                 val: next_val.val,
             });
         }
-        return tags;
     }
 }
