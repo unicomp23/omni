@@ -569,6 +569,11 @@ export class Payload extends Message<Payload> {
    */
   tags: { [key: string]: string } = {};
 
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 300;
+   */
+  sequencing?: Sequencing;
+
   constructor(data?: PartialMessage<Payload>) {
     super();
     proto3.util.initPartial(data, this);
@@ -582,6 +587,7 @@ export class Payload extends Message<Payload> {
     { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
     { no: 200, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 300, name: "sequencing", kind: "message", T: Sequencing },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
@@ -625,11 +631,6 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
   replyTo?: Coordinates;
 
   /**
-   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 40;
-   */
-  sequencing?: Sequencing;
-
-  /**
    * the value, scalar, blob, etc.
    *
    * @generated from field: aircore.media.devinternal.v1.Payload payload = 50;
@@ -647,7 +648,6 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
     { no: 10, name: "command", kind: "enum", T: proto3.getEnumType(Commands) },
     { no: 20, name: "send_to", kind: "message", T: Coordinates },
     { no: 30, name: "reply_to", kind: "message", T: Coordinates },
-    { no: 40, name: "sequencing", kind: "message", T: Sequencing },
     { no: 50, name: "payload", kind: "message", T: Payload },
   ]);
 

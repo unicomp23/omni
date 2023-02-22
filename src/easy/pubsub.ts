@@ -2,7 +2,7 @@ import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue} from "@esfx/async";
-import {AirCoreFrame, Commands, Coordinates, Path, Sequencing} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Commands, Coordinates, Path, Payload, Sequencing} from "../../proto/generated/devinternal_pb";
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
@@ -50,9 +50,10 @@ export class pubsub {
         if(!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
         if(!frame.sendTo) frame.sendTo = new Coordinates();
-        if(!frame.sequencing) frame.sequencing = new Sequencing()
-        frame.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
-        frame.sequencing.sequenceNumber = BigInt(this.next_seqno);
+        if(!frame.payload) frame.payload = new Payload();
+        if(!frame.payload.sequencing) frame.payload.sequencing = new Sequencing()
+        frame.payload.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
+        frame.payload.sequencing.sequenceNumber = BigInt(this.next_seqno);
         this.next_seqno++;
 
         await this.publisher_.send(topic_type.worker, frame);

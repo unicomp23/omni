@@ -3,6 +3,8 @@ import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
 import {check_integer} from "../ksortable_length_delimiter";
 import {name} from "ts-jest/dist/transformers/hoist-jest";
+import {Payload} from "../../../proto/generated/devinternal_pb";
+import {protoBase64} from "@bufbuild/protobuf";
 
 export class delta_manager {
     private constructor(
@@ -44,29 +46,37 @@ export class delta_manager {
         else
             return val;
     }
-    public async upsert(sequence_number_path: TopicArray, topic_path: TopicArray, payload: string) {
+    public async upsert(sequence_number_path: TopicArray, topic_path: TopicArray, payload: Payload) {
         if(!topic_path.contains_path(sequence_number_path))
             throw new Error(
                 `topic_path does not contain sequence_number_path, ` +
                 `topic_path: ${topic_path}, sequence_number_path: ${sequence_number_path}`);
 
         const sequence_number_key = sequence_number_path.serialize();
-        await this.client.zAdd(this.name, [{score: 0, value: topic_path.serialize_zkey(payload)}]);
+        const encoded = protoBase64.enc(payload.toBinary())
+        await this.client.zAdd(this.name, [{score: 0, value: topic_path.serialize_zkey(encoded)}]);
         await this.increment_sequence_number(sequence_number_key);
     }
-    public async* fetch(sequence_number_path: TopicArray, sequence_number: number) {
-        check_integer(sequence_number);
-
-        const sequence_number_key = sequence_number_path.serialize();
-        if(sequence_number == 0)
-            yield* this.fetch_snapshot(sequence_number_path);
-        yield* this.fetch_deltas(sequence_number_path, sequence_number);
-    }
     private async* fetch_snapshot(sequence_number_path: TopicArray) {
-        // todo
+        const sequence_number_key = `[` + sequence_number_path.serialize();
+        const result = await this.client.zRangeByLex(this.name, sequence_number_key, sequence_number_key);
+        for(const z_key of result) {
+            const topic_array = new TopicArray();
+            topic_array.deserialize(z_key);
+            const top = topic_array.pop();
+            if(top) {
+                const payload = Payload.fromBinary(protoBase64.dec(top.val));
+                yield {
+                    topic_path: topic_array,
+                    payload,
+                }
+                continue;
+            }
+            throw new Error(`malformed topic array`);
+        }
     }
     private async* fetch_deltas(sequence_number_path: TopicArray, sequence_number: number) {
-        // todo
+        // todo redis stream
     }
     async[AsyncDisposable.asyncDispose]() {
         await this.client.disconnect();

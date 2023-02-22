@@ -106,6 +106,8 @@ message Payload {
   }
 
   map<string, string> tags = 200;
+
+  Sequencing sequencing = 300;
 }
 
 message AirCoreFrame {
@@ -116,8 +118,6 @@ message AirCoreFrame {
 
   // correlation of response(s) 1:1, 1:n
   Coordinates reply_to = 30;
-
-  Sequencing sequencing = 40;
 
   // the value, scalar, blob, etc.
   Payload payload = 50;
