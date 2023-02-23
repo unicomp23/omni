@@ -49,3 +49,6 @@ How is the pub sub layer implemented? Is it a service? A library? Something else
 
 I think we’ll need some extensions to the Tecate protocol to allow clients to receive notifications, yes? Tecate is the only protocol they understand…
 >I could be wrong, but I don't think we'll need extensions for the Tecate protocol.  We will need to discuss how the pubsub paths/topics/partitionkeys which carry Tecate protobuf payloads will be structured.
+
+Where is the confluence page?
+>https://airtime.atlassian.net/wiki/spaces/ENG/pages/2785542166/Recording+and+Asynchronous+Tag+State+Notifications
