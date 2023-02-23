@@ -3,8 +3,10 @@ import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
 import {check_integer} from "../ksortable_length_delimiter";
 import {name} from "ts-jest/dist/transformers/hoist-jest";
-import {Payload} from "../../../proto/generated/devinternal_pb";
-import {protoBase64} from "@bufbuild/protobuf";
+import {Payload, Sequencing} from "../../../proto/generated/devinternal_pb";
+import {protoBase64, protoInt64} from "@bufbuild/protobuf";
+
+const zset_suffix = `-z`;
 
 export class delta_manager {
     private constructor(
@@ -26,7 +28,11 @@ export class delta_manager {
             if (val)
                 sequence_number = Number.parseInt(val);
             this.last_sequence_number.set(key, sequence_number);
+            return sequence_number;
         }
+        const sequence_number = this.last_sequence_number.get(key);
+        if(sequence_number) return sequence_number;
+        else throw new Error(`not expected`);
     }
     private async increment_sequence_number(key: string) {
         await this.sync_sequence_number(key);
@@ -42,7 +48,7 @@ export class delta_manager {
     private async get_sequence_number(key: string) {
         const val = this.last_sequence_number.get(key);
         if (!val)
-            await this.sync_sequence_number(key);
+            return await this.sync_sequence_number(key);
         else
             return val;
     }
@@ -53,14 +59,19 @@ export class delta_manager {
                 `topic_path: ${topic_path}, sequence_number_path: ${sequence_number_path}`);
 
         const sequence_number_key = sequence_number_path.serialize();
-        const encoded = protoBase64.enc(payload.toBinary())
-        await this.client.zAdd(this.name, [{score: 0, value: topic_path.serialize_zkey(encoded)}]);
+        const sequence_number = await this.get_sequence_number(sequence_number_key);
         await this.increment_sequence_number(sequence_number_key);
-        // todo append redis stream
+
+        if(!payload.sequencing) payload.sequencing = new Sequencing();
+        payload.sequencing.sequenceNumber = protoInt64.parse(sequence_number);
+
+        const encoded64 = protoBase64.enc(payload.toBinary())
+        await this.client.zAdd(this.name + zset_suffix, [{score: 0, value: topic_path.serialize_zkey(encoded64)}]);
+        await this.client.xAdd(sequence_number_key, `${sequence_number}-0`, { encoded64 });
     }
     private async* fetch_snapshot(sequence_number_path: TopicArray) {
         const sequence_number_key = `[` + sequence_number_path.serialize();
-        const result = await this.client.zRangeByLex(this.name, sequence_number_key, sequence_number_key);
+        const result = await this.client.zRangeByLex(this.name + zset_suffix, sequence_number_key, sequence_number_key);
         for(const z_key of result) {
             const topic_array = new TopicArray();
             topic_array.deserialize(z_key);
