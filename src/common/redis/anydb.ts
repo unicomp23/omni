@@ -6,19 +6,19 @@ import {Payload, Sequencing} from "../../../proto/generated/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 
 const zset_suffix = `-z`;
+const stream_suffix = `-s`;
 
 export class anydb {
     private last_sequence_number = new Map<string /*seqno_path*/, number>();
 
     private constructor(
         private readonly client: RedisClientType,
-        private readonly name: string,
     ) {
         client.on('error', err => console.log('Redis Client Error', err));
     }
 
     public static async create(client: RedisClientType, name: string) {
-        const anydb_ = new anydb(client, name);
+        const anydb_ = new anydb(client);
         await anydb_.client.connect();
         return anydb_;
     }
@@ -37,8 +37,8 @@ export class anydb {
         payload.sequencing.sequenceNumber = protoInt64.parse(sequence_number);
 
         const encoded64 = protoBase64.enc(payload.toBinary())
-        await this.client.zAdd(this.name + zset_suffix, [{score: 0, value: topic_path.serialize_zkey(encoded64)}]);
-        await this.client.xAdd(sequence_number_key, `${sequence_number}-0`, {encoded64}, {
+        await this.client.zAdd(sequence_number_key + zset_suffix, [{score: 0, value: topic_path.serialize_zkey(encoded64)}]);
+        await this.client.xAdd(sequence_number_key + stream_suffix, `${sequence_number}-0`, {encoded64}, {
                 TRIM: {
                     strategy: 'MAXLEN', // Trim by length.
                     strategyModifier: '~', // Approximate trimming.
@@ -88,7 +88,7 @@ export class anydb {
 
     private async* fetch_snapshot(sequence_number_path: TopicArray) {
         const sequence_number_key = `[` + sequence_number_path.serialize();
-        const result = await this.client.zRangeByLex(this.name + zset_suffix, sequence_number_key, sequence_number_key);
+        const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, sequence_number_key, sequence_number_key);
         for (const z_key of result) {
             const topic_array = new TopicArray();
             topic_array.deserialize(z_key);
@@ -107,6 +107,13 @@ export class anydb {
 
     private async* fetch_deltas(sequence_number_path: TopicArray, sequence_number: number) {
         check_integer(sequence_number);
-        // todo redis stream
+        const sequence_number_key = sequence_number_path.serialize();
+
+        const count = 100; // todo config
+        const results = await this.client.xRange(sequence_number_key + stream_suffix, `${sequence_number}-0`, `+`, {});
+        for(const result of results) {
+            const encoded64 = result.message[`encoded64`];
+            yield Payload.fromBinary(protoBase64.dec(encoded64));
+        }
     }
 }
