@@ -1,6 +1,13 @@
 import {ksortable_length_delimiter, tag_val} from "./ksortable_length_delimiter";
+import {Path, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
 
 export class TopicArray extends Array<tag_val> {
+    private constructor() {
+        super();
+    }
+    public static create() {
+        return new TopicArray();
+    }
     public serialize() {
         return ksortable_length_delimiter.serialize(this);
     }
@@ -44,5 +51,27 @@ export class TopicArray extends Array<tag_val> {
             index++;
         }
         return true;
+    }
+
+    public static from_path(path: Path) {
+        const topic_array = new TopicArray();
+        for(const hop of path.hops) {
+            switch (hop.x.case) {
+                case "pathType":
+                    topic_array.push({tag: Tags[hop.tag], val: PathTypes[hop.x.value]});
+                    break;
+                case "text":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value});
+                    break;
+                case "integer":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
+                    break;
+                case "fraction":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
+                    break;
+                default:
+                    throw new Error(`unknown oneof: ${hop.x.case}`);
+            }
+        }
     }
 }

@@ -15,10 +15,10 @@ describe(`length delimited tokens`, () => {
         expect(val_2.val).toBe(val);
     })
     test(`topic array serde`, () => {
-        const arr = new TopicArray();
+        const arr = TopicArray.create();
         arr.push({tag: `type`, val: `dog`});
         const serialized = ksortable_length_delimiter.serialize(arr);
-        const arr_2 = new TopicArray();
+        const arr_2 = TopicArray.create();
         ksortable_length_delimiter.deserialize_tags(serialized, arr_2);
         expect(arr_2[0].tag).toBe(arr[0].tag);
         expect(arr_2[0].val).toBe(arr[0].val);

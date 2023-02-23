@@ -17,7 +17,7 @@ export class anydb {
         client.on('error', err => console.log('Redis Client Error', err));
     }
 
-    public static async create(client: RedisClientType, name: string) {
+    public static async create(client: RedisClientType) {
         const anydb_ = new anydb(client);
         await anydb_.client.connect();
         return anydb_;
@@ -46,10 +46,6 @@ export class anydb {
                 }
             }
         );
-    }
-
-    async [AsyncDisposable.asyncDispose]() {
-        await this.client.disconnect();
     }
 
     private async sync_sequence_number(key: string) {
@@ -86,11 +82,11 @@ export class anydb {
             return val;
     }
 
-    private async* fetch_snapshot(sequence_number_path: TopicArray) {
+    public async* fetch_snapshot(sequence_number_path: TopicArray) {
         const sequence_number_key = `[` + sequence_number_path.serialize();
         const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, sequence_number_key, sequence_number_key);
         for (const z_key of result) {
-            const topic_array = new TopicArray();
+            const topic_array = TopicArray.create();
             topic_array.deserialize(z_key);
             const top = topic_array.pop();
             if (top) {
@@ -105,7 +101,7 @@ export class anydb {
         }
     }
 
-    private async* fetch_deltas(sequence_number_path: TopicArray, sequence_number: number) {
+    public async* fetch_deltas(sequence_number_path: TopicArray, sequence_number: number) {
         check_integer(sequence_number);
         const sequence_number_key = sequence_number_path.serialize();
 
@@ -115,5 +111,9 @@ export class anydb {
             const encoded64 = result.message[`encoded64`];
             yield Payload.fromBinary(protoBase64.dec(encoded64));
         }
+    }
+
+    async [AsyncDisposable.asyncDispose]() {
+        await this.client.quit();
     }
 }
