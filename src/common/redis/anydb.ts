@@ -67,7 +67,14 @@ export class anydb {
 
         const encoded64 = protoBase64.enc(payload.toBinary())
         await this.client.zAdd(this.name + zset_suffix, [{score: 0, value: topic_path.serialize_zkey(encoded64)}]);
-        await this.client.xAdd(sequence_number_key, `${sequence_number}-0`, { encoded64 });
+        await this.client.xAdd(sequence_number_key, `${sequence_number}-0`, { encoded64 },     {
+                TRIM: {
+                    strategy: 'MAXLEN', // Trim by length.
+                    strategyModifier: '~', // Approximate trimming.
+                    threshold: 1000 // Retain around 1000 entries.
+                }
+            }
+        );
     }
     private async* fetch_snapshot(sequence_number_path: TopicArray) {
         const sequence_number_key = `[` + sequence_number_path.serialize();
