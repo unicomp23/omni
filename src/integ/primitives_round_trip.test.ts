@@ -7,7 +7,7 @@ import {Deferred} from "@esfx/async";
 import {AsyncDisposableStack} from "@esfx/disposable";
 
 describe(`pubsub`, () => {
-    test(`primitive round trip`, async() => {
+    test(`primitive round trip`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         const quit = new Deferred<boolean>();
         try {

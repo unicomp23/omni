@@ -13,6 +13,7 @@ export enum topic_type {
 export class publisher {
     private readonly topic_worker: string;
     private readonly topic_reply_to: string;
+    private connected = false;
 
     private constructor(
         private readonly config_: config,
@@ -24,12 +25,14 @@ export class publisher {
             allowAutoTopicCreation: true,
             createPartitioner: Partitioners.DefaultPartitioner,
         })
-    ){
+    ) {
         this.topic_worker = config_.get_worker_topic();
         this.topic_reply_to = config_.get_reply_to_topic();
     }
 
-    private connected = false;
+    public static create(config_: config) {
+        return new publisher(config_);
+    }
 
     public get_topic(topic_type_: topic_type) {
         switch (topic_type_) {
@@ -78,11 +81,7 @@ export class publisher {
         //console.log("publisher.send: ", frame.toJsonString({prettySpaces}));
     }
 
-    async[AsyncDisposable.asyncDispose]() {
+    async [AsyncDisposable.asyncDispose]() {
         await this.producer.disconnect();
-    }
-
-    public static create(config_: config) {
-        return new publisher(config_);
     }
 }

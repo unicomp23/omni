@@ -11,6 +11,10 @@ import {AsyncDisposable, AsyncDisposableStack} from "@esfx/disposable";
 export class pubsub {
     private readonly publisher_: publisher;
     private readonly reply_to_subscriber_: reply_to_subscriber;
+    private disposable_stack = new AsyncDisposableStack();
+    private next_seqno = 0;
+    private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
+
     private constructor(
         private readonly config_: config,
         private epoch = Timestamp.now(),
@@ -19,46 +23,33 @@ export class pubsub {
         this.disposable_stack.use(this.publisher_);
         this.reply_to_subscriber_ = reply_to_subscriber.create(config_);
         this.disposable_stack.use(this.reply_to_subscriber_);
-        this.run().then(() => { console.log(`pubsub.run exit`); });
+        this.run().then(() => {
+            console.log(`pubsub.run exit`);
+        });
     }
-    private disposable_stack = new AsyncDisposableStack();
-    private async run() {
-        for (; ;) {
-            const frame = await this.reply_to_subscriber_.frames.get();
-            const correlation_id = frame.replyTo?.correlationId;
-            //console.log(`firing.correlationid`, frame.toJsonString({prettySpaces}));
-            if (correlation_id) {
-                const stream = this.subscriptions.get(correlation_id);
-                if (stream) {
-                    stream.put(frame);
-                } else {
-                    console.log(`missing handler: ${correlation_id}`);
-                }
-            }
-        }
-    }
-    private next_seqno = 0;
+
     public static async create(config_: config) {
         const client = new pubsub(config_);
         await client.reply_to_active();
         return client;
     }
+
     public async publish(frame: AirCoreFrame) {
         await this.reply_to_active();
 
-        if(!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
-        if(!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
+        if (!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
+        if (!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
-        if(!frame.sendTo) frame.sendTo = new Coordinates();
-        if(!frame.payload) frame.payload = new Payload();
-        if(!frame.payload.sequencing) frame.payload.sequencing = new Sequencing()
+        if (!frame.sendTo) frame.sendTo = new Coordinates();
+        if (!frame.payload) frame.payload = new Payload();
+        if (!frame.payload.sequencing) frame.payload.sequencing = new Sequencing()
         frame.payload.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
         frame.payload.sequencing.sequenceNumber = BigInt(this.next_seqno);
         this.next_seqno++;
 
         await this.publisher_.send(topic_type.worker, frame);
     }
-    private subscriptions = new HashMap<string, AsyncQueue<AirCoreFrame>>();
+
     public async subscribe(path: Path) {
         await this.reply_to_active();
 
@@ -94,10 +85,28 @@ export class pubsub {
             stream
         };
     }
+
+    async [AsyncDisposable.asyncDispose]() {
+        await this.disposable_stack.disposeAsync();
+    }
+
+    private async run() {
+        for (; ;) {
+            const frame = await this.reply_to_subscriber_.frames.get();
+            const correlation_id = frame.replyTo?.correlationId;
+            //console.log(`firing.correlationid`, frame.toJsonString({prettySpaces}));
+            if (correlation_id) {
+                const stream = this.subscriptions.get(correlation_id);
+                if (stream) {
+                    stream.put(frame);
+                } else {
+                    console.log(`missing handler: ${correlation_id}`);
+                }
+            }
+        }
+    }
+
     private async reply_to_active() {
         await this.reply_to_subscriber_.reply_to_active();
-    }
-    async[AsyncDisposable.asyncDispose]() {
-        await this.disposable_stack.disposeAsync();
     }
 }

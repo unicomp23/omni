@@ -19,7 +19,7 @@ export class TopicArray extends Array<tag_val> {
     public deserialize_zkey(payload: string) {
         this.length = 0;
         this.deserialize(payload);
-        if(this[this.length - 1].tag != `payload`)
+        if (this[this.length - 1].tag != `payload`)
             throw new Error(`missing payload entry`);
         const payload_inner = this[this.length - 1].val;
         this.pop();
@@ -28,17 +28,18 @@ export class TopicArray extends Array<tag_val> {
 
     public clone() {
         const arr = new TopicArray();
-        for(const pair of this.entries())
+        for (const pair of this.entries())
             arr.push({tag: pair[1].tag, val: pair[1].val});
         return arr;
     }
+
     public contains_path(arr: TopicArray) {
         let index = 0;
-        for(const pair of arr) {
+        for (const pair of arr) {
             const pair_2 = this[index];
-            if(pair.tag != pair_2.tag)
+            if (pair.tag != pair_2.tag)
                 return false;
-            if(pair.val != pair_2.val)
+            if (pair.val != pair_2.val)
                 return false;
             index++;
         }

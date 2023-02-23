@@ -5,8 +5,8 @@ import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
 
-function *range(start: number, end: number) {
-    for(let i = start; i < end; i++)
+function* range(start: number, end: number) {
+    for (let i = start; i < end; i++)
         yield i;
 }
 
