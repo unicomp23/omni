@@ -8,7 +8,7 @@ import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 
 const zset_suffix = `-z`;
 
-export class delta_manager {
+export class anydb {
     private constructor(
         private readonly client: RedisClientType,
         private readonly name: string,
@@ -16,9 +16,9 @@ export class delta_manager {
         client.on('error', err => console.log('Redis Client Error', err));
     }
     public static async create(client: RedisClientType, name: string) {
-        const delta_manager_ = new delta_manager(client, name);
-        await delta_manager_.client.connect();
-        return delta_manager_;
+        const anydb_ = new anydb(client, name);
+        await anydb_.client.connect();
+        return anydb_;
     }
     private last_sequence_number = new Map<string /*seqno_path*/, number>();
     private async sync_sequence_number(key: string) {
