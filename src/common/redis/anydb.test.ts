@@ -26,6 +26,7 @@ function make_paths(app_id: string) {
 describe(`anydb`, () => {
     test(`publish, fetch deltas`, async() => {
         const disposable_stack = new AsyncDisposableStack();
+        let completed = false;
         try {
             const redis_uri = process.env.REDIS_URI;
             if(redis_uri) {
@@ -34,12 +35,19 @@ describe(`anydb`, () => {
 
                 const paths = make_paths(crypto.randomUUID());
                 await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: "text", value: "123"}, type: PayloadType.DELTA}))
-                //const subscriber = anydb_.fetch_deltas()
+                const subscriber = await anydb_.fetch_deltas(paths.sequence_number_path, 1);
+                for await(const delta of subscriber) {
+                    expect(delta.x.case).toBe("text");
+                    expect(delta.x.value).toBe("123");
+                    completed = true;
+                    break;
+                }
             } else {
                 throw new Error(`missing REDIS_URI`);
             }
         } finally {
             await disposable_stack.disposeAsync();
+            expect(completed).toBe(true);
         }
     })
     test(`publish, fetch snapshot`, async() => {

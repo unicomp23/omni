@@ -53,7 +53,7 @@ export class anydb {
     private async sync_sequence_number(key: string): Promise<number> {
         if (!this.last_sequence_number.has(key)) {
             const val = await this.client.get(key);
-            let sequence_number = 0;
+            let sequence_number = 1; // redis streams disallow 0-0
             if (val)
                 sequence_number = Number.parseInt(val);
             this.last_sequence_number.set(key, sequence_number);
@@ -79,7 +79,8 @@ export class anydb {
         throw new Error(`should get here`);
     }
 
-    public async* fetch_snapshot(sequence_number_path: TopicArray) {
+    public async* fetch_snapshot(sequence_number_path_: Path) {
+        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = `[` + sequence_number_path.serialize();
         const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, sequence_number_key, sequence_number_key);
         for (const z_key of result) {
@@ -98,7 +99,8 @@ export class anydb {
         }
     }
 
-    public async* fetch_deltas(sequence_number_path: TopicArray, sequence_number: number) {
+    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: number) {
+        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         check_integer(sequence_number);
         const sequence_number_key = sequence_number_path.serialize();
 
