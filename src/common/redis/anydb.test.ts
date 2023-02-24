@@ -78,6 +78,35 @@ describe(`anydb`, () => {
         }
     })
     test(`publish delta, fetch snapshot, publish delta, fetch snapshot deltas`, async() => {
-        // todo
+        const disposable_stack = new AsyncDisposableStack();
+        let completed = false;
+        try {
+            const redis_uri = process.env.REDIS_URI;
+            if(redis_uri) {
+                const anydb_ = await anydb.create(createClient({url: redis_uri}));
+                await disposable_stack.use(anydb_);
+
+                const paths = make_paths(crypto.randomUUID());
+                let i = 0;
+                for(; i < 3; i++) {
+                    await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: `text`, value: i.toString()}, type: PayloadType.DELTA}))
+                }
+                const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
+                for await(const item of subscriber) { // snapshot
+                    const delta = item.payload;
+                    expect(delta.x.case).toBe("text");
+                    expect(delta.x.value).toBe((i - 1).toString());
+                    completed = true;
+                    break;
+                }
+                // todo publish
+                // fetch deltas
+            } else {
+                throw new Error(`missing REDIS_URI`);
+            }
+        } finally {
+            await disposable_stack.disposeAsync();
+            expect(completed).toBe(true);
+        }
     })
 })

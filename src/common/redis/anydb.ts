@@ -39,7 +39,7 @@ export class anydb {
         payload.sequencing.sequenceNumber = protoInt64.parse(sequence_number);
 
         const encoded64 = protoBase64.enc(payload.toBinary())
-        await this.client.zAdd(sequence_number_key + zset_suffix, [{score: 0, value: topic_path.serialize_zkey(encoded64)}]);
+        await this.client.hSet(sequence_number_key + zset_suffix, topic_path.serialize(), encoded64);
         await this.client.xAdd(sequence_number_key + stream_suffix, `${sequence_number}-0`, {encoded64}, {
                 TRIM: {
                     strategy: 'MAXLEN', // Trim by length.
@@ -82,20 +82,14 @@ export class anydb {
     public async* fetch_snapshot(sequence_number_path_: Path) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = sequence_number_path.serialize();
-        const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, '-', '+');
-        for (const z_key of result) {
-            const topic_array = TopicArray.create();
-            topic_array.deserialize(z_key);
-            const top = topic_array.pop();
-            if (top) {
-                const payload = Payload.fromBinary(protoBase64.dec(top.val));
-                yield {
-                    topic_path: topic_array,
-                    payload,
-                }
-                continue;
+        const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
+        for (const topic_path_base64 in result) {
+            const val = result[topic_path_base64];
+            const payload = Payload.fromBinary(protoBase64.dec(val));
+            yield {
+                topic_path: Buffer.from(topic_path_base64, `base64`).toString(`ascii`),
+                payload,
             }
-            throw new Error(`malformed topic array`);
         }
     }
 
