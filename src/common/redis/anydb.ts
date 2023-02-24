@@ -57,10 +57,10 @@ export class anydb {
             if (val)
                 sequence_number = Number.parseInt(val);
             this.last_sequence_number.set(key, sequence_number);
-            console.log(`last_sequence_number.set: ${sequence_number}`);
+            //console.log(`last_sequence_number.set: ${sequence_number}`);
         }
         const sequence_number = this.last_sequence_number.get(key);
-        console.log(`last_sequence_number.get: ${sequence_number}`);
+        //console.log(`last_sequence_number.get: ${sequence_number}`);
         if (sequence_number !== undefined)
             return sequence_number;
         else
@@ -81,8 +81,8 @@ export class anydb {
 
     public async* fetch_snapshot(sequence_number_path_: Path) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        const sequence_number_key = `[` + sequence_number_path.serialize();
-        const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, sequence_number_key, sequence_number_key);
+        const sequence_number_key = sequence_number_path.serialize();
+        const result = await this.client.zRangeByLex(sequence_number_key + zset_suffix, '-', '+');
         for (const z_key of result) {
             const topic_array = TopicArray.create();
             topic_array.deserialize(z_key);
