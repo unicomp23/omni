@@ -9,12 +9,16 @@ export class TopicArray extends Array<tag_val> {
         return new TopicArray();
     }
     public serialize() {
-        return ksortable_length_delimiter.serialize(this);
+        const readable = ksortable_length_delimiter.serialize(this);
+        const unreadable = Buffer.from(readable).toString(`base64`);
+        return unreadable;
     }
 
     public deserialize(payload: string) {
         this.length = 0;
-        ksortable_length_delimiter.deserialize_tags(payload, this);
+        const unreadable = payload;
+        const readable = Buffer.from(unreadable, 'base64').toString(`ascii`);
+        ksortable_length_delimiter.deserialize_tags(readable, this);
     }
 
     public serialize_zkey(payload: string) {
