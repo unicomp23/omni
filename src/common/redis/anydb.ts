@@ -2,7 +2,7 @@ import {RedisClientType} from "redis";
 import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
 import {check_integer} from "../ksortable_length_delimiter";
-import {Payload, Sequencing} from "../../../proto/generated/devinternal_pb";
+import {Payload, Sequencing, Path} from "../../../proto/generated/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 
 const zset_suffix = `-z`;
@@ -23,14 +23,16 @@ export class anydb {
         return anydb_;
     }
 
-    public async upsert(sequence_number_path: TopicArray, topic_path: TopicArray, payload: Payload) {
+    public async upsert(sequence_number_path_: Path, topic_path_: Path, payload: Payload) {
+        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
+        const topic_path = TopicArray.from_path(topic_path_);
         if (!topic_path.contains_path(sequence_number_path))
             throw new Error(
                 `topic_path is not parent of sequence_number_path, ` +
                 `topic_path: ${topic_path}, sequence_number_path: ${sequence_number_path}`);
 
         const sequence_number_key = sequence_number_path.serialize();
-        const sequence_number = await this.get_sequence_number(sequence_number_key);
+        const sequence_number = await this.sync_sequence_number(sequence_number_key);
         await this.increment_sequence_number(sequence_number_key);
 
         if (!payload.sequencing) payload.sequencing = new Sequencing();
@@ -48,38 +50,33 @@ export class anydb {
         );
     }
 
-    private async sync_sequence_number(key: string) {
+    private async sync_sequence_number(key: string): Promise<number> {
         if (!this.last_sequence_number.has(key)) {
             const val = await this.client.get(key);
             let sequence_number = 0;
             if (val)
                 sequence_number = Number.parseInt(val);
             this.last_sequence_number.set(key, sequence_number);
-            return sequence_number;
+            console.log(`last_sequence_number.set: ${sequence_number}`);
         }
         const sequence_number = this.last_sequence_number.get(key);
-        if (sequence_number) return sequence_number;
-        else throw new Error(`not expected`);
+        console.log(`last_sequence_number.get: ${sequence_number}`);
+        if (sequence_number !== undefined)
+            return sequence_number;
+        else
+            throw new Error(`not expected: ${sequence_number}`);
     }
 
     private async increment_sequence_number(key: string) {
         await this.sync_sequence_number(key);
         const current = this.last_sequence_number.get(key);
-        if (current) {
+        if (current !== undefined) {
             const next = current + 1;
             this.last_sequence_number.set(key, next);
             await this.client.set(key, next.toString());
             return next;
         }
         throw new Error(`should get here`);
-    }
-
-    private async get_sequence_number(key: string) {
-        const val = this.last_sequence_number.get(key);
-        if (!val)
-            return await this.sync_sequence_number(key);
-        else
-            return val;
     }
 
     public async* fetch_snapshot(sequence_number_path: TopicArray) {

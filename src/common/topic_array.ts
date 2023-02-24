@@ -73,5 +73,6 @@ export class TopicArray extends Array<tag_val> {
                     throw new Error(`unknown oneof: ${hop.x.case}`);
             }
         }
+        return topic_array;
     }
 }
