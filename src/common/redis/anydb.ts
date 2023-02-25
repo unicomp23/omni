@@ -93,9 +93,8 @@ export class anydb {
         }
     }
 
-    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: number) {
+    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: BigInt) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        check_integer(sequence_number);
         const sequence_number_key = sequence_number_path.serialize();
 
         const count = 100; // todo config

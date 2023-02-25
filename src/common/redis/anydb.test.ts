@@ -35,7 +35,7 @@ describe(`anydb`, () => {
 
                 const paths = make_paths(crypto.randomUUID());
                 await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: "text", value: "123"}, type: PayloadType.DELTA}))
-                const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, 1);
+                const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
                 for await(const delta of subscriber) {
                     expect(delta.x.case).toBe("text");
                     expect(delta.x.value).toBe("123");
@@ -88,19 +88,43 @@ describe(`anydb`, () => {
 
                 const paths = make_paths(crypto.randomUUID());
                 let i = 0;
+                // publish
                 for(; i < 3; i++) {
                     await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: `text`, value: i.toString()}, type: PayloadType.DELTA}))
                 }
-                const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
-                for await(const item of subscriber) { // snapshot
-                    const delta = item.payload;
-                    expect(delta.x.case).toBe("text");
-                    expect(delta.x.value).toBe((i - 1).toString());
-                    completed = true;
-                    break;
+                // snapshot
+                let snap_sequence_number = BigInt(0);
+                {
+                    const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
+                    for await(const item of subscriber) {
+                        const delta = item.payload;
+                        expect(delta.x.case).toBe("text");
+                        expect(delta.x.value).toBe((i - 1).toString());
+                        if (delta.sequencing?.sequenceNumber !== undefined)
+                            snap_sequence_number = delta.sequencing?.sequenceNumber;
+                        break;
+                    }
                 }
-                // todo publish
+                // publish
+                const count = 3;
+                const start = 3;
+                for(; i < (count + start); i++) {
+                    await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: `text`, value: i.toString()}, type: PayloadType.DELTA}))
+                }
                 // fetch deltas
+                {
+                    const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, snap_sequence_number);
+                    let counter = 0;
+                    for await(const item of subscriber) {
+                        counter++;
+                        const delta = item;
+                        expect(delta.x.case).toBe("text");
+                        if (delta.x.value === (i - 1).toString())
+                            break;
+                    }
+                    expect(counter - 1).toBe(count);
+                }
+                completed = true;
             } else {
                 throw new Error(`missing REDIS_URI`);
             }
