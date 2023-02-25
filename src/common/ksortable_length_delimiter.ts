@@ -56,7 +56,7 @@ export class ksortable_length_delimiter {
         }
     }
 
-    // topics which are serialized/deserialized as arrays of tag/value's, for use in redis sorted sets and kafka partition keys
+    // topics which are length-delimited and serialized/deserialized as arrays of tag/value's, for use in redis sorted sets and kafka partition keys
     public static serialize(tags: TopicArray) {
         const arr = new Array<string>();
         for (const iter of tags) {
