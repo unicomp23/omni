@@ -565,14 +565,19 @@ export class Payload extends Message<Payload> {
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * @generated from field: map<string, string> tags = 200;
+   * @generated from field: map<string, string> tags = 80;
    */
   tags: { [key: string]: string } = {};
 
   /**
-   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 300;
+   * @generated from field: aircore.media.devinternal.v1.Sequencing sequencing = 90;
    */
   sequencing?: Sequencing;
+
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Path topic_path = 100;
+   */
+  topicPath?: Path;
 
   constructor(data?: PartialMessage<Payload>) {
     super();
@@ -586,8 +591,9 @@ export class Payload extends Message<Payload> {
     { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
     { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
-    { no: 200, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
-    { no: 300, name: "sequencing", kind: "message", T: Sequencing },
+    { no: 80, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
+    { no: 90, name: "sequencing", kind: "message", T: Sequencing },
+    { no: 100, name: "topic_path", kind: "message", T: Path },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {
@@ -741,6 +747,174 @@ export class DbSnapshot extends Message<DbSnapshot> {
 
   static equals(a: DbSnapshot | PlainMessage<DbSnapshot> | undefined, b: DbSnapshot | PlainMessage<DbSnapshot> | undefined): boolean {
     return proto3.util.equals(DbSnapshot, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.UpsertRequest
+ */
+export class UpsertRequest extends Message<UpsertRequest> {
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Path sequence_number_path = 10;
+   */
+  sequenceNumberPath?: Path;
+
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Path topic_path = 20;
+   */
+  topicPath?: Path;
+
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Payload payload = 30;
+   */
+  payload?: Payload;
+
+  constructor(data?: PartialMessage<UpsertRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.UpsertRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "sequence_number_path", kind: "message", T: Path },
+    { no: 20, name: "topic_path", kind: "message", T: Path },
+    { no: 30, name: "payload", kind: "message", T: Payload },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpsertRequest {
+    return new UpsertRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpsertRequest {
+    return new UpsertRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpsertRequest {
+    return new UpsertRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UpsertRequest | PlainMessage<UpsertRequest> | undefined, b: UpsertRequest | PlainMessage<UpsertRequest> | undefined): boolean {
+    return proto3.util.equals(UpsertRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.GetSnapshotResponse
+ */
+export class GetSnapshotResponse extends Message<GetSnapshotResponse> {
+  /**
+   * map<topic_path, payload>
+   *
+   * @generated from field: repeated aircore.media.devinternal.v1.Payload payloads = 10;
+   */
+  payloads: Payload[] = [];
+
+  constructor(data?: PartialMessage<GetSnapshotResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.GetSnapshotResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "payloads", kind: "message", T: Payload, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSnapshotResponse {
+    return new GetSnapshotResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSnapshotResponse {
+    return new GetSnapshotResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSnapshotResponse {
+    return new GetSnapshotResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSnapshotResponse | PlainMessage<GetSnapshotResponse> | undefined, b: GetSnapshotResponse | PlainMessage<GetSnapshotResponse> | undefined): boolean {
+    return proto3.util.equals(GetSnapshotResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.GetDeltasRequest
+ */
+export class GetDeltasRequest extends Message<GetDeltasRequest> {
+  /**
+   * @generated from field: aircore.media.devinternal.v1.Path sequence_number_path = 10;
+   */
+  sequenceNumberPath?: Path;
+
+  /**
+   * @generated from field: int64 sequence_number = 20;
+   */
+  sequenceNumber = protoInt64.zero;
+
+  constructor(data?: PartialMessage<GetDeltasRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.GetDeltasRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "sequence_number_path", kind: "message", T: Path },
+    { no: 20, name: "sequence_number", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetDeltasRequest {
+    return new GetDeltasRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetDeltasRequest {
+    return new GetDeltasRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetDeltasRequest {
+    return new GetDeltasRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetDeltasRequest | PlainMessage<GetDeltasRequest> | undefined, b: GetDeltasRequest | PlainMessage<GetDeltasRequest> | undefined): boolean {
+    return proto3.util.equals(GetDeltasRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.devinternal.v1.GetDeltasResponse
+ */
+export class GetDeltasResponse extends Message<GetDeltasResponse> {
+  /**
+   * @generated from field: repeated aircore.media.devinternal.v1.Payload payloads = 10;
+   */
+  payloads: Payload[] = [];
+
+  constructor(data?: PartialMessage<GetDeltasResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.devinternal.v1.GetDeltasResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "payloads", kind: "message", T: Payload, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetDeltasResponse {
+    return new GetDeltasResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetDeltasResponse {
+    return new GetDeltasResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetDeltasResponse {
+    return new GetDeltasResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetDeltasResponse | PlainMessage<GetDeltasResponse> | undefined, b: GetDeltasResponse | PlainMessage<GetDeltasResponse> | undefined): boolean {
+    return proto3.util.equals(GetDeltasResponse, a, b);
   }
 }
 

@@ -5,6 +5,7 @@ package aircore.media.devinternal.v1;
 import "google/protobuf/any.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
 
 enum Tags {
   UNKNOWN_TAG = 0;
@@ -105,9 +106,11 @@ message Payload {
     google.protobuf.Any val = 70;
   }
 
-  map<string, string> tags = 200;
+  map<string, string> tags = 80;
 
-  Sequencing sequencing = 300;
+  Sequencing sequencing = 90;
+
+  Path topic_path = 100;
 }
 
 message AirCoreFrame {
@@ -130,4 +133,29 @@ message Subscriptions {
 
 message DbSnapshot {
   map<string/*DbKey.path*/, Payload> entries = 10;
+}
+
+message UpsertRequest {
+  Path sequence_number_path = 10;
+  Path topic_path = 20;
+  Payload payload = 30;
+}
+
+message GetSnapshotResponse {
+  repeated Payload payloads = 10; // map<topic_path, payload>
+}
+
+message GetDeltasRequest {
+  Path sequence_number_path = 10;
+  int64 sequence_number = 20;
+}
+
+message GetDeltasResponse {
+  repeated Payload payloads = 10;
+}
+
+service Omni {
+  rpc Upsert(UpsertRequest) returns (google.protobuf.Empty);
+  rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
+  rpc GetDeltas(GetDeltasRequest) returns (GetDeltasResponse);
 }

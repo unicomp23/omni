@@ -29,12 +29,16 @@ describe(`anydb`, () => {
         let completed = false;
         try {
             const redis_uri = process.env.REDIS_URI;
-            if(redis_uri) {
+            if (redis_uri) {
                 const anydb_ = await anydb.create(createClient({url: redis_uri}));
                 await disposable_stack.use(anydb_);
 
                 const paths = make_paths(crypto.randomUUID());
-                await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: "text", value: "123"}, type: PayloadType.DELTA}))
+                await anydb_.upsert(paths.sequence_number_path, new Payload({
+                    x: {case: "text", value: "123"},
+                    type: PayloadType.DELTA,
+                    topicPath: paths.topic_path,
+                }))
                 const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
                 for await(const delta of subscriber) {
                     expect(delta.x.case).toBe("text");
@@ -55,12 +59,16 @@ describe(`anydb`, () => {
         let completed = false;
         try {
             const redis_uri = process.env.REDIS_URI;
-            if(redis_uri) {
+            if (redis_uri) {
                 const anydb_ = await anydb.create(createClient({url: redis_uri}));
                 await disposable_stack.use(anydb_);
 
                 const paths = make_paths(crypto.randomUUID());
-                await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: "text", value: "123"}, type: PayloadType.DELTA}))
+                await anydb_.upsert(paths.sequence_number_path, new Payload({
+                    x: {case: "text", value: "123"},
+                    type: PayloadType.DELTA,
+                    topicPath: paths.topic_path
+                }))
                 const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
                 for await(const item of subscriber) {
                     const delta = item.payload;
@@ -82,15 +90,19 @@ describe(`anydb`, () => {
         let completed = false;
         try {
             const redis_uri = process.env.REDIS_URI;
-            if(redis_uri) {
+            if (redis_uri) {
                 const anydb_ = await anydb.create(createClient({url: redis_uri}));
                 await disposable_stack.use(anydb_);
 
                 const paths = make_paths(crypto.randomUUID());
                 let i = 0;
                 // publish
-                for(; i < 3; i++) {
-                    await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: `text`, value: i.toString()}, type: PayloadType.DELTA}))
+                for (; i < 3; i++) {
+                    await anydb_.upsert(paths.sequence_number_path, new Payload({
+                        x: {case: `text`, value: i.toString()},
+                        type: PayloadType.DELTA,
+                        topicPath: paths.topic_path
+                    }))
                 }
                 // snapshot
                 let snap_sequence_number = BigInt(0);
@@ -108,8 +120,14 @@ describe(`anydb`, () => {
                 // publish
                 const count = 3;
                 const start = 3;
-                for(; i < (count + start); i++) {
-                    await anydb_.upsert(paths.sequence_number_path, paths.topic_path, new Payload({x: {case: `text`, value: i.toString()}, type: PayloadType.DELTA}))
+                for (; i < (count + start); i++) {
+                    await anydb_.upsert(paths.sequence_number_path, new Payload({
+                        x: {
+                            case: `text`,
+                            value: i.toString()
+                        }, type: PayloadType.DELTA,
+                        topicPath: paths.topic_path,
+                    }))
                 }
                 // fetch deltas
                 {

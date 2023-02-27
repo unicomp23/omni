@@ -23,9 +23,11 @@ export class anydb {
         return anydb_;
     }
 
-    public async upsert(sequence_number_path_: Path, topic_path_: Path, payload: Payload) {
+    public async upsert(sequence_number_path_: Path, payload: Payload) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        const topic_path = TopicArray.from_path(topic_path_);
+        if(!payload.topicPath)
+            throw new Error(`missing topic path`);
+        const topic_path = TopicArray.from_path(payload.topicPath);
         if (!topic_path.contains_path(sequence_number_path))
             throw new Error(
                 `topic_path is not parent of sequence_number_path, ` +
