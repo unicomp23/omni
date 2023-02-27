@@ -1,9 +1,10 @@
 import {config} from "../config";
-import {Kafka} from "kafkajs";
+import {Kafka, logLevel} from "kafkajs";
 import crypto from "crypto";
 import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {AsyncDisposable} from "@esfx/disposable";
+import {kafkaLogLevel} from "./constants";
 
 export class reply_to_subscriber {
     public readonly frames = new AsyncQueue<AirCoreFrame>();
@@ -39,7 +40,8 @@ export class reply_to_subscriber {
         readonly topic = config_.get_reply_to_topic(),
         private readonly kafka = new Kafka({
             clientId: config_.get_app_id() + '/reply_to/' + crypto.randomUUID(),
-            brokers: config_.get_kafka_brokers()
+            brokers: config_.get_kafka_brokers(),
+            logLevel: kafkaLogLevel,
         }),
         private readonly consumer = kafka.consumer({
             groupId: config_.get_reply_to_group_id()

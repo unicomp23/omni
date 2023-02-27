@@ -1,8 +1,9 @@
-import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
+import {Kafka, logLevel, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/generated/devinternal_pb";
 import {AsyncDisposable} from "@esfx/disposable";
+import {kafkaLogLevel} from "./constants";
 
 export enum topic_type {
     unknown,
@@ -19,7 +20,8 @@ export class publisher {
         private readonly config_: config,
         private readonly kafka = new Kafka({
             clientId: config_.get_app_id() + '/' + crypto.randomUUID(),
-            brokers: config_.get_kafka_brokers()
+            brokers: config_.get_kafka_brokers(),
+            logLevel: kafkaLogLevel,
         }),
         private readonly producer = kafka.producer({
             allowAutoTopicCreation: true,
