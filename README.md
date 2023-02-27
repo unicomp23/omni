@@ -52,3 +52,6 @@ I think we’ll need some extensions to the Tecate protocol to allow clients to 
 
 Where is the confluence page?
 >https://airtime.atlassian.net/wiki/spaces/ENG/pages/2785542166/Recording+and+Asynchronous+Tag+State+Notifications
+
+How do I run the tests?
+>From within the svc container, after doing a docker-up.sh, run: npm test
