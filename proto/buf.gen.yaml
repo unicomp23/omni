@@ -5,3 +5,6 @@ plugins:
      path: ../node_modules/.bin/protoc-gen-es
      opt: target=ts
      out: generated
+   - name: connect-es
+     opt: target=ts
+     out: gen
