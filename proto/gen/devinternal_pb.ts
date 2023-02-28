@@ -728,9 +728,9 @@ export class Subscriptions extends Message<Subscriptions> {
  */
 export class DbSnapshot extends Message<DbSnapshot> {
   /**
-   * @generated from field: map<string, aircore.media.omni.v1.Payload> entries = 10;
+   * @generated from field: map<string, aircore.media.omni.v1.Payload> snapshots = 10;
    */
-  entries: { [key: string]: Payload } = {};
+  snapshots: { [key: string]: Payload } = {};
 
   constructor(data?: PartialMessage<DbSnapshot>) {
     super();
@@ -740,7 +740,7 @@ export class DbSnapshot extends Message<DbSnapshot> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.omni.v1.DbSnapshot";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "entries", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Payload} },
+    { no: 10, name: "snapshots", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Payload} },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbSnapshot {

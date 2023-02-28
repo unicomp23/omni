@@ -26,7 +26,7 @@ export function spawn_server(config_: config) {
                         subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // save subscriber return path
                         //console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
-                        const payload = db_snapshot.entries[key]; // fetch snapshot
+                        const payload = db_snapshot.snapshots[key]; // fetch snapshot
                         const payloads_2 = payload ? [payload] : [new Payload()];
                         frame.payloads = payloads_2;
                         frame.payloads[0].type = PayloadType.SNAPSHOT;
@@ -42,7 +42,7 @@ export function spawn_server(config_: config) {
                     const payload = frame.payloads[0];
                     if (!payload) throw new Error(`missing payload`);
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
-                    db_snapshot.entries[key] = payload; // update snapshot
+                    db_snapshot.snapshots[key] = payload; // update snapshot
                     const subscribers = subscriptions.get(key);
                     if (subscribers) {
                         for (const entry of subscribers.entries()) { // iterate subscriber return paths

@@ -133,7 +133,7 @@ message Subscriptions {
 }
 
 message DbSnapshot {
-  map<string/*DbKey.path*/, Payload> entries = 10;
+  map<string/*sequence_path*/, Payload> snapshots = 10;
 }
 
 message UpsertRequest {
