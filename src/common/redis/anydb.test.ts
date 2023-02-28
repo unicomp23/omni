@@ -1,7 +1,7 @@
 import {anydb} from "./anydb";
 import {createClient} from "redis";
 import {AsyncDisposableStack} from "@esfx/disposable";
-import {Path, PathTypes, Payload, PayloadType, Tags} from "../../../proto/generated/devinternal_pb";
+import {Path, PathTypes, Payload, PayloadType, Tags} from "../../../proto/gen/devinternal_pb";
 import crypto from "crypto";
 
 function make_paths(app_id: string) {

@@ -1,5 +1,5 @@
 import {worker} from "../worker";
-import {Commands, Coordinates, DbSnapshot, Payload, PayloadType} from "../../../proto/generated/devinternal_pb";
+import {Commands, Coordinates, DbSnapshot, Payload, PayloadType} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
 import {config} from "../../config";
 

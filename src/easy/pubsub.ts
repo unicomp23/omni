@@ -2,7 +2,7 @@ import {config} from "../config";
 import {publisher, topic_type} from "../kafka/publisher";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {AsyncQueue} from "@esfx/async";
-import {AirCoreFrame, Commands, Coordinates, Path, Payload, Sequencing} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Commands, Coordinates, Path, Payload, Sequencing} from "../../proto/gen/devinternal_pb";
 import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";

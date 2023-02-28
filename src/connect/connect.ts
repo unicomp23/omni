@@ -6,7 +6,7 @@ import {
     GetSnapshotResponse,
     Path,
     UpsertRequest
-} from "../../proto/generated/devinternal_pb";
+} from "../../proto/gen/devinternal_pb";
 import {Empty} from "@bufbuild/protobuf";
 
 export default (router: ConnectRouter) => {

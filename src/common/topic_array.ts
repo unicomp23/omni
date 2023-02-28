@@ -1,5 +1,5 @@
 import {ksortable_length_delimiter, tag_val} from "./ksortable_length_delimiter";
-import {Path, PathTypes, Tags} from "../../proto/generated/devinternal_pb";
+import {Path, PathTypes, Tags} from "../../proto/gen/devinternal_pb";
 
 export class TopicArray extends Array<tag_val> {
     private constructor() {

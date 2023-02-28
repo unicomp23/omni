@@ -1,4 +1,4 @@
-import {AirCoreFrame, Coordinates} from "../../proto/generated/devinternal_pb";
+import {AirCoreFrame, Coordinates} from "../../proto/gen/devinternal_pb";
 
 describe(`serde`, () => {
     test(`simple test`, async () => {

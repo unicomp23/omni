@@ -2,7 +2,7 @@ import {RedisClientType} from "redis";
 import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
 import {check_integer} from "../ksortable_length_delimiter";
-import {Payload, Sequencing, Path} from "../../../proto/generated/devinternal_pb";
+import {Payload, Sequencing, Path} from "../../../proto/gen/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 
 const zset_suffix = `-z`;
