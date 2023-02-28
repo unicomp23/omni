@@ -206,9 +206,18 @@ export enum Commands {
   DELETE = 20,
 
   /**
+   * kafka client
+   *
    * @generated from enum value: SUBSCRIBE = 30;
    */
   SUBSCRIBE = 30,
+
+  /**
+   * grpc request/response
+   *
+   * @generated from enum value: FETCH_DELTAS = 40;
+   */
+  FETCH_DELTAS = 40,
 }
 // Retrieve enum metadata with: proto3.getEnumType(Commands)
 proto3.util.setEnumType(Commands, "aircore.media.omni.v1.Commands", [
@@ -216,6 +225,7 @@ proto3.util.setEnumType(Commands, "aircore.media.omni.v1.Commands", [
   { no: 10, name: "UPSERT" },
   { no: 20, name: "DELETE" },
   { no: 30, name: "SUBSCRIBE" },
+  { no: 40, name: "FETCH_DELTAS" },
 ]);
 
 /**

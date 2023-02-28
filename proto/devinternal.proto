@@ -51,7 +51,8 @@ enum Commands {
   UNKNOWN_COMMAND = 0;
   UPSERT = 10; // aka PUBLISH
   DELETE = 20;
-  SUBSCRIBE = 30;
+  SUBSCRIBE = 30; // kafka client
+  FETCH_DELTAS = 40; // grpc request/response
 }
 
 message PathElement {
