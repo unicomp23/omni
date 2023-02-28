@@ -1,8 +1,7 @@
 import {RedisClientType} from "redis";
 import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
-import {check_integer} from "../ksortable_length_delimiter";
-import {Payload, Sequencing, Path} from "../../../proto/gen/devinternal_pb";
+import {Path, Payload, Sequencing} from "../../../proto/gen/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 
 const zset_suffix = `-z`;
@@ -25,7 +24,7 @@ export class anydb {
 
     public async upsert(sequence_number_path_: Path, payload: Payload) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        if(!payload.itemPath)
+        if (!payload.itemPath)
             throw new Error(`missing topic path`);
         const item_path = TopicArray.from_path(payload.itemPath);
         if (!item_path.contains_path(sequence_number_path))
@@ -50,6 +49,36 @@ export class anydb {
                 }
             }
         );
+    }
+
+    public async* fetch_snapshot(sequence_number_path_: Path) {
+        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
+        const sequence_number_key = sequence_number_path.serialize();
+        const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
+        for (const item_path_base64 in result) {
+            const val = result[item_path_base64];
+            const payload = Payload.fromBinary(protoBase64.dec(val));
+            yield {
+                item_path: Buffer.from(item_path_base64, `base64`).toString(`ascii`),
+                payload,
+            }
+        }
+    }
+
+    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: BigInt) {
+        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
+        const sequence_number_key = sequence_number_path.serialize();
+
+        const count = 100; // todo config
+        const results = await this.client.xRange(sequence_number_key + stream_suffix, `${sequence_number}-0`, `+`, {});
+        for (const result of results) {
+            const encoded64 = result.message[`encoded64`];
+            yield Payload.fromBinary(protoBase64.dec(encoded64));
+        }
+    }
+
+    async [AsyncDisposable.asyncDispose]() {
+        await this.client.quit();
     }
 
     private async sync_sequence_number(key: string): Promise<number> {
@@ -79,35 +108,5 @@ export class anydb {
             return next;
         }
         throw new Error(`should get here`);
-    }
-
-    public async* fetch_snapshot(sequence_number_path_: Path) {
-        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        const sequence_number_key = sequence_number_path.serialize();
-        const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
-        for (const item_path_base64 in result) {
-            const val = result[item_path_base64];
-            const payload = Payload.fromBinary(protoBase64.dec(val));
-            yield {
-                item_path: Buffer.from(item_path_base64, `base64`).toString(`ascii`),
-                payload,
-            }
-        }
-    }
-
-    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: BigInt) {
-        const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        const sequence_number_key = sequence_number_path.serialize();
-
-        const count = 100; // todo config
-        const results = await this.client.xRange(sequence_number_key + stream_suffix, `${sequence_number}-0`, `+`, {});
-        for(const result of results) {
-            const encoded64 = result.message[`encoded64`];
-            yield Payload.fromBinary(protoBase64.dec(encoded64));
-        }
-    }
-
-    async [AsyncDisposable.asyncDispose]() {
-        await this.client.quit();
     }
 }

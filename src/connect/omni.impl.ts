@@ -1,4 +1,4 @@
-import {ConnectRouter, ServiceImpl} from "@bufbuild/connect";
+import {ServiceImpl} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {
     GetDeltasRequest,

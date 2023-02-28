@@ -5,9 +5,34 @@ export class TopicArray extends Array<tag_val> {
     private constructor() {
         super();
     }
+
     public static create() {
         return new TopicArray();
     }
+
+    public static from_path(path: Path) {
+        const topic_array = new TopicArray();
+        for (const hop of path.hops) {
+            switch (hop.x.case) {
+                case "pathType":
+                    topic_array.push({tag: Tags[hop.tag], val: PathTypes[hop.x.value]});
+                    break;
+                case "text":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value});
+                    break;
+                case "integer":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
+                    break;
+                case "fraction":
+                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
+                    break;
+                default:
+                    throw new Error(`unknown oneof: ${hop.x.case}`);
+            }
+        }
+        return topic_array;
+    }
+
     public serialize() {
         const readable = ksortable_length_delimiter.serialize(this);
         const unreadable = Buffer.from(readable).toString(`base64`);
@@ -55,28 +80,5 @@ export class TopicArray extends Array<tag_val> {
             index++;
         }
         return true;
-    }
-
-    public static from_path(path: Path) {
-        const topic_array = new TopicArray();
-        for(const hop of path.hops) {
-            switch (hop.x.case) {
-                case "pathType":
-                    topic_array.push({tag: Tags[hop.tag], val: PathTypes[hop.x.value]});
-                    break;
-                case "text":
-                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value});
-                    break;
-                case "integer":
-                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
-                    break;
-                case "fraction":
-                    topic_array.push({tag: Tags[hop.tag], val: hop.x.value.toString()});
-                    break;
-                default:
-                    throw new Error(`unknown oneof: ${hop.x.case}`);
-            }
-        }
-        return topic_array;
     }
 }

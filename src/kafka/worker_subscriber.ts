@@ -1,5 +1,5 @@
 import {config} from "../config";
-import {Kafka, logLevel} from "kafkajs";
+import {Kafka} from "kafkajs";
 import crypto from "crypto";
 import {AirCoreFrame} from "../../proto/gen/devinternal_pb";
 import {AsyncQueue} from "@esfx/async";

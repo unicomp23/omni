@@ -21,11 +21,11 @@ function make_paths(app_id: string) {
             {tag: Tags.APP_USER_ID, x: {case: "text", value: "user_id_123"}},
         ]
     });
-    return { sequence_number_path, item_path };
+    return {sequence_number_path, item_path};
 }
 
 describe(`anydb`, () => {
-    test(`publish delta, fetch delta`, async() => {
+    test(`publish delta, fetch delta`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
         const config_ = config.create();
@@ -51,7 +51,7 @@ describe(`anydb`, () => {
             expect(completed).toBe(true);
         }
     })
-    test(`publish delta, fetch snapshot`, async() => {
+    test(`publish delta, fetch snapshot`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
         const config_ = config.create();
@@ -79,7 +79,7 @@ describe(`anydb`, () => {
             expect(completed).toBe(true);
         }
     })
-    test(`publish delta, fetch snapshot, publish delta, fetch snapshot deltas`, async() => {
+    test(`publish delta, fetch snapshot, publish delta, fetch snapshot deltas`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
         const config_ = config.create();

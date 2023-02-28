@@ -1,4 +1,4 @@
-import {Kafka, logLevel, Partitioners, ProducerRecord} from "kafkajs";
+import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
 import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/gen/devinternal_pb";

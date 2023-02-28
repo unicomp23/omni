@@ -1,12 +1,12 @@
 // server
-import { fastify } from "fastify";
-import { fastifyConnectPlugin } from "@bufbuild/connect-fastify";
+import {fastify} from "fastify";
+import {fastifyConnectPlugin} from "@bufbuild/connect-fastify";
 import {OmniImpl} from "./omni.impl";
 
 // client
-import { createPromiseClient } from "@bufbuild/connect";
-import { Omni } from "../../proto/gen/devinternal_connect";
-import { createConnectTransport } from "@bufbuild/connect-node";
+import {createPromiseClient} from "@bufbuild/connect";
+import {Omni} from "../../proto/gen/devinternal_connect";
+import {createConnectTransport} from "@bufbuild/connect-node";
 import {UpsertRequest} from "../../proto/gen/devinternal_pb";
 
 describe(`connect server`, () => {
