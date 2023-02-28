@@ -1,5 +1,5 @@
 import {worker} from "../worker";
-import {Commands, Coordinates, DbSnapshot, Payload, PayloadType} from "../../../proto/gen/devinternal_pb";
+import {Commands, Coordinates, DbSnapshot, Path, Payload, PayloadType} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
 import {config} from "../../config";
 
@@ -64,4 +64,9 @@ export function spawn_server(config_: config) {
         return true;
     });
     return late_join_server;
+}
+
+export function PathKey(path: Path | undefined) {
+    if(path === undefined) throw new Error(`undefined path key`);
+    return Buffer.from(path.toBinary()).toString("base64")
 }
