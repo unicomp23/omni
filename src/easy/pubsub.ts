@@ -60,7 +60,7 @@ export class pubsub {
                 kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
-                            case: "partitionKey",
+                            case: "sequencePath",
                             value: path,
                         }
                     },

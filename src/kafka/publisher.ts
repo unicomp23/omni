@@ -63,7 +63,7 @@ export class publisher {
         //console.log("producing:", frame.toJsonString({prettySpaces}));
         switch (topic_type_) {
             case topic_type.worker: {
-                if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")
+                if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "sequencePath")
                     record.messages[0].key = Buffer.from(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
                     throw new Error(`missing partitionKey, worker`);

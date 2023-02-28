@@ -67,7 +67,7 @@ describe(`pubsub`, () => {
                     kafkaKey: {
                         kafkaPartitionKey: {
                             x: {
-                                case: "partitionKey",
+                                case: "sequencePath",
                                 value: {
                                     hops: [
                                         {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.APP}}, // first hop, always has PATH_TYPE

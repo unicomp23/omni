@@ -71,7 +71,7 @@ describe(`pubsub`, () => {
                             kafkaKey: {
                                 kafkaPartitionKey: {
                                     x: {
-                                        case: "partitionKey",
+                                        case: "sequencePath",
                                         value: make_path_chan(),
                                     }
                                 }

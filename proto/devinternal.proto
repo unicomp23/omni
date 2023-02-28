@@ -72,7 +72,7 @@ message Path {
 
 message KafkaParitionKey {
   oneof x {
-    Path partition_key = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+    Path sequence_path = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
     int32 partition_integer = 20;
   }
 }
@@ -111,7 +111,7 @@ message Payload {
 
   Sequencing sequencing = 90;
 
-  Path topic_path = 100;
+  Path item_path = 100;
 }
 
 message AirCoreFrame {

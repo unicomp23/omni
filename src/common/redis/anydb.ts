@@ -25,13 +25,13 @@ export class anydb {
 
     public async upsert(sequence_number_path_: Path, payload: Payload) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
-        if(!payload.topicPath)
+        if(!payload.itemPath)
             throw new Error(`missing topic path`);
-        const topic_path = TopicArray.from_path(payload.topicPath);
-        if (!topic_path.contains_path(sequence_number_path))
+        const item_path = TopicArray.from_path(payload.itemPath);
+        if (!item_path.contains_path(sequence_number_path))
             throw new Error(
-                `topic_path is not parent of sequence_number_path, ` +
-                `topic_path: ${topic_path}, sequence_number_path: ${sequence_number_path}`);
+                `item_path is not parent of sequence_number_path, ` +
+                `item_path: ${item_path}, sequence_number_path: ${sequence_number_path}`);
 
         const sequence_number_key = sequence_number_path.serialize();
         const sequence_number = await this.sync_sequence_number(sequence_number_key);
@@ -41,7 +41,7 @@ export class anydb {
         payload.sequencing.sequenceNumber = protoInt64.parse(sequence_number);
 
         const encoded64 = protoBase64.enc(payload.toBinary())
-        await this.client.hSet(sequence_number_key + zset_suffix, topic_path.serialize(), encoded64);
+        await this.client.hSet(sequence_number_key + zset_suffix, item_path.serialize(), encoded64);
         await this.client.xAdd(sequence_number_key + stream_suffix, `${sequence_number}-0`, {encoded64}, {
                 TRIM: {
                     strategy: 'MAXLEN', // Trim by length.
@@ -85,11 +85,11 @@ export class anydb {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = sequence_number_path.serialize();
         const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
-        for (const topic_path_base64 in result) {
-            const val = result[topic_path_base64];
+        for (const item_path_base64 in result) {
+            const val = result[item_path_base64];
             const payload = Payload.fromBinary(protoBase64.dec(val));
             yield {
-                topic_path: Buffer.from(topic_path_base64, `base64`).toString(`ascii`),
+                item_path: Buffer.from(item_path_base64, `base64`).toString(`ascii`),
                 payload,
             }
         }

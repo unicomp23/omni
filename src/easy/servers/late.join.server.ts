@@ -13,7 +13,7 @@ export function spawn_server(config_: config) {
             //console.log(`worker.received`, frame.toJsonString({prettySpaces}));
             switch (frame.command) {
                 case Commands.SUBSCRIBE: {
-                    if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "partitionKey") throw new Error(`missing sendTo.kafkaKey.partitionKey.case`);
+                    if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "sequencePath") throw new Error(`missing sendTo.kafkaKey.partitionKey.case`);
                     const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
                     if (!frame.replyTo?.correlationId) throw new Error(`missing correlationId`);
@@ -36,7 +36,7 @@ export function spawn_server(config_: config) {
                     break;
                 }
                 case Commands.UPSERT: {
-                    if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")) throw new Error(`missing sendTo.partitionKey.case`);
+                    if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "sequencePath")) throw new Error(`missing sendTo.partitionKey.case`);
                     const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                     if (!kafkaPartitionKey) throw new Error(`missing sendTo.kafkaPartitionKey.value`);
                     const payload = frame.payloads[0];

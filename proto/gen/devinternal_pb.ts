@@ -374,10 +374,10 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
     /**
      * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
      *
-     * @generated from field: aircore.media.omni.v1.Path partition_key = 10;
+     * @generated from field: aircore.media.omni.v1.Path sequence_path = 10;
      */
     value: Path;
-    case: "partitionKey";
+    case: "sequencePath";
   } | {
     /**
      * @generated from field: int32 partition_integer = 20;
@@ -394,7 +394,7 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.omni.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "partition_key", kind: "message", T: Path, oneof: "x" },
+    { no: 10, name: "sequence_path", kind: "message", T: Path, oneof: "x" },
     { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "x" },
   ]);
 
@@ -585,9 +585,9 @@ export class Payload extends Message<Payload> {
   sequencing?: Sequencing;
 
   /**
-   * @generated from field: aircore.media.omni.v1.Path topic_path = 100;
+   * @generated from field: aircore.media.omni.v1.Path item_path = 100;
    */
-  topicPath?: Path;
+  itemPath?: Path;
 
   constructor(data?: PartialMessage<Payload>) {
     super();
@@ -603,7 +603,7 @@ export class Payload extends Message<Payload> {
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
     { no: 80, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
     { no: 90, name: "sequencing", kind: "message", T: Sequencing },
-    { no: 100, name: "topic_path", kind: "message", T: Path },
+    { no: 100, name: "item_path", kind: "message", T: Path },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Payload {

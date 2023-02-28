@@ -13,7 +13,7 @@ function make_paths(app_id: string) {
             {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "chan_id_123"}},
         ]
     });
-    const topic_path = new Path({
+    const item_path = new Path({
         hops: [
             {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},
             {tag: Tags.APP_ID, x: {case: "text", value: app_id}},
@@ -21,7 +21,7 @@ function make_paths(app_id: string) {
             {tag: Tags.APP_USER_ID, x: {case: "text", value: "user_id_123"}},
         ]
     });
-    return { sequence_number_path, topic_path };
+    return { sequence_number_path, item_path };
 }
 
 describe(`anydb`, () => {
@@ -37,7 +37,7 @@ describe(`anydb`, () => {
             await anydb_.upsert(paths.sequence_number_path, new Payload({
                 x: {case: "text", value: "123"},
                 type: PayloadType.DELTA,
-                topicPath: paths.topic_path,
+                itemPath: paths.item_path,
             }))
             const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
             for await(const delta of subscriber) {
@@ -63,14 +63,14 @@ describe(`anydb`, () => {
             await anydb_.upsert(paths.sequence_number_path, new Payload({
                 x: {case: "text", value: "123"},
                 type: PayloadType.DELTA,
-                topicPath: paths.topic_path
+                itemPath: paths.item_path
             }))
             const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
             for await(const item of subscriber) {
                 const delta = item.payload;
                 expect(delta.x.case).toBe("text");
                 expect(delta.x.value).toBe("123");
-                expect(delta.topicPath?.toJsonString()).toBe(paths.topic_path.toJsonString());
+                expect(delta.itemPath?.toJsonString()).toBe(paths.item_path.toJsonString());
                 completed = true;
                 break;
             }
@@ -94,7 +94,7 @@ describe(`anydb`, () => {
                 await anydb_.upsert(paths.sequence_number_path, new Payload({
                     x: {case: `text`, value: i.toString()},
                     type: PayloadType.DELTA,
-                    topicPath: paths.topic_path
+                    itemPath: paths.item_path
                 }))
             }
             // snapshot
@@ -119,7 +119,7 @@ describe(`anydb`, () => {
                         case: `text`,
                         value: i.toString()
                     }, type: PayloadType.DELTA,
-                    topicPath: paths.topic_path,
+                    itemPath: paths.item_path,
                 }))
             }
             // fetch deltas
