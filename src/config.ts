@@ -33,4 +33,8 @@ export class config {
     get_kafka_brokers() {
         return ['redpanda:9092'];
     }
+
+    get_redis_uri() {
+        return process.env.REDIS_URI;
+    }
 }
