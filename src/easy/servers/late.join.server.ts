@@ -27,9 +27,9 @@ export function spawn_server(config_: config) {
                         //console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
                         const payload = db_snapshot.entries[key]; // fetch snapshot
-                        const payload_2 = payload ? payload : new Payload();
-                        frame.payload = payload_2;
-                        frame.payload.type = PayloadType.SNAPSHOT;
+                        const payloads_2 = payload ? [payload] : [new Payload()];
+                        frame.payloads = payloads_2;
+                        frame.payloads[0].type = PayloadType.SNAPSHOT;
                         await publisher_.send(topic_type.reply_to, frame);
                         //console.log(`send.snapshot.to.subscriber: `, frame.toJsonString({prettySpaces}));
                     }
@@ -39,7 +39,7 @@ export function spawn_server(config_: config) {
                     if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionKey")) throw new Error(`missing sendTo.partitionKey.case`);
                     const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                     if (!kafkaPartitionKey) throw new Error(`missing sendTo.kafkaPartitionKey.value`);
-                    const payload = frame.payload;
+                    const payload = frame.payloads[0];
                     if (!payload) throw new Error(`missing payload`);
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
                     db_snapshot.entries[key] = payload; // update snapshot

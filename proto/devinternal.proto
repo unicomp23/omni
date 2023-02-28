@@ -124,7 +124,7 @@ message AirCoreFrame {
   Coordinates reply_to = 30;
 
   // the value, scalar, blob, etc.
-  Payload payload = 50;
+  repeated Payload payloads = 50;
 }
 
 /// in-mem tracking data structures

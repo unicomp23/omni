@@ -41,11 +41,11 @@ describe(`pubsub`, () => {
                     // snapshot
                     const frame = await stream.get();
                     //console.log(`runner.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
-                    if (frame.payload?.type == PayloadType.SNAPSHOT) {
+                    if (frame.payloads[0]?.type == PayloadType.SNAPSHOT) {
                         // delta(s)
                         const frame = await stream.get();
                         //console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
-                        if (frame?.payload?.x.case == "text" && frame.payload.x.value == some_text && frame.payload.type == PayloadType.DELTA) {
+                        if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == some_text && frame.payloads[0].type == PayloadType.DELTA) {
                             quit.resolve(true);
                             break;
                         }
@@ -71,13 +71,13 @@ describe(`pubsub`, () => {
                                 }
                             },
                         },
-                        payload: {
+                        payloads: [{
                             type: PayloadType.DELTA,
                             x: {
                                 case: "text",
                                 value: some_text,
                             },
-                        },
+                        }],
                     }));
                 }
             }

@@ -649,9 +649,9 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
   /**
    * the value, scalar, blob, etc.
    *
-   * @generated from field: aircore.media.omni.v1.Payload payload = 50;
+   * @generated from field: repeated aircore.media.omni.v1.Payload payloads = 50;
    */
-  payload?: Payload;
+  payloads: Payload[] = [];
 
   constructor(data?: PartialMessage<AirCoreFrame>) {
     super();
@@ -664,7 +664,7 @@ export class AirCoreFrame extends Message<AirCoreFrame> {
     { no: 10, name: "command", kind: "enum", T: proto3.getEnumType(Commands) },
     { no: 20, name: "send_to", kind: "message", T: Coordinates },
     { no: 30, name: "reply_to", kind: "message", T: Coordinates },
-    { no: 50, name: "payload", kind: "message", T: Payload },
+    { no: 50, name: "payloads", kind: "message", T: Payload, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AirCoreFrame {

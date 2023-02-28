@@ -41,10 +41,10 @@ export class pubsub {
         if (!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
         if (!frame.sendTo) frame.sendTo = new Coordinates();
-        if (!frame.payload) frame.payload = new Payload();
-        if (!frame.payload.sequencing) frame.payload.sequencing = new Sequencing()
-        frame.payload.sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
-        frame.payload.sequencing.sequenceNumber = BigInt(this.next_seqno);
+        if (!frame.payloads) frame.payloads = [new Payload()];
+        if (!frame.payloads[0].sequencing) frame.payloads[0].sequencing = new Sequencing()
+        frame.payloads[0].sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
+        frame.payloads[0].sequencing.sequenceNumber = BigInt(this.next_seqno);
         this.next_seqno++;
 
         await this.publisher_.send(topic_type.worker, frame);

@@ -78,12 +78,12 @@ describe(`pubsub`, () => {
                         },
                     },
                 },
-                payload: {
+                payloads: [{
                     x: {
                         case: "text",
                         value: "some text"
                     },
-                },
+                }],
             });
             //console.log(`publisher.send`, frame.toJsonString({prettySpaces}));
             await publisher_.send(topic_type.worker, frame);
