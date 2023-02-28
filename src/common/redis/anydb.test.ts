@@ -74,6 +74,7 @@ describe(`anydb`, () => {
                     const delta = item.payload;
                     expect(delta.x.case).toBe("text");
                     expect(delta.x.value).toBe("123");
+                    expect(delta.topicPath?.toJsonString()).toBe(paths.topic_path.toJsonString());
                     completed = true;
                     break;
                 }
