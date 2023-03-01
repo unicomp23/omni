@@ -37,13 +37,14 @@ export class pubsub {
     public async publish(frame: AirCoreFrame) {
         await this.reply_to_active();
 
-        if (!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
-        if (!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
+        if (!frame.sendTo) throw new Error("missing frame.sendTo");
+        if (!frame.sendTo?.kafkaKey) throw new Error("missing frame.sendTo?.kafkaKey");
+        if (!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing frame.sendTo?.kafkaKey.kafkaPartitionKey");
 
-        if (!frame.sendTo) throw new Error("missing sendTo");
-        if (!frame.payloads) throw new Error("missing payloads");
-        if (!frame.payloads[0]) throw new Error("missing payloads[0]");
-        if (!frame.payloads[0].itemPath) throw new Error("missing payloads[0].itemPath");
+        if (!frame.payloads) throw new Error("missing frame.payloads");
+        if (!frame.payloads[0]) throw new Error("frame.payloads[0]");
+        if (!frame.payloads[0].itemPath) throw new Error("missing frame.payloads[0].itemPath");
+
         frame.payloads[0].sequencing = new Sequencing()
         frame.payloads[0].sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
         frame.payloads[0].sequencing.sequenceNumber = BigInt(this.next_seqno);
@@ -62,7 +63,7 @@ export class pubsub {
                 kafkaKey: {
                     kafkaPartitionKey: {
                         x: {
-                            case: "sequencePath",
+                            case: "sequenceNumberPath",
                             value: path,
                         }
                     },

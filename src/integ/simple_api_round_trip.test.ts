@@ -14,17 +14,6 @@ function* range(start: number, end: number) {
 
 const paths = make_paths(crypto.randomUUID());
 
-function make_path_chan() {
-    const key_path = new Path({
-        hops: [
-            {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},
-            {tag: Tags.APP_ID, x: {case: "text", value: "app_id_123"}},
-            {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "chan_id_123"}},
-        ]
-    });
-    return key_path;
-}
-
 describe(`pubsub`, () => {
     test(`simple api round trip`, async () => {
         const some_text = "some text 123";
@@ -39,7 +28,7 @@ describe(`pubsub`, () => {
             disposable_stack.use(pubsub_);
 
             const runner_subscribe = async () => {
-                const frames = await pubsub_.subscribe(make_path_chan());
+                const frames = await pubsub_.subscribe(paths.sequence_number_path);
                 const stream = frames.stream;
                 for (; ;) {
                     // snapshot
@@ -67,8 +56,8 @@ describe(`pubsub`, () => {
                             kafkaKey: {
                                 kafkaPartitionKey: {
                                     x: {
-                                        case: "sequencePath",
-                                        value: make_path_chan(),
+                                        case: "sequenceNumberPath",
+                                        value: paths.sequence_number_path,
                                     }
                                 }
                             },

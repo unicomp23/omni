@@ -3,6 +3,7 @@ import {AsyncDisposable} from "@esfx/disposable";
 import {TopicArray} from "../topic_array";
 import {Path, Payload, Sequencing} from "../../../proto/gen/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
+import {ksortable_length_delimiter} from "../ksortable_length_delimiter";
 
 const zset_suffix = `-z`;
 const stream_suffix = `-s`;
@@ -29,8 +30,9 @@ export class anydb {
         const item_path = TopicArray.from_path(payload.itemPath);
         if (!item_path.contains_path(sequence_number_path))
             throw new Error(
-                `item_path is not parent of sequence_number_path, ` +
-                `item_path: ${item_path}, sequence_number_path: ${sequence_number_path}`);
+                `sequence_number_path is not parent of item_path, \n` +
+                `item_path: ${ksortable_length_delimiter.serialize(item_path)}, ` +
+                `\nsequence_number_path: ${ksortable_length_delimiter.serialize(sequence_number_path)}`);
 
         const sequence_number_key = sequence_number_path.serialize();
         const sequence_number = await this.sync_sequence_number(sequence_number_key);

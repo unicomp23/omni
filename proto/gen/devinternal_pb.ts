@@ -348,10 +348,10 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
     /**
      * deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
      *
-     * @generated from field: aircore.media.omni.v1.Path sequence_path = 10;
+     * @generated from field: aircore.media.omni.v1.Path sequence_number_path = 10;
      */
     value: Path;
-    case: "sequencePath";
+    case: "sequenceNumberPath";
   } | {
     /**
      * @generated from field: int32 partition_integer = 20;
@@ -368,7 +368,7 @@ export class KafkaParitionKey extends Message<KafkaParitionKey> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.omni.v1.KafkaParitionKey";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "sequence_path", kind: "message", T: Path, oneof: "x" },
+    { no: 10, name: "sequence_number_path", kind: "message", T: Path, oneof: "x" },
     { no: 20, name: "partition_integer", kind: "scalar", T: 5 /* ScalarType.INT32 */, oneof: "x" },
   ]);
 
@@ -695,11 +695,6 @@ export class UpsertRequest extends Message<UpsertRequest> {
   sequenceNumberPath?: Path;
 
   /**
-   * @generated from field: aircore.media.omni.v1.Path topic_path = 20;
-   */
-  topicPath?: Path;
-
-  /**
    * @generated from field: aircore.media.omni.v1.Payload payload = 30;
    */
   payload?: Payload;
@@ -713,7 +708,6 @@ export class UpsertRequest extends Message<UpsertRequest> {
   static readonly typeName = "aircore.media.omni.v1.UpsertRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "sequence_number_path", kind: "message", T: Path },
-    { no: 20, name: "topic_path", kind: "message", T: Path },
     { no: 30, name: "payload", kind: "message", T: Payload },
   ]);
 
@@ -739,7 +733,7 @@ export class UpsertRequest extends Message<UpsertRequest> {
  */
 export class GetSnapshotResponse extends Message<GetSnapshotResponse> {
   /**
-   * map<topic_path, payload>
+   * map<item_path, payload>
    *
    * @generated from field: repeated aircore.media.omni.v1.Payload payloads = 10;
    */

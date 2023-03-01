@@ -7,7 +7,8 @@ import {createClient} from "redis";
 
 export function spawn_server(config_: config) {
     const late_join_server = new worker(config_, async (stream, publisher_) => {
-        const db_snapshot = new Map<string/*sequence_path*/, Map<string/*item_path*/, Payload>>(); // todo replace w/ redis
+        //const db_snapshot = new Map<string/*sequence_path*/, Map<string/*item_path*/, Payload>>(); // todo replace w/ redis
+        const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
         const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, Coordinates>>(); // todo, subscription keep-alive heartbeats, timeout results in cleanup
 
         for (; ;) {
@@ -15,7 +16,7 @@ export function spawn_server(config_: config) {
             //console.log(`worker.received`, frame.toJsonString({prettySpaces}));
             switch (frame.command) {
                 case Commands.SUBSCRIBE: {
-                    if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "sequencePath") throw new Error(`missing sendTo.kafkaKey.partitionKey.case`);
+                    if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case != "sequenceNumberPath") throw new Error(`missing sendTo.kafkaKey.sequenceNumberPath.case`);
                     const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
                     if (!frame.replyTo?.correlationId) throw new Error(`missing correlationId`);
@@ -28,10 +29,10 @@ export function spawn_server(config_: config) {
                         subscribers.set(frame.replyTo?.correlationId, frame.replyTo.clone()); // save subscriber return path
                         //console.log(`subscribers.set: `, frame.toJsonString({prettySpaces}));
                         // send snapshot (ie late joiner support)
-                        const snapshot = db_snapshot.get(key); // fetch snapshot
+                        const snapshot = await anydb_.fetch_snapshot(frame.sendTo?.kafkaKey?.kafkaPartitionKey.x.value);
                         frame.payloads = [];
                         if(snapshot) for(const item of snapshot) {
-                            const payload = item[1];
+                            const payload = item.payload;
                             frame.payloads.push(payload);
                         }
                         await publisher_.send(topic_type.reply_to, frame);
@@ -40,15 +41,13 @@ export function spawn_server(config_: config) {
                     break;
                 }
                 case Commands.UPSERT: {
-                    if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "sequencePath")) throw new Error(`missing sendTo.partitionKey.case`);
+                    if (!(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "sequenceNumberPath")) throw new Error(`missing frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == sequenceNumberPath`);
                     const kafkaPartitionKey = frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value?.toBinary();
                     if (!kafkaPartitionKey) throw new Error(`missing sendTo.kafkaPartitionKey.value`);
                     const payload = frame.payloads[0];
-                    if (!payload) throw new Error(`missing payload`);
+                    if (!payload) throw new Error(`missing payloads[0]`);
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
-                    if(!db_snapshot.has(key)) db_snapshot.set(key, new Map<string, Payload>()); // update snapshot
-                    const snapshot = db_snapshot.get(key);
-                    if(snapshot) snapshot.set(PathKey(payload.itemPath), payload);
+                    await anydb_.upsert(frame.sendTo?.kafkaKey?.kafkaPartitionKey.x.value, frame.payloads[0]);
                     const subscribers = subscriptions.get(key);
                     if (subscribers) {
                         for (const entry of subscribers.entries()) { // iterate subscriber return paths

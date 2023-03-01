@@ -72,7 +72,7 @@ message Path {
 
 message KafkaParitionKey {
   oneof x {
-    Path sequence_path = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+    Path sequence_number_path = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
     int32 partition_integer = 20;
   }
 }
@@ -124,12 +124,11 @@ message Subscriptions {
 
 message UpsertRequest {
   Path sequence_number_path = 10;
-  Path topic_path = 20;
   Payload payload = 30;
 }
 
 message GetSnapshotResponse {
-  repeated Payload payloads = 10; // map<topic_path, payload>
+  repeated Payload payloads = 10; // map<item_path, payload>
 }
 
 message GetDeltasRequest {
