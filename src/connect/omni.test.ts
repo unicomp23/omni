@@ -39,6 +39,8 @@ describe(`connect server`, () => {
             const res = await client.upsert(new UpsertRequest());
 
             console.log(`upsert: `, res);
+
+            shutdown.resolve(true); // todo
             expect(await shutdown.promise).toBe(true);
         } finally {
             await server.close();

@@ -27,7 +27,9 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
 
     public static async create(config_: config, disposable_stack: AsyncDisposableStack, shutdown: Deferred<boolean>) {
         const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
+        disposable_stack.use(anydb_);
         const pubsub_ = await pubsub.create(config_);
+        disposable_stack.use(pubsub_);
         const omni = new OmniImpl(config_, disposable_stack, shutdown, anydb_, pubsub_);
         return omni;
     }
