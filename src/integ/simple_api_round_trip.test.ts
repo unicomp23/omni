@@ -1,6 +1,6 @@
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {config} from "../config";
-import {AirCoreFrame, Commands, Path, PathTypes, PayloadType, Tags} from "../../proto/gen/devinternal_pb";
+import {AirCoreFrame, Commands, Path, PathTypes, Tags} from "../../proto/gen/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
@@ -43,16 +43,14 @@ describe(`pubsub`, () => {
                 const stream = frames.stream;
                 for (; ;) {
                     // snapshot
-                    const frame = await stream.get();
+                    const frame_snap = await stream.get();
                     //console.log(`runner.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
-                    if (frame.payloads[0]?.type == PayloadType.SNAPSHOT) {
-                        // delta(s)
-                        const frame = await stream.get();
-                        //console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
-                        if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == some_text && frame.payloads[0].type == PayloadType.DELTA) {
-                            quit.resolve(true);
-                            break;
-                        }
+                    // delta(s)
+                    const frame_delta = await stream.get();
+                    //console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
+                    if (frame_delta?.payloads[0]?.x.case == "text" && frame_delta.payloads[0].x.value == some_text) {
+                        quit.resolve(true);
+                        break;
                     }
                 }
             }
@@ -76,7 +74,6 @@ describe(`pubsub`, () => {
                             },
                         },
                         payloads: [{
-                            type: PayloadType.DELTA,
                             x: {
                                 case: "text",
                                 value: some_text,

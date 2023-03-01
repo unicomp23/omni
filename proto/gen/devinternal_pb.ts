@@ -229,32 +229,6 @@ proto3.util.setEnumType(Commands, "aircore.media.omni.v1.Commands", [
 ]);
 
 /**
- * @generated from enum aircore.media.omni.v1.PayloadType
- */
-export enum PayloadType {
-  /**
-   * @generated from enum value: UNKNOWN_PAYLOAD_TYPE = 0;
-   */
-  UNKNOWN_PAYLOAD_TYPE = 0,
-
-  /**
-   * @generated from enum value: SNAPSHOT = 10;
-   */
-  SNAPSHOT = 10,
-
-  /**
-   * @generated from enum value: DELTA = 20;
-   */
-  DELTA = 20,
-}
-// Retrieve enum metadata with: proto3.getEnumType(PayloadType)
-proto3.util.setEnumType(PayloadType, "aircore.media.omni.v1.PayloadType", [
-  { no: 0, name: "UNKNOWN_PAYLOAD_TYPE" },
-  { no: 10, name: "SNAPSHOT" },
-  { no: 20, name: "DELTA" },
-]);
-
-/**
  * @generated from message aircore.media.omni.v1.PathElement
  */
 export class PathElement extends Message<PathElement> {
@@ -547,11 +521,6 @@ export class Sequencing extends Message<Sequencing> {
  */
 export class Payload extends Message<Payload> {
   /**
-   * @generated from field: aircore.media.omni.v1.PayloadType type = 10;
-   */
-  type = PayloadType.UNKNOWN_PAYLOAD_TYPE;
-
-  /**
    * @generated from oneof aircore.media.omni.v1.Payload.x
    */
   x: {
@@ -597,7 +566,6 @@ export class Payload extends Message<Payload> {
   static readonly runtime = proto3;
   static readonly typeName = "aircore.media.omni.v1.Payload";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "type", kind: "enum", T: proto3.getEnumType(PayloadType) },
     { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
     { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
@@ -720,43 +688,6 @@ export class Subscriptions extends Message<Subscriptions> {
 
   static equals(a: Subscriptions | PlainMessage<Subscriptions> | undefined, b: Subscriptions | PlainMessage<Subscriptions> | undefined): boolean {
     return proto3.util.equals(Subscriptions, a, b);
-  }
-}
-
-/**
- * @generated from message aircore.media.omni.v1.DbSnapshot
- */
-export class DbSnapshot extends Message<DbSnapshot> {
-  /**
-   * @generated from field: map<string, aircore.media.omni.v1.Payload> snapshots = 10;
-   */
-  snapshots: { [key: string]: Payload } = {};
-
-  constructor(data?: PartialMessage<DbSnapshot>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime = proto3;
-  static readonly typeName = "aircore.media.omni.v1.DbSnapshot";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 10, name: "snapshots", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: Payload} },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DbSnapshot {
-    return new DbSnapshot().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DbSnapshot {
-    return new DbSnapshot().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DbSnapshot {
-    return new DbSnapshot().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: DbSnapshot | PlainMessage<DbSnapshot> | undefined, b: DbSnapshot | PlainMessage<DbSnapshot> | undefined): boolean {
-    return proto3.util.equals(DbSnapshot, a, b);
   }
 }
 

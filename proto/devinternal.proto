@@ -92,15 +92,7 @@ message Sequencing {
   int64 sequence_number = 20;
 }
 
-enum PayloadType {
-  UNKNOWN_PAYLOAD_TYPE = 0;
-  SNAPSHOT = 10;
-  DELTA = 20;
-}
-
 message Payload {
-  PayloadType type = 10;
-
   oneof x {
     bytes buffer = 50;
     string text = 60;
@@ -130,10 +122,6 @@ message AirCoreFrame {
 /// in-mem tracking data structures
 message Subscriptions {
   map<string/*correlation_id*/, KafkaKey> callbacks = 10;
-}
-
-message DbSnapshot {
-  map<string/*sequence_path*/, Payload> snapshots = 10;
 }
 
 message UpsertRequest {

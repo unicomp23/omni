@@ -1,7 +1,7 @@
 import {anydb} from "./anydb";
 import {createClient} from "redis";
 import {AsyncDisposableStack} from "@esfx/disposable";
-import {Path, PathTypes, Payload, PayloadType, Tags} from "../../../proto/gen/devinternal_pb";
+import {Path, PathTypes, Payload, Tags} from "../../../proto/gen/devinternal_pb";
 import crypto from "crypto";
 import {config} from "../../config";
 
@@ -36,7 +36,6 @@ describe(`anydb`, () => {
             const paths = make_paths(crypto.randomUUID());
             await anydb_.upsert(paths.sequence_number_path, new Payload({
                 x: {case: "text", value: "123"},
-                type: PayloadType.DELTA,
                 itemPath: paths.item_path,
             }))
             const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
@@ -62,7 +61,6 @@ describe(`anydb`, () => {
             const paths = make_paths(crypto.randomUUID());
             await anydb_.upsert(paths.sequence_number_path, new Payload({
                 x: {case: "text", value: "123"},
-                type: PayloadType.DELTA,
                 itemPath: paths.item_path
             }))
             const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
@@ -93,7 +91,6 @@ describe(`anydb`, () => {
             for (; i < 3; i++) {
                 await anydb_.upsert(paths.sequence_number_path, new Payload({
                     x: {case: `text`, value: i.toString()},
-                    type: PayloadType.DELTA,
                     itemPath: paths.item_path
                 }))
             }
@@ -118,7 +115,7 @@ describe(`anydb`, () => {
                     x: {
                         case: `text`,
                         value: i.toString()
-                    }, type: PayloadType.DELTA,
+                    },
                     itemPath: paths.item_path,
                 }))
             }

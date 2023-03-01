@@ -1,6 +1,6 @@
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {config} from "../config";
-import {AirCoreFrame, Commands, Path, PathTypes, PayloadType, Tags} from "../../proto/gen/devinternal_pb";
+import {AirCoreFrame, Commands, Path, PathTypes, Tags} from "../../proto/gen/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
@@ -55,7 +55,7 @@ describe(`pubsub`, () => {
                     // delta(s)
                     let frame = await stream.get();
                     //console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
-                    if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == make_some_text(i) && frame.payloads[0].type == PayloadType.DELTA) {
+                    if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == make_some_text(i)) {
                         if (i == (count - 1)) {
                             break;
                         }
@@ -82,7 +82,6 @@ describe(`pubsub`, () => {
                             },
                         },
                         payloads: [{
-                            type: PayloadType.DELTA,
                             x: {
                                 case: "text",
                                 value: make_some_text(i),
@@ -96,7 +95,7 @@ describe(`pubsub`, () => {
                 const stream = frames.stream;
                 const frame = await stream.get();
                 //console.log(`runner.publish.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
-                if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == make_some_text(count - 1) && frame.payloads[0].type == PayloadType.SNAPSHOT) {
+                if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == make_some_text(count - 1)) {
                     quit.resolve(true);
                 } else {
                     throw new Error(`unexpected payload`);
