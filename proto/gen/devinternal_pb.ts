@@ -544,11 +544,6 @@ export class Payload extends Message<Payload> {
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   /**
-   * @generated from field: map<string, string> tags = 80;
-   */
-  tags: { [key: string]: string } = {};
-
-  /**
    * @generated from field: aircore.media.omni.v1.Sequencing sequencing = 90;
    */
   sequencing?: Sequencing;
@@ -569,7 +564,6 @@ export class Payload extends Message<Payload> {
     { no: 50, name: "buffer", kind: "scalar", T: 12 /* ScalarType.BYTES */, oneof: "x" },
     { no: 60, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */, oneof: "x" },
     { no: 70, name: "val", kind: "message", T: Any, oneof: "x" },
-    { no: 80, name: "tags", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
     { no: 90, name: "sequencing", kind: "message", T: Sequencing },
     { no: 100, name: "item_path", kind: "message", T: Path },
   ]);

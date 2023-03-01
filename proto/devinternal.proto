@@ -99,8 +99,6 @@ message Payload {
     google.protobuf.Any val = 70;
   }
 
-  map<string, string> tags = 80;
-
   Sequencing sequencing = 90;
 
   Path item_path = 100;
