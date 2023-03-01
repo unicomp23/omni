@@ -51,30 +51,34 @@ export class anydb {
         );
     }
 
-    public async* fetch_snapshot(sequence_number_path_: Path) {
+    public async fetch_snapshot(sequence_number_path_: Path) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = sequence_number_path.serialize();
         const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
+        const arr = new Array<{item_path: string, payload: Payload}>();
         for (const item_path_base64 in result) {
             const val = result[item_path_base64];
             const payload = Payload.fromBinary(protoBase64.dec(val));
-            yield {
+            arr.push({
                 item_path: Buffer.from(item_path_base64, `base64`).toString(`ascii`),
                 payload,
-            }
+            });
         }
+        return arr;
     }
 
-    public async* fetch_deltas(sequence_number_path_: Path, sequence_number: BigInt) {
+    public async fetch_deltas(sequence_number_path_: Path, sequence_number: BigInt) {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = sequence_number_path.serialize();
 
         const count = 100; // todo config
         const results = await this.client.xRange(sequence_number_key + stream_suffix, `${sequence_number}-0`, `+`, {});
+        const arr = new Array<Payload>();
         for (const result of results) {
             const encoded64 = result.message[`encoded64`];
-            yield Payload.fromBinary(protoBase64.dec(encoded64));
+            arr.push(Payload.fromBinary(protoBase64.dec(encoded64)));
         }
+        return arr;
     }
 
     async [AsyncDisposable.asyncDispose]() {

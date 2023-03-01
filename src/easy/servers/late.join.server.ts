@@ -2,6 +2,8 @@ import {worker} from "../worker";
 import {Commands, Coordinates, Path, Payload} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
 import {config} from "../../config";
+import {anydb} from "../../common/redis/anydb";
+import {createClient} from "redis";
 
 export function spawn_server(config_: config) {
     const late_join_server = new worker(config_, async (stream, publisher_) => {

@@ -38,8 +38,8 @@ describe(`anydb`, () => {
                 x: {case: "text", value: "123"},
                 itemPath: paths.item_path,
             }))
-            const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
-            for await(const delta of subscriber) {
+            const subscriber = await anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
+            for(const delta of subscriber) {
                 expect(delta.x.case).toBe("text");
                 expect(delta.x.value).toBe("123");
                 completed = true;
@@ -63,8 +63,8 @@ describe(`anydb`, () => {
                 x: {case: "text", value: "123"},
                 itemPath: paths.item_path
             }))
-            const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
-            for await(const item of subscriber) {
+            const subscriber = await anydb_.fetch_snapshot(paths.sequence_number_path);
+            for(const item of subscriber) {
                 const delta = item.payload;
                 expect(delta.x.case).toBe("text");
                 expect(delta.x.value).toBe("123");
@@ -97,8 +97,8 @@ describe(`anydb`, () => {
             // snapshot
             let snap_sequence_number = BigInt(0);
             {
-                const subscriber = anydb_.fetch_snapshot(paths.sequence_number_path);
-                for await(const item of subscriber) {
+                const subscriber = await anydb_.fetch_snapshot(paths.sequence_number_path);
+                for(const item of subscriber) {
                     const delta = item.payload;
                     expect(delta.x.case).toBe("text");
                     expect(delta.x.value).toBe((i - 1).toString());
@@ -121,9 +121,9 @@ describe(`anydb`, () => {
             }
             // fetch deltas
             {
-                const subscriber = anydb_.fetch_deltas(paths.sequence_number_path, snap_sequence_number);
+                const subscriber = await anydb_.fetch_deltas(paths.sequence_number_path, snap_sequence_number);
                 let counter = 0;
-                for await(const item of subscriber) {
+                for(const item of subscriber) {
                     counter++;
                     const delta = item;
                     expect(delta.x.case).toBe("text");
