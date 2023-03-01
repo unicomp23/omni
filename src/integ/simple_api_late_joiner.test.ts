@@ -27,7 +27,8 @@ describe(`pubsub`, () => {
             const config_ = config.create();
             const quit = new Deferred<boolean>();
 
-            disposable_stack.use(spawn_server(config_));
+            const shutdown_server = new Deferred<boolean>();
+            disposable_stack.use(spawn_server(config_, disposable_stack, shutdown_server));
 
             const pubsub_ = await pubsub.create(config_);
             disposable_stack.use(pubsub_);
@@ -85,6 +86,7 @@ describe(`pubsub`, () => {
                 //console.log(`runner.publish.subscribe.snapshot: `, frame.toJsonString({prettySpaces}));
                 if (frame?.payloads[0]?.x.case == "text" && frame.payloads[0].x.value == make_some_text(count - 1)) {
                     quit.resolve(true);
+                    shutdown_server.resolve(true);
                 } else {
                     throw new Error(`unexpected payload`);
                 }
@@ -95,6 +97,7 @@ describe(`pubsub`, () => {
 
             console.log(`await'ing quit signal`);
             expect(await quit.promise).toBe(true);
+            expect(await shutdown_server.promise).toBe(true);
         } finally {
             await disposable_stack.disposeAsync();
         }

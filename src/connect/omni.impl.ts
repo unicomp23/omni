@@ -11,6 +11,7 @@ import {Empty} from "@bufbuild/protobuf";
 
 export class OmniImpl implements ServiceImpl<typeof Omni> {
     async upsert(request: UpsertRequest) {
+        console.log(`got upsert request`);
         return new Empty();
     }
 

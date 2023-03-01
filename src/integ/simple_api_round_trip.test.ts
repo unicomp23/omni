@@ -22,7 +22,8 @@ describe(`pubsub`, () => {
             const config_ = config.create();
             const quit = new Deferred<boolean>();
 
-            disposable_stack.use(spawn_server(config_));
+            const shutdown_server = new Deferred<boolean>();
+            disposable_stack.use(spawn_server(config_, disposable_stack, shutdown_server));
 
             const pubsub_ = await pubsub.create(config_);
             disposable_stack.use(pubsub_);
@@ -39,6 +40,7 @@ describe(`pubsub`, () => {
                     //console.log(`runner.subscribe.delta: `, frame.toJsonString({prettySpaces}));
                     if (frame_delta?.payloads[0]?.x.case == "text" && frame_delta.payloads[0].x.value == some_text) {
                         quit.resolve(true);
+                        shutdown_server.resolve(true);
                         break;
                     }
                 }
@@ -78,6 +80,7 @@ describe(`pubsub`, () => {
 
             console.log(`await'ing quit signal`);
             expect(await quit.promise).toBe(true);
+            expect(await shutdown_server.promise).toBe(true);
         } finally {
             await disposable_stack.disposeAsync();
         }
