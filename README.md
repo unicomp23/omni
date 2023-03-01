@@ -45,7 +45,7 @@ What’s the difference between the pub sub layer and kafka? What additional ser
 > NATS is geared towards real-time pubsub messaging.
 
 How is the pub sub layer implemented? Is it a service? A library? Something else?
->It's a typescript/javascript package which uses redis and kafkajs.
+>https://github.com/unicomp23/omni/blob/aec75c98de32ea4a80e7c56dafa23ceb2c85202c/proto/devinternal.proto#L144
 
 I think we’ll need some extensions to the Tecate protocol to allow clients to receive notifications, yes? Tecate is the only protocol they understand…
 >I could be wrong, but I don't think we'll need extensions for the Tecate protocol.  We will need to discuss how the pubsub paths/topics/partitionkeys which carry Tecate protobuf payloads will be structured.
