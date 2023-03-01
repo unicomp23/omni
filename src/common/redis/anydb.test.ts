@@ -5,7 +5,7 @@ import {Path, PathTypes, Payload, PayloadType, Tags} from "../../../proto/gen/de
 import crypto from "crypto";
 import {config} from "../../config";
 
-function make_paths(app_id: string) {
+export function make_paths(app_id: string) {
     const sequence_number_path = new Path({
         hops: [
             {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.APP_CHAN_USER}},

@@ -40,9 +40,11 @@ export class pubsub {
         if (!frame.sendTo?.kafkaKey) throw new Error("missing kafka key");
         if (!frame.sendTo?.kafkaKey.kafkaPartitionKey) throw new Error("missing kafka partition key");
 
-        if (!frame.sendTo) frame.sendTo = new Coordinates();
-        if (!frame.payloads) frame.payloads = [new Payload()];
-        if (!frame.payloads[0].sequencing) frame.payloads[0].sequencing = new Sequencing()
+        if (!frame.sendTo) throw new Error("missing sendTo");
+        if (!frame.payloads) throw new Error("missing payloads");
+        if (!frame.payloads[0]) throw new Error("missing payloads[0]");
+        if (!frame.payloads[0].itemPath) throw new Error("missing payloads[0].itemPath");
+        frame.payloads[0].sequencing = new Sequencing()
         frame.payloads[0].sequencing.epoc = Timestamp.fromDate(this.epoch.toDate());
         frame.payloads[0].sequencing.sequenceNumber = BigInt(this.next_seqno);
         this.next_seqno++;

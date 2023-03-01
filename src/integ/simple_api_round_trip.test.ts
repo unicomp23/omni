@@ -4,11 +4,15 @@ import {AirCoreFrame, Commands, Path, PathTypes, PayloadType, Tags} from "../../
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
+import crypto from "crypto";
+import {make_paths} from "../common/redis/anydb.test";
 
 function* range(start: number, end: number) {
     for (let i = start; i < end; i++)
         yield i;
 }
+
+const paths = make_paths(crypto.randomUUID());
 
 function make_path_chan() {
     const key_path = new Path({
@@ -77,6 +81,7 @@ describe(`pubsub`, () => {
                                 case: "text",
                                 value: some_text,
                             },
+                            itemPath: paths.item_path,
                         }],
                     }));
                 }
