@@ -1,5 +1,5 @@
 import {worker} from "../worker";
-import {AirCoreFrame, Commands, Coordinates, Path, Payload} from "../../../proto/gen/devinternal_pb";
+import {AirCoreFrame, Commands, Coordinates, Path} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
 import {config} from "../../config";
 import {anydb} from "../../common/redis/anydb";
@@ -18,7 +18,7 @@ export function spawn_server(config_: config, disposable_stack: AsyncDisposableS
             const frame_task = await stream.get();
             const shutdown_task = shutdown.promise;
             const result = await Promise.any([frame_task, shutdown_task]);
-            if(result === true) break;
+            if (result === true) break;
 
             const frame = result as AirCoreFrame;
             //console.log(`worker.received`, frame.toJsonString({prettySpaces}));
@@ -39,7 +39,7 @@ export function spawn_server(config_: config, disposable_stack: AsyncDisposableS
                         // send snapshot (ie late joiner support)
                         const snapshot = await anydb_.fetch_snapshot(frame.sendTo?.kafkaKey?.kafkaPartitionKey.x.value);
                         frame.payloads = [];
-                        if(snapshot) for(const item of snapshot) {
+                        if (snapshot) for (const item of snapshot) {
                             const payload = item.payload;
                             frame.payloads.push(payload);
                         }
@@ -80,6 +80,6 @@ export function spawn_server(config_: config, disposable_stack: AsyncDisposableS
 }
 
 export function PathKey(path: Path | undefined) {
-    if(path === undefined) throw new Error(`undefined path key`);
+    if (path === undefined) throw new Error(`undefined path key`);
     return Buffer.from(path.toBinary()).toString("base64")
 }

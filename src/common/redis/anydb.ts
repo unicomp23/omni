@@ -57,7 +57,7 @@ export class anydb {
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         const sequence_number_key = sequence_number_path.serialize();
         const result = await this.client.hGetAll(sequence_number_key + zset_suffix);
-        const arr = new Array<{item_path: string, payload: Payload}>();
+        const arr = new Array<{ item_path: string, payload: Payload }>();
         for (const item_path_base64 in result) {
             const val = result[item_path_base64];
             const payload = Payload.fromBinary(protoBase64.dec(val));

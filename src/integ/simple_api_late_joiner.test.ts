@@ -1,6 +1,6 @@
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {config} from "../config";
-import {AirCoreFrame, Commands, Path, PathTypes, Tags} from "../../proto/gen/devinternal_pb";
+import {AirCoreFrame, Commands} from "../../proto/gen/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";

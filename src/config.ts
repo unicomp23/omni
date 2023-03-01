@@ -35,7 +35,7 @@ export class config {
     }
 
     get_redis_uri() {
-        if(process.env.REDIS_URI)
+        if (process.env.REDIS_URI)
             return process.env.REDIS_URI;
         return 'redis://redis:6379';
     }

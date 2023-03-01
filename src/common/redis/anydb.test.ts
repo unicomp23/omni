@@ -39,7 +39,7 @@ describe(`anydb`, () => {
                 itemPath: paths.item_path,
             }))
             const subscriber = await anydb_.fetch_deltas(paths.sequence_number_path, BigInt(1));
-            for(const delta of subscriber) {
+            for (const delta of subscriber) {
                 expect(delta.x.case).toBe("text");
                 expect(delta.x.value).toBe("123");
                 completed = true;
@@ -64,7 +64,7 @@ describe(`anydb`, () => {
                 itemPath: paths.item_path
             }))
             const subscriber = await anydb_.fetch_snapshot(paths.sequence_number_path);
-            for(const item of subscriber) {
+            for (const item of subscriber) {
                 const delta = item.payload;
                 expect(delta.x.case).toBe("text");
                 expect(delta.x.value).toBe("123");
@@ -98,7 +98,7 @@ describe(`anydb`, () => {
             let snap_sequence_number = BigInt(0);
             {
                 const subscriber = await anydb_.fetch_snapshot(paths.sequence_number_path);
-                for(const item of subscriber) {
+                for (const item of subscriber) {
                     const delta = item.payload;
                     expect(delta.x.case).toBe("text");
                     expect(delta.x.value).toBe((i - 1).toString());
@@ -123,7 +123,7 @@ describe(`anydb`, () => {
             {
                 const subscriber = await anydb_.fetch_deltas(paths.sequence_number_path, snap_sequence_number);
                 let counter = 0;
-                for(const item of subscriber) {
+                for (const item of subscriber) {
                     counter++;
                     const delta = item;
                     expect(delta.x.case).toBe("text");
