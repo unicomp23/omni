@@ -39,6 +39,7 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     async upsert(request: UpsertRequest) {
         if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
         if(!request.payload) throw new Error(`missing request.payload`);
+        if(!request.payload.itemPath) throw new Error(`missing request.payload.itemPath`)
         await this.pubsub_.publish(new AirCoreFrame({
             command: Commands.UPSERT,
             sendTo: {

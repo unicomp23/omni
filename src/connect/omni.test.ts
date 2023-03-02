@@ -11,6 +11,10 @@ import {UpsertRequest} from "../../proto/gen/devinternal_pb";
 import {config} from "../config";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Deferred} from "@esfx/async";
+import {make_paths} from "../common/redis/anydb.test";
+import crypto from "crypto";
+
+const paths = make_paths(crypto.randomUUID());
 
 describe(`connect server`, () => {
     test(`simple test`, async () => {
@@ -36,7 +40,16 @@ describe(`connect server`, () => {
             });
 
             const client = await createPromiseClient(Omni, transport);
-            const res = await client.upsert(new UpsertRequest());
+            const res = await client.upsert(new UpsertRequest({
+                payload: {
+                    x: {
+                        case: "text",
+                        value: "123",
+                    },
+                    itemPath: paths.item_path,
+                },
+                sequenceNumberPath: paths.sequence_number_path,
+            }));
 
             console.log(`upsert: `, res);
 
