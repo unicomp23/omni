@@ -63,11 +63,18 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     async getSnapshot(sequence_number_path: Path) {
         const result = await this.anydb_.fetch_snapshot(sequence_number_path);
         const payloads = new Array<Payload>();
-        for(const item of result)
+        let deltasStartSequenceNumber = BigInt(0);
+        for(const item of result) {
             payloads.push(item.payload);
+            if(!item.payload.sequencing?.sequenceNumber) throw new Error(`missing item.payload.sequencing?.sequenceNumber`);
+            const sequenceNumber = item.payload.sequencing.sequenceNumber;
+            if(sequenceNumber > deltasStartSequenceNumber) deltasStartSequenceNumber = sequenceNumber;
+        }
+        deltasStartSequenceNumber++;
         //console.log(`omni.getSnapshot: `, payloads);
         return new GetSnapshotResponse({
             payloads,
+            deltasStartSequenceNumber,
         });
     }
 

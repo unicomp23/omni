@@ -739,6 +739,11 @@ export class GetSnapshotResponse extends Message<GetSnapshotResponse> {
    */
   payloads: Payload[] = [];
 
+  /**
+   * @generated from field: int64 deltas_start_sequence_number = 20;
+   */
+  deltasStartSequenceNumber = protoInt64.zero;
+
   constructor(data?: PartialMessage<GetSnapshotResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -748,6 +753,7 @@ export class GetSnapshotResponse extends Message<GetSnapshotResponse> {
   static readonly typeName = "aircore.media.omni.v1.GetSnapshotResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 10, name: "payloads", kind: "message", T: Payload, repeated: true },
+    { no: 20, name: "deltas_start_sequence_number", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSnapshotResponse {

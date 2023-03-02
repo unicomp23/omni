@@ -57,16 +57,39 @@ describe(`connect server`, () => {
 
             //console.log(`omni.test.upsert: `, empty);
 
-            await delay(100);
-            const snapshot = await client.getSnapshot(paths.sequence_number_path);
-            for(const payload of snapshot.payloads) {
-                if(payload) {
-                    expect(payload.x.case).toBe(`text`);
-                    expect(payload.x.value).toBe(test_val);
-                    checks_count++;
+            let keep_running = true;
+            let deltasStartSequenceNumber = BigInt(0);
+            while(keep_running) {
+                await delay(100);
+                const snapshot = await client.getSnapshot(paths.sequence_number_path);
+                for (const payload of snapshot.payloads) {
+                    if (payload) {
+                        expect(payload.x.case).toBe(`text`);
+                        expect(payload.x.value).toBe(test_val);
+                        console.log(`deltasStartSequenceNumber.2: ${snapshot.deltasStartSequenceNumber}`);
+                        expect(snapshot.deltasStartSequenceNumber).toBe(BigInt(2));
+                        deltasStartSequenceNumber = snapshot.deltasStartSequenceNumber;
+                        checks_count++;
+                        keep_running = false;
+                        break;
+                    }
                 }
             }
             //console.log(`omni.test.snapshot: `, snapshot.toJsonString({prettySpaces: 2}));
+
+            const delta_count = 2;
+            for(let i = 0; i < delta_count; i++) {
+                const empty_2 = await client.upsert(new UpsertRequest({
+                    payload: {
+                        x: {
+                            case: "text",
+                            value: i.toString(),
+                        },
+                        itemPath: paths.item_path,
+                    },
+                    sequenceNumberPath: paths.sequence_number_path,
+                }));
+            }
 
             shutdown_server.resolve(true); // todo
             expect(await shutdown_server.promise).toBe(true);

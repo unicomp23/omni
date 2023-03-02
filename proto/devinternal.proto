@@ -129,6 +129,7 @@ message UpsertRequest {
 
 message GetSnapshotResponse {
   repeated Payload payloads = 10; // map<item_path, payload>
+  int64 deltas_start_sequence_number = 20;
 }
 
 message GetDeltasRequest {
