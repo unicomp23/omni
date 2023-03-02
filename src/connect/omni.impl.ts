@@ -16,6 +16,7 @@ import {Deferred} from "@esfx/async";
 import {anydb} from "../common/redis/anydb";
 import {pubsub} from "../easy/pubsub";
 import {createClient} from "redis";
+import {prettySpaces} from "../common/constants";
 
 export class OmniImpl implements ServiceImpl<typeof Omni> {
     private constructor(
@@ -40,7 +41,7 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
         if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
         if(!request.payload) throw new Error(`missing request.payload`);
         if(!request.payload.itemPath) throw new Error(`missing request.payload.itemPath`)
-        await this.pubsub_.publish(new AirCoreFrame({
+        const frame = new AirCoreFrame({
             command: Commands.UPSERT,
             sendTo: {
                 kafkaKey: {
@@ -53,7 +54,9 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
                 }
             },
             payloads: [request.payload.clone()]
-        }));
+        });
+        //console.log(`omni.upsert: `, frame.toJsonString({prettySpaces}));
+        await this.pubsub_.publish(frame);
         return new Empty();
     }
 
@@ -62,6 +65,7 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
         const payloads = new Array<Payload>();
         for(const item of result)
             payloads.push(item.payload);
+        //console.log(`omni.getSnapshot: `, payloads);
         return new GetSnapshotResponse({
             payloads,
         });

@@ -55,7 +55,8 @@ export function spawn_server(config_: config, disposable_stack: AsyncDisposableS
                     const payload = frame.payloads[0];
                     if (!payload) throw new Error(`missing payloads[0]`);
                     const key = Buffer.from(kafkaPartitionKey).toString("base64");
-                    await anydb_.upsert(frame.sendTo?.kafkaKey?.kafkaPartitionKey.x.value, frame.payloads[0]);
+                    //console.log(`consumer.group.upsert: `, frame);
+                    await anydb_.upsert(frame.sendTo.kafkaKey.kafkaPartitionKey.x.value, frame.payloads[0]);
                     const subscribers = subscriptions.get(key);
                     if (subscribers) {
                         for (const entry of subscribers.entries()) { // iterate subscriber return paths

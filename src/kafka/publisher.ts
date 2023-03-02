@@ -66,13 +66,13 @@ export class publisher {
                 if (frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.case == "sequenceNumberPath")
                     record.messages[0].key = Buffer.from(frame.sendTo?.kafkaKey?.kafkaPartitionKey?.x.value.toBinary());
                 else
-                    throw new Error(`missing partitionKey, worker`);
+                    throw new Error(`missing frame.sendTo?.kafkaKey?.kafkaPartitionKey?x.case:"sequenceNumberPath"`);
                 break;
             }
             case topic_type.reply_to: {
                 if (frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case == "partitionInteger")
                     record.messages[0].partition = frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.value | 0; // protobuf serialize drops zero val's
-                else throw new Error(`missing partitionKey, reply_to`);
+                else throw new Error(`missing frame.replyTo?.kafkaKey?.kafkaPartitionKey?.x.case:"partitionInteger"`);
                 break;
             }
             default:

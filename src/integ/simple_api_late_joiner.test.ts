@@ -5,7 +5,7 @@ import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
 import crypto from "crypto";
-import {make_paths} from "../common/redis/anydb.test";
+import {make_paths} from "../common/redis/make_paths";
 
 function* range(start: number, end: number) {
     for (let i = start; i < end; i++)
@@ -95,7 +95,7 @@ describe(`pubsub`, () => {
                 console.log(`runner_publish exit`);
             })
 
-            console.log(`await'ing quit signal`);
+            //console.log(`await'ing quit signal`);
             expect(await quit.promise).toBe(true);
             expect(await shutdown_server.promise).toBe(true);
         } finally {

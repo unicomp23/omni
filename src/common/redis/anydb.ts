@@ -4,6 +4,7 @@ import {TopicArray} from "../topic_array";
 import {Path, Payload, Sequencing} from "../../../proto/gen/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 import {ksortable_length_delimiter} from "../ksortable_length_delimiter";
+import {prettySpaces} from "../constants";
 
 const zset_suffix = `-z`;
 const stream_suffix = `-s`;
@@ -24,6 +25,7 @@ export class anydb {
     }
 
     public async upsert(sequence_number_path_: Path, payload: Payload) {
+        //console.log(`anydb.upsert: `, sequence_number_path_.toJsonString({prettySpaces}));
         const sequence_number_path = TopicArray.from_path(sequence_number_path_);
         if (!payload.itemPath)
             throw new Error(`missing topic path`);
@@ -66,6 +68,7 @@ export class anydb {
                 payload,
             });
         }
+        //console.log(`anydb.fetch_snapshot: `, sequence_number_path_.toJsonString({prettySpaces}));
         return arr;
     }
 
