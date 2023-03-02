@@ -1,10 +1,12 @@
 import {ServiceImpl} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {
+    AirCoreFrame,
+    Commands,
     GetDeltasRequest,
     GetDeltasResponse,
     GetSnapshotResponse,
-    Path,
+    Path, Payload,
     UpsertRequest
 } from "../../proto/gen/devinternal_pb";
 import {Empty} from "@bufbuild/protobuf";
@@ -35,15 +37,41 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     }
 
     async upsert(request: UpsertRequest) {
-        console.log(`got upsert request`);
+        if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
+        if(!request.payload) throw new Error(`missing request.payload`);
+        await this.pubsub_.publish(new AirCoreFrame({
+            command: Commands.UPSERT,
+            sendTo: {
+                kafkaKey: {
+                    kafkaPartitionKey: {
+                        x: {
+                            case: "sequenceNumberPath",
+                            value: request.sequenceNumberPath,
+                        }
+                    }
+                }
+            },
+            payloads: [request.payload.clone()]
+        }));
         return new Empty();
     }
 
     async getSnapshot(sequence_number_path: Path) {
-        return new GetSnapshotResponse();
+        const result = await this.anydb_.fetch_snapshot(sequence_number_path);
+        const payloads = new Array<Payload>();
+        for(const item of result)
+            payloads.push(item.payload);
+        return new GetSnapshotResponse({
+            payloads,
+        });
     }
 
     async getDeltas(request: GetDeltasRequest) {
-        return new GetDeltasResponse();
+        if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
+        if(!request.sequenceNumber) throw new Error(`missing request.sequenceNumber`);
+        const payloads = await this.anydb_.fetch_deltas(request.sequenceNumberPath, request.sequenceNumber);
+        return new GetDeltasResponse({
+            payloads,
+        });
     }
 }
