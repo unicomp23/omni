@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AnalysisUIOptions">
+    <option name="SPLITTER_PROPORTION" value="0.31682578" />
+  </component>
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="696bd085-595b-4546-90d8-9d212be67d27" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/omni.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.nvmrc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/async.notifications.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.dev.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-down.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-up.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/jest.config.js" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/kafka.primitives.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proto/buf.gen.yaml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proto/devinternal.proto" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proto/gen.sh" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proto/gen/devinternal_connect.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proto/gen/devinternal_pb.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/pubsub.api.kafka.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/bin/main.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/constants.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/ksortable_length_delimiter.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/ksortable_length_delimiter.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/redis/anydb.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/redis/anydb.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/redis/make_paths.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/common/topic_array.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/config.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/connect/omni.impl.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/connect/omni.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/easy/pubsub.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/easy/servers/late.join.server.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/easy/worker.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/integ/primitives_round_trip.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/integ/serde.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/integ/simple_api_late_joiner.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/integ/simple_api_round_trip.test.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kafka/constants.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kafka/publisher.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kafka/reply_to_subscriber.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/kafka/worker_subscriber.ts" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="TypeScript File" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="HARD" />
+  </component>
+  <component name="MarkdownSettingsMigration">
+    <option name="stateVersion" value="1" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="ProjectErrors" />
+  </component>
+  <component name="ProjectId" id="2L6PYIxy1UfQWs4pTR8xpc6ZK5J" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;TODO_SCOPE&quot;: &quot;All Places&quot;,
+    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/johndavis/repo/dev/omni&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/Users/johndavis/repo/dev/omni/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src/easy/servers" />
+      <recent name="$PROJECT_DIR$/src/examples" />
+      <recent name="$PROJECT_DIR$/src/common" />
+      <recent name="$PROJECT_DIR$/src/kafka" />
+    </key>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="696bd085-595b-4546-90d8-9d212be67d27" name="Changes" comment="" />
+      <created>1675188604094</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1675188604094</updated>
+      <workItem from="1675188605391" duration="6605000" />
+      <workItem from="1675204971065" duration="66458000" />
+      <workItem from="1675460861464" duration="1102000" />
+      <workItem from="1675461973864" duration="7438000" />
+      <workItem from="1675469430199" duration="15502000" />
+      <workItem from="1675712159696" duration="4222000" />
+      <workItem from="1675719173474" duration="42392000" />
+      <workItem from="1675816406751" duration="23090000" />
+      <workItem from="1675904081220" duration="15357000" />
+      <workItem from="1675985071771" duration="55802000" />
+      <workItem from="1676480825231" duration="21747000" />
+      <workItem from="1676588317781" duration="337000" />
+      <workItem from="1676590024365" duration="83493000" />
+      <workItem from="1677191194661" duration="63000" />
+      <workItem from="1677191279459" duration="40432000" />
+      <workItem from="1677533421610" duration="15756000" />
+      <workItem from="1677607978786" duration="59618000" />
+      <workItem from="1677782077039" duration="9070000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ID_ORDER">
+      <list>
+        <option value="Default.Root" />
+        <option value="Default.Author" />
+        <option value="Default.Date" />
+        <option value="Default.Subject" />
+        <option value="Space.CommitStatus" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="main" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
