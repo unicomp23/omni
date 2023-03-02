@@ -7,7 +7,7 @@ import {OmniImpl} from "./omni.impl";
 import {createPromiseClient} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {createConnectTransport} from "@bufbuild/connect-node";
-import {UpsertRequest} from "../../proto/gen/devinternal_pb";
+import {GetDeltasRequest, UpsertRequest} from "../../proto/gen/devinternal_pb";
 import {config} from "../config";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Deferred, delay} from "@esfx/async";
@@ -24,7 +24,9 @@ describe(`connect server`, () => {
         const disposable_stack = new AsyncDisposableStack();
         const shutdown_server = new Deferred<boolean>();
         disposable_stack.use(spawn_server(config_, disposable_stack, shutdown_server));
-        let checks_count = 0;
+        let accumulated_checks_count = 0;
+        const delta_count = 2;
+
         try {
             const omni_ = await OmniImpl.create(config_, disposable_stack, shutdown_server);
             await server.register(fastifyConnectPlugin, {
@@ -44,6 +46,7 @@ describe(`connect server`, () => {
 
             const test_val = `123`;
             const client = await createPromiseClient(Omni, transport);
+            // intial delta
             const empty = await client.upsert(new UpsertRequest({
                 payload: {
                     x: {
@@ -57,6 +60,7 @@ describe(`connect server`, () => {
 
             //console.log(`omni.test.upsert: `, empty);
 
+            // get snap
             let keep_running = true;
             let deltasStartSequenceNumber = BigInt(0);
             while(keep_running) {
@@ -69,7 +73,7 @@ describe(`connect server`, () => {
                         console.log(`deltasStartSequenceNumber.2: ${snapshot.deltasStartSequenceNumber}`);
                         expect(snapshot.deltasStartSequenceNumber).toBe(BigInt(2));
                         deltasStartSequenceNumber = snapshot.deltasStartSequenceNumber;
-                        checks_count++;
+                        accumulated_checks_count++;
                         keep_running = false;
                         break;
                     }
@@ -77,7 +81,7 @@ describe(`connect server`, () => {
             }
             //console.log(`omni.test.snapshot: `, snapshot.toJsonString({prettySpaces: 2}));
 
-            const delta_count = 2;
+            // add more deltas
             for(let i = 0; i < delta_count; i++) {
                 const empty_2 = await client.upsert(new UpsertRequest({
                     payload: {
@@ -91,12 +95,39 @@ describe(`connect server`, () => {
                 }));
             }
 
+            // fetch deltas, relative to snap
+            keep_running = true;
+            let delta_index = 0;
+            while(keep_running) {
+                await delay(100);
+                const delta = await client.getDeltas(new GetDeltasRequest({
+                    sequenceNumberPath: paths.sequence_number_path,
+                    sequenceNumber: deltasStartSequenceNumber,
+                }));
+                if(delta) {
+                    if(delta.payloads) {
+                        for(const payload of delta.payloads) {
+                            if(payload) {
+                                expect(payload.x.case).toBe(`text`);
+                                expect(payload.x.value).toBe(delta_index.toString());
+                                delta_index++;
+                                if(delta_index == delta_count) {
+                                    keep_running = false;
+                                    accumulated_checks_count++;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             shutdown_server.resolve(true); // todo
             expect(await shutdown_server.promise).toBe(true);
         } finally {
             await server.close();
             await disposable_stack.disposeAsync();
-            expect(checks_count).toBe(1);
+            expect(accumulated_checks_count).toBe(2);
         }
     })
 })
