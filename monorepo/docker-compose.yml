@@ -52,7 +52,7 @@ services:
   svc:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: omni/Dockerfile
     command: ["sleep", "infinity"]
     healthcheck:
       test: exit 0
