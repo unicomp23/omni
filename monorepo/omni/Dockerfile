@@ -14,5 +14,6 @@ RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $NODE_VERSION && nvm use
 ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
 ENV PATH $NODE_PATH:$PATH
 WORKDIR /root/app
+COPY . /root/src
 RUN npm -v
 RUN node -v
