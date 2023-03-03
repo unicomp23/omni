@@ -51,8 +51,27 @@ services:
       - '/var/lib/redpanda/data'
   svc:
     build:
-      context: .
-      dockerfile: omni/Dockerfile
+      context: omni
+      dockerfile: Dockerfile
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    volumes:
+      - '.:/root/app' # will mount local source code into the container
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      <<: *x-config
+    ports:
+      - '8080'
+  web.chat:
+    build:
+      context: examples/web.chat
+      dockerfile: Dockerfile
     command: ["sleep", "infinity"]
     healthcheck:
       test: exit 0
