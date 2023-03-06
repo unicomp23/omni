@@ -68,7 +68,7 @@ services:
       <<: *x-config
     ports:
       - '8080'
-  web.chat:
+  webchat:
     build:
       context: examples/web.chat
       dockerfile: Dockerfile
