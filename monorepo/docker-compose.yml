@@ -67,7 +67,7 @@ services:
     environment:
       <<: *x-config
     ports:
-      - '8080'
+      - '80'
   webchat:
     build:
       context: examples/web.chat
@@ -77,7 +77,7 @@ services:
       test: exit 0
       interval: 10s
     volumes:
-      - '.:/root/app' # will mount local source code into the container
+      - './examples/web.chat:/root/app' # will mount local source code into the container
     depends_on:
       svc:
         condition: service_healthy
