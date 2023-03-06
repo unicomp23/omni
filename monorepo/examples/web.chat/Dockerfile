@@ -13,7 +13,7 @@ RUN /bin/bash -c "source $NVM_DIR/nvm.sh && nvm install $NODE_VERSION && nvm use
 # add node and npm to the PATH
 ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
 ENV PATH $NODE_PATH:$PATH
-COPY . /root/web
-WORKDIR /root/web
+#COPY . /root/web
+WORKDIR /root/app
 RUN npm -v
 RUN node -v
