@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DelayedUpsertResponse, GetDeltasRequest, GetDeltasResponse, GetSnapshotResponse, KeepAlives, Path, UpsertRequest } from "./devinternal_pb";
+import { DelayedUpsertRequest, DelayedUpsertResponse, GetDeltasRequest, GetDeltasResponse, GetSnapshotResponse, KeepAlives, Path, UpsertRequest } from "./devinternal_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,7 +26,7 @@ export const Omni = {
      */
     delayedUpsert: {
       name: "DelayedUpsert",
-      I: UpsertRequest,
+      I: DelayedUpsertRequest,
       O: DelayedUpsertResponse,
       kind: MethodKind.Unary,
     },

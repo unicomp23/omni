@@ -158,7 +158,7 @@ message GetDeltasResponse {
 service Omni {
   rpc Upsert(UpsertRequest) returns (google.protobuf.Empty);
 
-  rpc DelayedUpsert(UpsertRequest) returns (DelayedUpsertResponse);
+  rpc DelayedUpsert(DelayedUpsertRequest) returns (DelayedUpsertResponse);
   rpc DelayedUpsertKeepAlives(KeepAlives) returns (google.protobuf.Empty);
 
   rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
