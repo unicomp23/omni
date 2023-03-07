@@ -729,6 +729,131 @@ export class UpsertRequest extends Message<UpsertRequest> {
 }
 
 /**
+ * @generated from message aircore.media.omni.v1.DelayedUpsertRequest
+ */
+export class DelayedUpsertRequest extends Message<DelayedUpsertRequest> {
+  /**
+   * @generated from field: aircore.media.omni.v1.Path sequence_number_path = 10;
+   */
+  sequenceNumberPath?: Path;
+
+  /**
+   * @generated from field: aircore.media.omni.v1.Payload inital = 30;
+   */
+  inital?: Payload;
+
+  /**
+   * timeout is system setting
+   *
+   * @generated from field: aircore.media.omni.v1.Payload delayed = 40;
+   */
+  delayed?: Payload;
+
+  constructor(data?: PartialMessage<DelayedUpsertRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.omni.v1.DelayedUpsertRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "sequence_number_path", kind: "message", T: Path },
+    { no: 30, name: "inital", kind: "message", T: Payload },
+    { no: 40, name: "delayed", kind: "message", T: Payload },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DelayedUpsertRequest {
+    return new DelayedUpsertRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DelayedUpsertRequest {
+    return new DelayedUpsertRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DelayedUpsertRequest {
+    return new DelayedUpsertRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DelayedUpsertRequest | PlainMessage<DelayedUpsertRequest> | undefined, b: DelayedUpsertRequest | PlainMessage<DelayedUpsertRequest> | undefined): boolean {
+    return proto3.util.equals(DelayedUpsertRequest, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.omni.v1.DelayedUpsertResponse
+ */
+export class DelayedUpsertResponse extends Message<DelayedUpsertResponse> {
+  /**
+   * @generated from field: string heartbeat_id = 10;
+   */
+  heartbeatId = "";
+
+  constructor(data?: PartialMessage<DelayedUpsertResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.omni.v1.DelayedUpsertResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "heartbeat_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DelayedUpsertResponse {
+    return new DelayedUpsertResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DelayedUpsertResponse {
+    return new DelayedUpsertResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DelayedUpsertResponse {
+    return new DelayedUpsertResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DelayedUpsertResponse | PlainMessage<DelayedUpsertResponse> | undefined, b: DelayedUpsertResponse | PlainMessage<DelayedUpsertResponse> | undefined): boolean {
+    return proto3.util.equals(DelayedUpsertResponse, a, b);
+  }
+}
+
+/**
+ * @generated from message aircore.media.omni.v1.KeepAlives
+ */
+export class KeepAlives extends Message<KeepAlives> {
+  /**
+   * @generated from field: repeated aircore.media.omni.v1.DelayedUpsertResponse keep_alives = 10;
+   */
+  keepAlives: DelayedUpsertResponse[] = [];
+
+  constructor(data?: PartialMessage<KeepAlives>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime = proto3;
+  static readonly typeName = "aircore.media.omni.v1.KeepAlives";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 10, name: "keep_alives", kind: "message", T: DelayedUpsertResponse, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): KeepAlives {
+    return new KeepAlives().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): KeepAlives {
+    return new KeepAlives().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): KeepAlives {
+    return new KeepAlives().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: KeepAlives | PlainMessage<KeepAlives> | undefined, b: KeepAlives | PlainMessage<KeepAlives> | undefined): boolean {
+    return proto3.util.equals(KeepAlives, a, b);
+  }
+}
+
+/**
  * @generated from message aircore.media.omni.v1.GetSnapshotResponse
  */
 export class GetSnapshotResponse extends Message<GetSnapshotResponse> {

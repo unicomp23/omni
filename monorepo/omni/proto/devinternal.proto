@@ -127,6 +127,20 @@ message UpsertRequest {
   Payload payload = 30;
 }
 
+message DelayedUpsertRequest {
+  Path sequence_number_path = 10;
+  Payload inital = 30;
+  Payload delayed = 40; // timeout is system setting
+}
+
+message DelayedUpsertResponse {
+  string heartbeat_id = 10;
+}
+
+message KeepAlives {
+  repeated DelayedUpsertResponse keep_alives = 10;
+}
+
 message GetSnapshotResponse {
   repeated Payload payloads = 10; // map<item_path, payload>
   int64 deltas_start_sequence_number = 20;
@@ -143,6 +157,10 @@ message GetDeltasResponse {
 
 service Omni {
   rpc Upsert(UpsertRequest) returns (google.protobuf.Empty);
+
+  rpc DelayedUpsert(UpsertRequest) returns (DelayedUpsertResponse);
+  rpc DelayedUpsertKeepAlives(KeepAlives) returns (google.protobuf.Empty);
+
   rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
   rpc GetDeltas(GetDeltasRequest) returns (GetDeltasResponse);
 }

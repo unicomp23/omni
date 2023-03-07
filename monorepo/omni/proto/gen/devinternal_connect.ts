@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetDeltasRequest, GetDeltasResponse, GetSnapshotResponse, Path, UpsertRequest } from "./devinternal_pb";
+import { DelayedUpsertResponse, GetDeltasRequest, GetDeltasResponse, GetSnapshotResponse, KeepAlives, Path, UpsertRequest } from "./devinternal_pb";
 import { Empty, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -18,6 +18,24 @@ export const Omni = {
     upsert: {
       name: "Upsert",
       I: UpsertRequest,
+      O: Empty,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsert
+     */
+    delayedUpsert: {
+      name: "DelayedUpsert",
+      I: UpsertRequest,
+      O: DelayedUpsertResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsertKeepAlives
+     */
+    delayedUpsertKeepAlives: {
+      name: "DelayedUpsertKeepAlives",
+      I: KeepAlives,
       O: Empty,
       kind: MethodKind.Unary,
     },
