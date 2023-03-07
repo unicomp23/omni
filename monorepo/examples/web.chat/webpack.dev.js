@@ -16,6 +16,7 @@ module.exports = merge(common, {
         // publicPath: '/',
         open: true,
         host: '0.0.0.0', // enable to access from other devices on the network
+        allowedHosts: 'all',
         // https: true // enable when HTTPS is needed (like in WebXR)
     },
 });

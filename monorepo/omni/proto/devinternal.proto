@@ -164,3 +164,14 @@ service Omni {
   rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
   rpc GetDeltas(GetDeltasRequest) returns (GetDeltasResponse);
 }
+
+// ex. sequence_number_path = app_id/123/  chan_id/456
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /hand_raised//
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//
+//     item_path = app_id/123  /chan_id/456  /config//  /channel_background_color//
+
+// a "snapshot" lives at the sequence_number_path level
+// "snapshot" is composed of item_path's, where each item_path is the tag for a value.  think map<tag, value>
+// "delta" holds a mutation in the item_path/value pair
+// "delta" is merged into the "snapshot"
