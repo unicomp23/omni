@@ -32,14 +32,15 @@ enum Tags {
   PK_SUB_REGION = 120;
 }
 
-enum PathTypes { // ie PATH_TYPE tag
+enum PathTypes { // ie PATH_TYPE tag, specific to a sequence_number_path format
   UNKNOWN_PATH_TYPE = 0;
 
-  APP = 5;
-  APP_CHAN = 10;
-  APP_CHAN_USER = 15;
-  APP_ROOM_GROUP = 20;
-  APP_ROOM_GROUP_USER = 25;
+  SEQ_APP = 5;
+  SEQ_APP_CHAN = 10;
+  SEQ_APP_ROOM = 15;
+  SEQ_APP_ROOM_GROUP = 20;
+
+  ITEM_APP_CHAN_USER = 25;
   // ...
 
   DB_NAME_TABLE_ROW_COLUMN = 50;

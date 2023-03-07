@@ -1,11 +1,11 @@
-import {ServiceImpl} from "@bufbuild/connect";
+import {MethodImpl, ServiceImpl} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {
     AirCoreFrame,
-    Commands,
+    Commands, DelayedUpsertRequest, DelayedUpsertResponse,
     GetDeltasRequest,
     GetDeltasResponse,
-    GetSnapshotResponse,
+    GetSnapshotResponse, KeepAlives,
     Path, Payload,
     UpsertRequest
 } from "../../proto/gen/devinternal_pb";
@@ -85,5 +85,13 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
         return new GetDeltasResponse({
             payloads,
         });
+    }
+
+    async delayedUpsert(request: DelayedUpsertRequest) {
+        // todo
+        return new DelayedUpsertResponse();
+    }
+    async delayedUpsertKeepAlives(request: KeepAlives) {
+        return new Empty();
     }
 }

@@ -70,14 +70,15 @@ export class TopicArray extends Array<tag_val> {
     }
 
     public contains_path(arr: TopicArray) {
-        let index = 0;
-        for (const pair of arr) {
-            const pair_2 = this[index];
+        if(arr.length >= this.length)
+            throw new Error(`must be a parent path`);
+        for(let i = 1; i < arr.length; i++) { // skip PATH_TYPE
+            const pair = arr[i];
+            const pair_2 = this[i];
             if (pair.tag != pair_2.tag)
                 return false;
             if (pair.val != pair_2.val)
                 return false;
-            index++;
         }
         return true;
     }

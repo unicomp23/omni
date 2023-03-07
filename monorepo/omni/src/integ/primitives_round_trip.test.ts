@@ -70,7 +70,7 @@ describe(`pubsub`, () => {
                                 case: "sequenceNumberPath",
                                 value: {
                                     hops: [
-                                        {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.APP}}, // first hop, always has PATH_TYPE
+                                        {tag: Tags.PATH_TYPE, x: {case: "integer", value: PathTypes.SEQ_APP}}, // first hop, always has PATH_TYPE
                                         {tag: Tags.APP_ID, x: {case: "integer", value: 123}},
                                     ],
                                 }

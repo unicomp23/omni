@@ -125,7 +125,7 @@ proto3.util.setEnumType(Tags, "aircore.media.omni.v1.Tags", [
 ]);
 
 /**
- * ie PATH_TYPE tag
+ * ie PATH_TYPE tag, specific to a sequence_number_path format
  *
  * @generated from enum aircore.media.omni.v1.PathTypes
  */
@@ -136,31 +136,31 @@ export enum PathTypes {
   UNKNOWN_PATH_TYPE = 0,
 
   /**
-   * @generated from enum value: APP = 5;
+   * @generated from enum value: SEQ_APP = 5;
    */
-  APP = 5,
+  SEQ_APP = 5,
 
   /**
-   * @generated from enum value: APP_CHAN = 10;
+   * @generated from enum value: SEQ_APP_CHAN = 10;
    */
-  APP_CHAN = 10,
+  SEQ_APP_CHAN = 10,
 
   /**
-   * @generated from enum value: APP_CHAN_USER = 15;
+   * @generated from enum value: SEQ_APP_ROOM = 15;
    */
-  APP_CHAN_USER = 15,
+  SEQ_APP_ROOM = 15,
 
   /**
-   * @generated from enum value: APP_ROOM_GROUP = 20;
+   * @generated from enum value: SEQ_APP_ROOM_GROUP = 20;
    */
-  APP_ROOM_GROUP = 20,
+  SEQ_APP_ROOM_GROUP = 20,
 
   /**
    * ...
    *
-   * @generated from enum value: APP_ROOM_GROUP_USER = 25;
+   * @generated from enum value: ITEM_APP_CHAN_USER = 25;
    */
-  APP_ROOM_GROUP_USER = 25,
+  ITEM_APP_CHAN_USER = 25,
 
   /**
    * @generated from enum value: DB_NAME_TABLE_ROW_COLUMN = 50;
@@ -175,11 +175,11 @@ export enum PathTypes {
 // Retrieve enum metadata with: proto3.getEnumType(PathTypes)
 proto3.util.setEnumType(PathTypes, "aircore.media.omni.v1.PathTypes", [
   { no: 0, name: "UNKNOWN_PATH_TYPE" },
-  { no: 5, name: "APP" },
-  { no: 10, name: "APP_CHAN" },
-  { no: 15, name: "APP_CHAN_USER" },
-  { no: 20, name: "APP_ROOM_GROUP" },
-  { no: 25, name: "APP_ROOM_GROUP_USER" },
+  { no: 5, name: "SEQ_APP" },
+  { no: 10, name: "SEQ_APP_CHAN" },
+  { no: 15, name: "SEQ_APP_ROOM" },
+  { no: 20, name: "SEQ_APP_ROOM_GROUP" },
+  { no: 25, name: "ITEM_APP_CHAN_USER" },
   { no: 50, name: "DB_NAME_TABLE_ROW_COLUMN" },
   { no: 100, name: "PK_PLANET_REGION_SUBREGION" },
 ]);
