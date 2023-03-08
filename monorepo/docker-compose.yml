@@ -72,7 +72,8 @@ services:
     build:
       context: examples/web.chat
       dockerfile: Dockerfile
-    command: ["sleep", "infinity"]
+    #command: ["sleep", "infinity"]
+    command: ["npm", "run", "all"]
     healthcheck:
       test: exit 0
       interval: 10s
