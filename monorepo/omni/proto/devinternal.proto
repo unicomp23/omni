@@ -43,9 +43,8 @@ enum PathTypes { // ie PATH_TYPE tag, specific to a sequence_number_path format
   ITEM_APP_CHAN_USER = 25;
   // ...
 
-  DB_NAME_TABLE_ROW_COLUMN = 50;
-
-  PK_PLANET_REGION_SUBREGION = 100;
+  SEQ_DB_NAME_TABLE = 30;
+  ITEM_DB_NAME_TABLE_ROW_COLUMN = 50;
 }
 
 enum Commands {
@@ -167,6 +166,7 @@ service Omni {
 }
 
 // ex. sequence_number_path = app_id/123/  chan_id/456
+//
 //     item_path = app_id/123  /chan_id/456  /user_id/789  /hand_raised//
 //     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//
 //     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//

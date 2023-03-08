@@ -163,14 +163,14 @@ export enum PathTypes {
   ITEM_APP_CHAN_USER = 25,
 
   /**
-   * @generated from enum value: DB_NAME_TABLE_ROW_COLUMN = 50;
+   * @generated from enum value: SEQ_DB_NAME_TABLE = 30;
    */
-  DB_NAME_TABLE_ROW_COLUMN = 50,
+  SEQ_DB_NAME_TABLE = 30,
 
   /**
-   * @generated from enum value: PK_PLANET_REGION_SUBREGION = 100;
+   * @generated from enum value: ITEM_DB_NAME_TABLE_ROW_COLUMN = 50;
    */
-  PK_PLANET_REGION_SUBREGION = 100,
+  ITEM_DB_NAME_TABLE_ROW_COLUMN = 50,
 }
 // Retrieve enum metadata with: proto3.getEnumType(PathTypes)
 proto3.util.setEnumType(PathTypes, "aircore.media.omni.v1.PathTypes", [
@@ -180,8 +180,8 @@ proto3.util.setEnumType(PathTypes, "aircore.media.omni.v1.PathTypes", [
   { no: 15, name: "SEQ_APP_ROOM" },
   { no: 20, name: "SEQ_APP_ROOM_GROUP" },
   { no: 25, name: "ITEM_APP_CHAN_USER" },
-  { no: 50, name: "DB_NAME_TABLE_ROW_COLUMN" },
-  { no: 100, name: "PK_PLANET_REGION_SUBREGION" },
+  { no: 30, name: "SEQ_DB_NAME_TABLE" },
+  { no: 50, name: "ITEM_DB_NAME_TABLE_ROW_COLUMN" },
 ]);
 
 /**
