@@ -87,5 +87,8 @@ services:
     ports:
       - '8080'
       - '80'
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    command: ["tunnel", "--no-autoupdate", "--url", "http://webchat:80"]
 networks:
   default: {}
