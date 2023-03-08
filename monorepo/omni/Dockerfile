@@ -2,7 +2,7 @@ FROM ubuntu as dev
 
 # nvm requirements
 RUN apt-get update
-RUN echo "y" | apt-get install curl
+RUN apt-get install -y curl wget
 # nvm env vars
 RUN mkdir -p /usr/local/nvm
 ENV NVM_DIR /usr/local/nvm
