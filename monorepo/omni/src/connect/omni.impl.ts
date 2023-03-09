@@ -94,4 +94,8 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     async delayedUpsertKeepAlives(request: KeepAlives) {
         return new Empty();
     }
+
+    async ping(request: Empty) {
+        return new Empty();
+    }
 }

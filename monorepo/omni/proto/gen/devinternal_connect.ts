@@ -57,6 +57,15 @@ export const Omni = {
       O: GetDeltasResponse,
       kind: MethodKind.Unary,
     },
+    /**
+     * @generated from rpc aircore.media.omni.v1.Omni.Ping
+     */
+    ping: {
+      name: "Ping",
+      I: Empty,
+      O: Empty,
+      kind: MethodKind.Unary,
+    },
   }
 } as const;
 

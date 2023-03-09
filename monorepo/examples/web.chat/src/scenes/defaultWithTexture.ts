@@ -105,7 +105,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        console.log(`starting 5 ...`);
+        console.log(`starting 6 ...`);
         return scene;
     };
 }

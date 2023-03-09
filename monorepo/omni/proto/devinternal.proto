@@ -163,6 +163,8 @@ service Omni {
 
   rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
   rpc GetDeltas(GetDeltasRequest) returns (GetDeltasResponse);
+
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
 }
 
 // ex. sequence_number_path = app_id/123/  chan_id/456
