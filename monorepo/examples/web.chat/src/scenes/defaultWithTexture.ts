@@ -25,17 +25,20 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         // This creates a basic Babylon Scene object (non-mesh)
         const scene = new Scene(engine);
 
-        void Promise.all([
-            import("@babylonjs/core/Debug/debugLayer"),
-            import("@babylonjs/inspector"),
-        ]).then((_values) => {
-            console.log(_values);
-            scene.debugLayer.show({
-                handleResize: true,
-                overlay: true,
-                globalRoot: document.getElementById("#root") || undefined,
+        function debugLayer() {
+            void Promise.all([
+                import("@babylonjs/core/Debug/debugLayer"),
+                import("@babylonjs/inspector"),
+            ]).then((_values) => {
+                console.log(_values);
+                scene.debugLayer.show({
+                    handleResize: true,
+                    overlay: true,
+                    globalRoot: document.getElementById("#root") || undefined,
+                });
             });
-        });
+        }
+        //debugLayer();
 
         // This creates and positions a free camera (non-mesh)
         const camera = new ArcRotateCamera(
@@ -102,6 +105,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
+        console.log(`starting 5 ...`);
         return scene;
     };
 }

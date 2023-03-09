@@ -87,9 +87,16 @@ services:
       <<: *x-config
     ports:
       - '8080'
+  caddy:
+    image: caddy:latest
+    command: ["caddy", "reverse-proxy", "--from", ":80", "--to", "http://webchat:8080"]
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    ports:
       - '80'
   cloudflare:
     image: cloudflare/cloudflared:latest
-    command: ["tunnel", "--no-autoupdate", "--url", "http://webchat:80"]
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
 networks:
   default: {}

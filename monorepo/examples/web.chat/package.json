@@ -36,14 +36,13 @@
         "webpack-merge": "^5.8.0"
     },
     "scripts": {
-        "start": "npx webpack serve --config webpack.dev.js",
-        "caddy": "caddy reverse-proxy --from :80 --to :8080",
+        "start": "npx webpack serve --config webpack.dev.js",   
         "start:test": "npx webpack serve --config webpack.tests.js",
         "build:dev": "npx webpack --config webpack.dev.js",
         "build": "npx webpack --config webpack.prod.js",
         "lint": "npx eslint . --ext .ts,.tsx",
         "test": "npx playwright test",
-        "all": "npm start & npm run caddy"
+        "all": "npm start"
     },
     "repository": {
         "type": "git",
