@@ -89,7 +89,8 @@ services:
       - '8080'
   caddy:
     image: caddy:latest
-    command: ["caddy", "reverse-proxy", "--from", ":80", "--to", "http://webchat:8080"]
+    volumes:
+      - ./etc/caddy:/etc/caddy
     healthcheck:
       test: exit 0
       interval: 10s
