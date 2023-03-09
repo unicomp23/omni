@@ -1,1 +1,1 @@
-../../omni/proto/gen/devinternal_pb.ts
+../../../omni/proto/gen/devinternal_pb.ts

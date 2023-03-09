@@ -1,1 +1,1 @@
-../../omni/proto/gen/devinternal_connect.ts
+../../../omni/proto/gen/devinternal_connect.ts
