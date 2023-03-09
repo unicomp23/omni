@@ -23,7 +23,7 @@ async function main() {
             },
         });
 
-        await server.listen({host: "localhost", port: 80});
+        await server.listen({host: "0.0.0.0", port: 80});
         console.log("server is listening at", server.addresses());
 
         console.log(`waiting on shutdown signal`);
