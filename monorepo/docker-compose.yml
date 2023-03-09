@@ -53,7 +53,8 @@ services:
     build:
       context: omni
       dockerfile: Dockerfile
-    command: ["sleep", "infinity"]
+    #command: ["sleep", "infinity"]
+    command: ["npx", "tsx", "/root/app/omni/src/server/main.ts"]
     healthcheck:
       test: exit 0
       interval: 10s
