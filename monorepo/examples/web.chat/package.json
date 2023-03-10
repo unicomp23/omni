@@ -9,8 +9,8 @@
         "@babylonjs/inspector": "^5.29.0",
         "@babylonjs/loaders": "^5.29.0",
         "@babylonjs/materials": "^5.29.0",
-        "@bufbuild/connect": "^0.8.1",
-        "@bufbuild/connect-web": "^0.8.1",
+        "@bufbuild/connect": "^0.8.3",
+        "@bufbuild/connect-web": "^0.8.3",
         "@bufbuild/protobuf": "^1.1.0",
         "@esfx/async": "^1.0.0",
         "@esfx/collections": "^1.0.2",
@@ -36,7 +36,7 @@
         "webpack-merge": "^5.8.0"
     },
     "scripts": {
-        "start": "npx webpack serve --config webpack.dev.js",   
+        "start": "npx webpack serve --config webpack.dev.js",
         "start:test": "npx webpack serve --config webpack.tests.js",
         "build:dev": "npx webpack --config webpack.dev.js",
         "build": "npx webpack --config webpack.prod.js",

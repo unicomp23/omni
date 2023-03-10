@@ -16,6 +16,9 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
+import {createConnectTransport, createPromiseClient} from "@bufbuild/connect-web";
+import {Omni} from "../devinternal_connect";
+import {UpsertRequest} from "../devinternal_pb";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -106,6 +109,13 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
         console.log(`starting 6 ...`);
+        
+        const transport = createConnectTransport({
+            baseUrl: "https://demo.connect.build",
+        });
+        const client = createPromiseClient(Omni, transport);
+        //await client.upsert(new UpsertRequest({})); // todo
+        
         return scene;
     };
 }
