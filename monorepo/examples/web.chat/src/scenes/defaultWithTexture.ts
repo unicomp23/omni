@@ -18,6 +18,8 @@ import {ShadowGenerator} from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import {createConnectTransport, createPromiseClient} from "@bufbuild/connect-web";
 import {Omni} from "../../proto/gen/devinternal_connect";
+import {Path, PathTypes, Tags, UpsertRequest} from "../../proto/gen/devinternal_pb";
+import {Timestamp} from "@bufbuild/protobuf";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (
@@ -108,13 +110,45 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        console.log(`starting 6 ...`);
+        console.log(`starting 2 ...`);
 
         const transport = createConnectTransport({
-            baseUrl: "https://demo.connect.build",
+            baseUrl: `https://${location.host}`,
         });
         const client = createPromiseClient(Omni, transport);
-        //await client.upsert(new UpsertRequest({})); // todo
+        const sequenceNumberPath = new Path({
+            hops: [
+                {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.SEQ_APP_CHAN}},
+                {tag: Tags.APP_ID, x: {case: "text", value: "123"}},
+                {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "345"}},
+            ]
+        });
+        const itemPath = new Path({
+            hops: [
+                {tag: Tags.PATH_TYPE, x: {case: "pathType", value: PathTypes.ITEM_APP_CHAN_USER}},
+                {tag: Tags.APP_ID, x: {case: "text", value: "123"}},
+                {tag: Tags.APP_CHANNEL_ID, x: {case: "text", value: "345"}},
+                {tag: Tags.APP_USER_ID, x: {case: "text", value: "678"}},
+            ]
+        })
+        try {
+            await client.upsert(new UpsertRequest({
+                payload: {
+                    itemPath,
+                    x: {
+                        case: "text",
+                        value: "some payload"
+                    },
+                    sequencing: {
+                        epoc: Timestamp.now(),
+                        sequenceNumber: BigInt(0)
+                    }
+                },
+                sequenceNumberPath,
+            })); // todo
+        } catch(e) {
+            console.log(`error, omni.upsert`, e);
+        }
 
         return scene;
     };
