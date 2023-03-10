@@ -49,6 +49,19 @@ services:
       retries: 20
     volumes:
       - '/var/lib/redpanda/data'
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./etc/caddy:/etc/caddy
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    ports:
+      - '80'
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+
   svc:
     build:
       context: omni
@@ -88,17 +101,5 @@ services:
       <<: *x-config
     ports:
       - '8080'
-  caddy:
-    image: caddy:latest
-    volumes:
-      - ./etc/caddy:/etc/caddy
-    healthcheck:
-      test: exit 0
-      interval: 10s
-    ports:
-      - '80'
-  cloudflare:
-    image: cloudflare/cloudflared:latest
-    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
 networks:
   default: {}
