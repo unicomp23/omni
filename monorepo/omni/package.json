@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "jest",
-    "start": "npm install && npx tsx src/server/main.ts"
+    "start": "npx tsx /root/app/omni/src/server/main.ts"
   },
   "author": "",
   "license": "ISC",

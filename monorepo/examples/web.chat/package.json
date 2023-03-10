@@ -46,7 +46,6 @@
         "build": "npx webpack --config webpack.prod.js",
         "lint": "npx eslint . --ext .ts,.tsx",
         "test": "npx playwright test",
-        "all": "npm install && npm start"
     },
     "repository": {
         "type": "git",
