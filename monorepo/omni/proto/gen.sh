@@ -1,1 +1,1 @@
-npx buf generate devinternal.proto
+../../protos/gen.sh
