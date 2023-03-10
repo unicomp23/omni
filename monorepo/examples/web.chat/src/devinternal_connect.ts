@@ -1,1 +1,0 @@
-../../../omni/proto/gen/devinternal_connect.ts

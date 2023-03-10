@@ -17,8 +17,7 @@ import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator"
 
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import {createConnectTransport, createPromiseClient} from "@bufbuild/connect-web";
-import {Omni} from "../devinternal_connect";
-import {UpsertRequest} from "../devinternal_pb";
+import {Omni} from "../../proto/gen/devinternal_connect";
 
 export class DefaultSceneWithTexture implements CreateSceneClass {
     createScene = async (

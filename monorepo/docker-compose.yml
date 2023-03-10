@@ -73,13 +73,14 @@ services:
     build:
       context: examples/web.chat
       dockerfile: Dockerfile
+    working_dir: /root/app/examples/web.chat
     #command: ["sleep", "infinity"]
     command: ["npm", "run", "all"]
     healthcheck:
       test: exit 0
       interval: 10s
     volumes:
-      - './examples/web.chat:/root/app' # will mount local source code into the container
+      - '.:/root/app' # will mount local source code into the container
     depends_on:
       svc:
         condition: service_healthy

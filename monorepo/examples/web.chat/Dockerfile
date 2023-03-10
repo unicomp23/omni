@@ -24,6 +24,6 @@ ENV NODE_PATH $NVM_DIR/versions/node/$NODE_VERSION/bin
 ENV PATH $NODE_PATH:$PATH
 
 #COPY . /root/web
-WORKDIR /root/app
+WORKDIR /root/app/examples/web.chat
 RUN npm -v
 RUN node -v
