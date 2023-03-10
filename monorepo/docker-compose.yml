@@ -24,6 +24,8 @@ services:
       - start
       - --smp
       - '1'
+      - --cpu
+      - '1'
       - --reserve-memory
       - 0M
       - --overprovisioned
