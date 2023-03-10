@@ -87,8 +87,8 @@ services:
       context: examples/web.chat
       dockerfile: Dockerfile
     working_dir: /root/app/examples/web.chat
-    command: ["sleep", "infinity"]
-    #command: sh -c "npm install && npm start"
+    #command: ["sleep", "infinity"]
+    command: sh -c "npm install && npm start"
     healthcheck:
       test: exit 0
       interval: 10s

@@ -45,7 +45,7 @@
         "build:dev": "npx webpack --config webpack.dev.js",
         "build": "npx webpack --config webpack.prod.js",
         "lint": "npx eslint . --ext .ts,.tsx",
-        "test": "npx playwright test",
+        "test": "npx playwright test"
     },
     "repository": {
         "type": "git",
