@@ -1,12 +1,12 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { CreateSceneClass } from "../createScene";
-import { SceneLoader } from "@babylonjs/core/Loading/sceneLoader";
-import { CubeTexture } from "@babylonjs/core/Materials/Textures/cubeTexture";
-import { EnvironmentHelper } from "@babylonjs/core/Helpers/environmentHelper";
+import {Engine} from "@babylonjs/core/Engines/engine";
+import {Scene} from "@babylonjs/core/scene";
+import {ArcRotateCamera} from "@babylonjs/core/Cameras/arcRotateCamera";
+import {Vector3} from "@babylonjs/core/Maths/math.vector";
+import {HemisphericLight} from "@babylonjs/core/Lights/hemisphericLight";
+import {CreateSceneClass} from "../createScene";
+import {SceneLoader} from "@babylonjs/core/Loading/sceneLoader";
+import {CubeTexture} from "@babylonjs/core/Materials/Textures/cubeTexture";
+import {EnvironmentHelper} from "@babylonjs/core/Helpers/environmentHelper";
 
 // required imports
 import "@babylonjs/core/Loading/loadingScreen";
@@ -49,7 +49,7 @@ export class LoadModelAndEnvScene implements CreateSceneClass {
         scene.environmentTexture = new CubeTexture(roomEnvironment, scene);
 
         // if not setting the envtext of the scene, we have to load the DDS module as well
-        new EnvironmentHelper( {
+        new EnvironmentHelper({
             skyboxTexture: roomEnvironment,
             createGround: false
         }, scene)

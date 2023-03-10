@@ -1,21 +1,21 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { CreateSceneClass } from "../createScene";
+import {Engine} from "@babylonjs/core/Engines/engine";
+import {Scene} from "@babylonjs/core/scene";
+import {Vector3} from "@babylonjs/core/Maths/math.vector";
+import {StandardMaterial} from "@babylonjs/core/Materials/standardMaterial";
+import {CreateSceneClass} from "../createScene";
 
-import { RecastJSPlugin } from "@babylonjs/core/Navigation/Plugins/recastJSPlugin";
-import { FreeCamera } from "@babylonjs/core/Cameras/freeCamera";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
-import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
-import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import {RecastJSPlugin} from "@babylonjs/core/Navigation/Plugins/recastJSPlugin";
+import {FreeCamera} from "@babylonjs/core/Cameras/freeCamera";
+import {HemisphericLight} from "@babylonjs/core/Lights/hemisphericLight";
+import {Color3} from "@babylonjs/core/Maths/math.color";
+import {MeshBuilder} from "@babylonjs/core/Meshes/meshBuilder";
+import {TransformNode} from "@babylonjs/core/Meshes/transformNode";
+import {Mesh} from "@babylonjs/core/Meshes/mesh";
 
 import Recast from "recast-detour";
-import { PointerEventTypes } from "@babylonjs/core/Events/pointerEvents";
-import { LinesMesh } from "@babylonjs/core/Meshes/linesMesh";
-import { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import {PointerEventTypes} from "@babylonjs/core/Events/pointerEvents";
+import {LinesMesh} from "@babylonjs/core/Meshes/linesMesh";
+import {AbstractMesh} from "@babylonjs/core/Meshes/abstractMesh";
 
 import "@babylonjs/core/Culling/ray";
 
@@ -90,8 +90,8 @@ export class NavigationMeshRecast implements CreateSceneClass {
 
             for (i = 0; i < 1; i++) {
                 const width = 0.20;
-                const agentCube = MeshBuilder.CreateBox("cube", { size: width, height: width }, scene);
-                const targetCube = MeshBuilder.CreateBox("cube", { size: 0.1, height: 0.1 }, scene);
+                const agentCube = MeshBuilder.CreateBox("cube", {size: width, height: width}, scene);
+                const targetCube = MeshBuilder.CreateBox("cube", {size: 0.1, height: 0.1}, scene);
                 const matAgent = new StandardMaterial('mat2', scene);
                 const variation = Math.random();
                 matAgent.diffuseColor = new Color3(0.4 + variation * 0.6, 0.3, 1.0 - variation * 0.3);
@@ -100,7 +100,7 @@ export class NavigationMeshRecast implements CreateSceneClass {
                 const transform = new TransformNode("transform");
                 //agentCube.parent = transform;
                 const agentIndex = crowd.addAgent(randomPos, agentParams, transform);
-                agents.push({ idx: agentIndex, trf: transform, mesh: agentCube, target: targetCube });
+                agents.push({idx: agentIndex, trf: transform, mesh: agentCube, target: targetCube});
             }
 
             let startingPoint: Vector3 | null;
@@ -128,7 +128,11 @@ export class NavigationMeshRecast implements CreateSceneClass {
                         crowd.agentGoto(agents[i], navigationPlugin.getClosestPoint(startingPoint));
                     }
                     const pathPoints = navigationPlugin.computePath(crowd.getAgentPosition(agents[0]), navigationPlugin.getClosestPoint(startingPoint));
-                    pathLine = MeshBuilder.CreateDashedLines("ribbon", { points: pathPoints, updatable: true, instance: pathLine }, scene);
+                    pathLine = MeshBuilder.CreateDashedLines("ribbon", {
+                        points: pathPoints,
+                        updatable: true,
+                        instance: pathLine
+                    }, scene);
                 }
             }
 
@@ -173,11 +177,11 @@ function createStaticMesh(scene: Scene): Mesh {
     const mat1 = new StandardMaterial('mat1', scene);
     mat1.diffuseColor = new Color3(1, 1, 1);
 
-    const sphere = MeshBuilder.CreateSphere("sphere1", { diameter: 2, segments: 16 }, scene);
+    const sphere = MeshBuilder.CreateSphere("sphere1", {diameter: 2, segments: 16}, scene);
     sphere.material = mat1;
     sphere.position.y = 1;
 
-    const cube = MeshBuilder.CreateBox("cube", { size: 1, height: 3 }, scene);
+    const cube = MeshBuilder.CreateBox("cube", {size: 1, height: 3}, scene);
     cube.position = new Vector3(1, 1.5, 0);
     //cube.material = mat2;
 

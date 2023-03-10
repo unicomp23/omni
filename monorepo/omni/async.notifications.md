@@ -16,4 +16,5 @@ flowchart TD
     Client_(Client) -->|listener-registration-start<br>listener-registration-stop| StreamNotifier_
     StreamNotifier_ -->|recording-start-event<br>recording-stop-event| Client_
 ```
+
 <br/>

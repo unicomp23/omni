@@ -3,69 +3,78 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DelayedUpsertRequest, DelayedUpsertResponse, GetDeltasRequest, GetDeltasResponse, GetSnapshotResponse, KeepAlives, Path, UpsertRequest } from "./devinternal_pb";
-import { Empty, MethodKind } from "@bufbuild/protobuf";
+import {
+  DelayedUpsertRequest,
+  DelayedUpsertResponse,
+  GetDeltasRequest,
+  GetDeltasResponse,
+  GetSnapshotResponse,
+  KeepAlives,
+  Path,
+  UpsertRequest
+} from "./devinternal_pb";
+import {Empty, MethodKind} from "@bufbuild/protobuf";
 
 /**
  * @generated from service aircore.media.omni.v1.Omni
  */
 export const Omni = {
-  typeName: "aircore.media.omni.v1.Omni",
-  methods: {
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.Upsert
-     */
-    upsert: {
-      name: "Upsert",
-      I: UpsertRequest,
-      O: Empty,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsert
-     */
-    delayedUpsert: {
-      name: "DelayedUpsert",
-      I: DelayedUpsertRequest,
-      O: DelayedUpsertResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsertKeepAlives
-     */
-    delayedUpsertKeepAlives: {
-      name: "DelayedUpsertKeepAlives",
-      I: KeepAlives,
-      O: Empty,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.GetSnapshot
-     */
-    getSnapshot: {
-      name: "GetSnapshot",
-      I: Path,
-      O: GetSnapshotResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.GetDeltas
-     */
-    getDeltas: {
-      name: "GetDeltas",
-      I: GetDeltasRequest,
-      O: GetDeltasResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * @generated from rpc aircore.media.omni.v1.Omni.Ping
-     */
-    ping: {
-      name: "Ping",
-      I: Empty,
-      O: Empty,
-      kind: MethodKind.Unary,
-    },
-  }
+    typeName: "aircore.media.omni.v1.Omni",
+    methods: {
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.Upsert
+         */
+        upsert: {
+            name: "Upsert",
+            I: UpsertRequest,
+            O: Empty,
+            kind: MethodKind.Unary,
+        },
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsert
+         */
+        delayedUpsert: {
+            name: "DelayedUpsert",
+            I: DelayedUpsertRequest,
+            O: DelayedUpsertResponse,
+            kind: MethodKind.Unary,
+        },
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.DelayedUpsertKeepAlives
+         */
+        delayedUpsertKeepAlives: {
+            name: "DelayedUpsertKeepAlives",
+            I: KeepAlives,
+            O: Empty,
+            kind: MethodKind.Unary,
+        },
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.GetSnapshot
+         */
+        getSnapshot: {
+            name: "GetSnapshot",
+            I: Path,
+            O: GetSnapshotResponse,
+            kind: MethodKind.Unary,
+        },
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.GetDeltas
+         */
+        getDeltas: {
+            name: "GetDeltas",
+            I: GetDeltasRequest,
+            O: GetDeltasResponse,
+            kind: MethodKind.Unary,
+        },
+        /**
+         * @generated from rpc aircore.media.omni.v1.Omni.Ping
+         */
+        ping: {
+            name: "Ping",
+            I: Empty,
+            O: Empty,
+            kind: MethodKind.Unary,
+        },
+    }
 } as const;
 

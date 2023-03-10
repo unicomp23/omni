@@ -1,6 +1,6 @@
 importScripts("https://preview.babylonjs.com/recast.js");
 
-onmessage = function(messageEvent) {
+onmessage = function (messageEvent) {
     // get message datas
     const meshData = messageEvent.data;
     const positions = meshData[0];

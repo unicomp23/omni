@@ -1,12 +1,16 @@
-import {MethodImpl, ServiceImpl} from "@bufbuild/connect";
+import {ServiceImpl} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {
     AirCoreFrame,
-    Commands, DelayedUpsertRequest, DelayedUpsertResponse,
+    Commands,
+    DelayedUpsertRequest,
+    DelayedUpsertResponse,
     GetDeltasRequest,
     GetDeltasResponse,
-    GetSnapshotResponse, KeepAlives,
-    Path, Payload,
+    GetSnapshotResponse,
+    KeepAlives,
+    Path,
+    Payload,
     UpsertRequest
 } from "../../proto/gen/devinternal_pb";
 import {Empty} from "@bufbuild/protobuf";
@@ -16,7 +20,6 @@ import {Deferred} from "@esfx/async";
 import {anydb} from "../common/redis/anydb";
 import {pubsub} from "../easy/pubsub";
 import {createClient} from "redis";
-import {prettySpaces} from "../common/constants";
 
 export class OmniImpl implements ServiceImpl<typeof Omni> {
     private constructor(
@@ -38,9 +41,9 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     }
 
     async upsert(request: UpsertRequest) {
-        if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
-        if(!request.payload) throw new Error(`missing request.payload`);
-        if(!request.payload.itemPath) throw new Error(`missing request.payload.itemPath`)
+        if (!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
+        if (!request.payload) throw new Error(`missing request.payload`);
+        if (!request.payload.itemPath) throw new Error(`missing request.payload.itemPath`)
         const frame = new AirCoreFrame({
             command: Commands.UPSERT,
             sendTo: {
@@ -64,11 +67,11 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
         const result = await this.anydb_.fetch_snapshot(sequence_number_path);
         const payloads = new Array<Payload>();
         let deltasStartSequenceNumber = BigInt(0);
-        for(const item of result) {
+        for (const item of result) {
             payloads.push(item.payload);
-            if(!item.payload.sequencing?.sequenceNumber) throw new Error(`missing item.payload.sequencing?.sequenceNumber`);
+            if (!item.payload.sequencing?.sequenceNumber) throw new Error(`missing item.payload.sequencing?.sequenceNumber`);
             const sequenceNumber = item.payload.sequencing.sequenceNumber;
-            if(sequenceNumber > deltasStartSequenceNumber) deltasStartSequenceNumber = sequenceNumber;
+            if (sequenceNumber > deltasStartSequenceNumber) deltasStartSequenceNumber = sequenceNumber;
         }
         deltasStartSequenceNumber++;
         //console.log(`omni.getSnapshot: `, payloads);
@@ -79,8 +82,8 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     }
 
     async getDeltas(request: GetDeltasRequest) {
-        if(!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
-        if(!request.sequenceNumber) throw new Error(`missing request.sequenceNumber`);
+        if (!request.sequenceNumberPath) throw new Error(`missing request.sequenceNumberPath`);
+        if (!request.sequenceNumber) throw new Error(`missing request.sequenceNumber`);
         const payloads = await this.anydb_.fetch_deltas(request.sequenceNumberPath, request.sequenceNumber);
         return new GetDeltasResponse({
             payloads,
@@ -91,6 +94,7 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
         // todo
         return new DelayedUpsertResponse();
     }
+
     async delayedUpsertKeepAlives(request: KeepAlives) {
         return new Empty();
     }

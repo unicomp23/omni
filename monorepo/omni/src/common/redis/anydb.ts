@@ -4,7 +4,6 @@ import {TopicArray} from "../topic_array";
 import {Path, Payload, Sequencing} from "../../../proto/gen/devinternal_pb";
 import {protoBase64, protoInt64} from "@bufbuild/protobuf";
 import {ksortable_length_delimiter} from "../ksortable_length_delimiter";
-import {prettySpaces} from "../constants";
 
 const zset_suffix = `-z`;
 const stream_suffix = `-s`;

@@ -1,19 +1,19 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { Scene } from "@babylonjs/core/scene";
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
-import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { CreateSceneClass } from "../createScene";
+import {Engine} from "@babylonjs/core/Engines/engine";
+import {Scene} from "@babylonjs/core/scene";
+import {ArcRotateCamera} from "@babylonjs/core/Cameras/arcRotateCamera";
+import {Vector3} from "@babylonjs/core/Maths/math.vector";
+import {CreateSphere} from "@babylonjs/core/Meshes/Builders/sphereBuilder";
+import {CreateGround} from "@babylonjs/core/Meshes/Builders/groundBuilder";
+import {StandardMaterial} from "@babylonjs/core/Materials/standardMaterial";
+import {CreateSceneClass} from "../createScene";
 
 // If you don't need the standard material you will still need to import it since the scene requires it.
 // import "@babylonjs/core/Materials/standardMaterial";
-import { Texture } from "@babylonjs/core/Materials/Textures/texture";
+import {Texture} from "@babylonjs/core/Materials/Textures/texture";
 
 import grassTextureUrl from "../../assets/grass.jpg";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
+import {DirectionalLight} from "@babylonjs/core/Lights/directionalLight";
+import {ShadowGenerator} from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 
 import "@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent";
 import {createConnectTransport, createPromiseClient} from "@bufbuild/connect-web";
@@ -40,6 +40,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
                 });
             });
         }
+
         //debugLayer();
 
         // This creates and positions a free camera (non-mesh)
@@ -71,7 +72,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         // Our built-in 'sphere' shape.
         const sphere = CreateSphere(
             "sphere",
-            { diameter: 2, segments: 32 },
+            {diameter: 2, segments: 32},
             scene
         );
 
@@ -81,7 +82,7 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         // Our built-in 'ground' shape.
         const ground = CreateGround(
             "ground",
-            { width: 6, height: 6 },
+            {width: 6, height: 6},
             scene
         );
 
@@ -108,13 +109,13 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
         console.log(`starting 6 ...`);
-        
+
         const transport = createConnectTransport({
             baseUrl: "https://demo.connect.build",
         });
         const client = createPromiseClient(Omni, transport);
         //await client.upsert(new UpsertRequest({})); // todo
-        
+
         return scene;
     };
 }

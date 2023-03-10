@@ -1,6 +1,6 @@
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { WebGPUEngine } from "@babylonjs/core/Engines/webgpuEngine";
-import { getSceneModuleWithName } from "./createScene";
+import {Engine} from "@babylonjs/core/Engines/engine";
+import {WebGPUEngine} from "@babylonjs/core/Engines/webgpuEngine";
+import {getSceneModuleWithName} from "./createScene";
 import "@babylonjs/core/Engines/WebGPU/Extensions/engine.uniformBuffer";
 
 const getModuleToLoad = (): string | undefined =>

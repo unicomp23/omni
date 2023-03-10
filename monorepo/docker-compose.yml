@@ -62,7 +62,7 @@ services:
       - '80'
   cloudflare:
     image: cloudflare/cloudflared:latest
-    command: ["tunnel", "--no-autoupdate", "--url", "http://caddy:80"]
+    command: [ "tunnel", "--no-autoupdate", "--url", "http://caddy:80" ]
 
   omni:
     build:
@@ -104,4 +104,4 @@ services:
     ports:
       - '8080'
 networks:
-  default: {}
+  default: { }

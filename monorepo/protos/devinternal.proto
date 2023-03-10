@@ -32,7 +32,7 @@ enum Tags {
   PK_SUB_REGION = 120;
 }
 
-enum PathTypes { // ie PATH_TYPE tag, specific to a sequence_number_path format
+enum PathTypes {// ie PATH_TYPE tag, specific to a sequence_number_path format
   UNKNOWN_PATH_TYPE = 0;
 
   SEQ_APP = 5;

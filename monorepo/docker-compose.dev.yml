@@ -5,7 +5,7 @@ services:
     build:
       target: dev
     init: true
-    command: ['sleep', 'infinity']
+    command: [ 'sleep', 'infinity' ]
     healthcheck:
       test: exit 0
       interval: 10s
