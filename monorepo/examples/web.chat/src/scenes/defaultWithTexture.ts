@@ -110,10 +110,11 @@ export class DefaultSceneWithTexture implements CreateSceneClass {
 
         shadowGenerator.getShadowMap()!.renderList!.push(sphere);
 
-        console.log(`starting 2 ...`);
+        console.log(`starting 1 ...`);
 
         const transport = createConnectTransport({
-            baseUrl: `https://${location.host}`,
+            baseUrl: `https://${location.host}/`,
+            useBinaryFormat: false,
         });
         const client = createPromiseClient(Omni, transport);
         const sequenceNumberPath = new Path({

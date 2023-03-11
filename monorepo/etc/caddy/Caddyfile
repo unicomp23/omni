@@ -1,4 +1,6 @@
 :80
 
-reverse_proxy /aircore.media.omni.v1.Omni/* svc:80
-reverse_proxy webchat:8080
+reverse_proxy /aircore.media.omni.v1.Omni/* omni:80 {
+}
+reverse_proxy webchat:8080 {
+}
