@@ -14,12 +14,12 @@ import {
     UpsertRequest
 } from "../../proto/gen/devinternal_pb";
 import {Empty} from "@bufbuild/protobuf";
-import {config} from "../config";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Deferred} from "@esfx/async";
 import {anydb} from "../common/redis/anydb";
 import {pubsub} from "../easy/pubsub";
 import {createClient} from "redis";
+import {config} from "../config_easy";
 
 export class OmniImpl implements ServiceImpl<typeof Omni> {
     private constructor(
@@ -32,7 +32,7 @@ export class OmniImpl implements ServiceImpl<typeof Omni> {
     }
 
     public static async create(config_: config, disposable_stack: AsyncDisposableStack, shutdown: Deferred<boolean>) {
-        const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
+        const anydb_ = await anydb.create(createClient({url: config_.easy_pubsub.get_redis_uri()}));
         disposable_stack.use(anydb_);
         const pubsub_ = await pubsub.create(config_);
         disposable_stack.use(pubsub_);

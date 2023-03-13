@@ -1,7 +1,7 @@
 import {worker} from "../worker";
 import {AirCoreFrame, Commands, Coordinates, Path} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
-import {config} from "../../config";
+import {config} from "../../config_easy";
 import {anydb} from "../../common/redis/anydb";
 import {createClient} from "redis";
 import {AsyncDisposableStack} from "@esfx/disposable";
@@ -10,7 +10,7 @@ import {Deferred} from "@esfx/async";
 export function spawn_server(config_: config, disposable_stack: AsyncDisposableStack, shutdown: Deferred<boolean>) {
     const late_join_server = new worker(config_, async (stream, publisher_) => {
         //const db_snapshot = new Map<string/*sequence_path*/, Map<string/*item_path*/, Payload>>(); // todo replace w/ redis
-        const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
+        const anydb_ = await anydb.create(createClient({url: config_.easy_pubsub.get_redis_uri()}));
         const subscriptions = new Map<string /*partition_key*/, Map<string /*correlation_id*/, Coordinates>>(); // todo, subscription keep-alive heartbeats, timeout results in cleanup
         disposable_stack.use(anydb_);
 

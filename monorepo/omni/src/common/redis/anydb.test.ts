@@ -3,14 +3,14 @@ import {createClient} from "redis";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Payload} from "../../../proto/gen/devinternal_pb";
 import crypto from "crypto";
-import {config} from "../../config";
 import {make_paths} from "./make_paths";
+import {config} from "../../config_easy";
 
 describe(`anydb`, () => {
     test(`publish delta, fetch delta`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
-        const config_ = config.create();
+        const config_ = config.create().easy_pubsub;
         try {
             const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
             await disposable_stack.use(anydb_);
@@ -35,7 +35,7 @@ describe(`anydb`, () => {
     test(`publish delta, fetch snapshot`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
-        const config_ = config.create();
+        const config_ = config.create().easy_pubsub;
         try {
             const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
             await disposable_stack.use(anydb_);
@@ -62,7 +62,7 @@ describe(`anydb`, () => {
     test(`publish delta, fetch snapshot, publish delta, fetch snapshot deltas`, async () => {
         const disposable_stack = new AsyncDisposableStack();
         let completed = false;
-        const config_ = config.create();
+        const config_ = config.create().easy_pubsub;
         try {
             const anydb_ = await anydb.create(createClient({url: config_.get_redis_uri()}));
             await disposable_stack.use(anydb_);

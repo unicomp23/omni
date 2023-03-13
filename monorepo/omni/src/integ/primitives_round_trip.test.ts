@@ -1,10 +1,10 @@
 import {AirCoreFrame, PathTypes, Tags} from "../../proto/gen/devinternal_pb";
 import {publisher, topic_type} from "../kafka/publisher";
 import {worker_subscriber} from "../kafka/worker_subscriber";
-import {config} from "../config";
 import {reply_to_subscriber} from "../kafka/reply_to_subscriber";
 import {Deferred} from "@esfx/async";
 import {AsyncDisposableStack} from "@esfx/disposable";
+import {config} from "../config_easy";
 
 describe(`pubsub`, () => {
     test(`primitive round trip`, async () => {

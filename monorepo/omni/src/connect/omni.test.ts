@@ -8,12 +8,12 @@ import {createPromiseClient} from "@bufbuild/connect";
 import {Omni} from "../../proto/gen/devinternal_connect";
 import {createConnectTransport} from "@bufbuild/connect-node";
 import {GetDeltasRequest, UpsertRequest} from "../../proto/gen/devinternal_pb";
-import {config} from "../config";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Deferred, delay} from "@esfx/async";
 import crypto from "crypto";
 import {make_paths} from "../common/redis/make_paths";
 import {spawn_server} from "../easy/servers/late.join.server";
+import {config} from "../config_easy";
 
 const paths = make_paths(crypto.randomUUID());
 

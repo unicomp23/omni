@@ -1,11 +1,11 @@
 import {AsyncDisposableStack} from "@esfx/disposable";
-import {config} from "../config";
 import {AirCoreFrame, Commands} from "../../proto/gen/devinternal_pb";
 import {Deferred} from "@esfx/async";
 import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
 import crypto from "crypto";
 import {make_paths} from "../common/redis/make_paths";
+import {config} from "../config_easy";
 
 function* range(start: number, end: number) {
     for (let i = start; i < end; i++)

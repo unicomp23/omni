@@ -1,10 +1,10 @@
-import {config} from "../config";
 import {Kafka} from "kafkajs";
 import crypto from "crypto";
 import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/gen/devinternal_pb";
 import {AsyncDisposable} from "@esfx/disposable";
 import {kafkaLogLevel} from "./constants";
+import {config} from "../config_easy";
 
 export class reply_to_subscriber {
     public readonly frames = new AsyncQueue<AirCoreFrame>();
@@ -23,7 +23,7 @@ export class reply_to_subscriber {
         });
         //console.log("reply_to_worker: ", this.config_.get_worker_topic());
         await this.consumer.subscribe({
-            topic: this.config_.get_reply_to_topic(),
+            topic: this.config_.easy_pubsub.get_reply_to_topic(),
             fromBeginning: false,
         })
         await this.consumer.run({
@@ -37,14 +37,14 @@ export class reply_to_subscriber {
 
     private constructor(
         private readonly config_: config,
-        readonly topic = config_.get_reply_to_topic(),
+        readonly topic = config_.easy_pubsub.get_reply_to_topic(),
         private readonly kafka = new Kafka({
-            clientId: config_.get_app_id() + '/reply_to/' + crypto.randomUUID(),
-            brokers: config_.get_kafka_brokers(),
+            clientId: config_.easy_pubsub.get_app_id() + '/reply_to/' + crypto.randomUUID(),
+            brokers: config_.easy_pubsub.get_kafka_brokers(),
             logLevel: kafkaLogLevel,
         }),
         private readonly consumer = kafka.consumer({
-            groupId: config_.get_reply_to_group_id()
+            groupId: config_.easy_pubsub.get_reply_to_group_id()
         }),
     ) {
     }

@@ -1,11 +1,11 @@
 import {fastify} from "fastify";
-import {config} from "../config";
 import {AsyncDisposableStack} from "@esfx/disposable";
 import {Deferred} from "@esfx/async";
 import {spawn_server} from "../easy/servers/late.join.server";
 import {OmniImpl} from "../connect/omni.impl";
 import {fastifyConnectPlugin} from "@bufbuild/connect-fastify";
 import {Omni} from "../../proto/gen/devinternal_connect";
+import {config} from "../config_easy";
 
 async function main() {
     console.log(`starting ...`);

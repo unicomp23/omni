@@ -1,9 +1,9 @@
 import {Kafka, Partitioners, ProducerRecord} from "kafkajs";
-import {config} from "../config";
 import * as crypto from "crypto";
 import {AirCoreFrame} from "../../proto/gen/devinternal_pb";
 import {AsyncDisposable} from "@esfx/disposable";
 import {kafkaLogLevel} from "./constants";
+import {config} from "../config_easy";
 
 export enum topic_type {
     unknown,
@@ -19,8 +19,8 @@ export class publisher {
     private constructor(
         private readonly config_: config,
         private readonly kafka = new Kafka({
-            clientId: config_.get_app_id() + '/' + crypto.randomUUID(),
-            brokers: config_.get_kafka_brokers(),
+            clientId: config_.easy_pubsub.get_app_id() + '/' + crypto.randomUUID(),
+            brokers: config_.easy_pubsub.get_kafka_brokers(),
             logLevel: kafkaLogLevel,
         }),
         private readonly producer = kafka.producer({
@@ -28,8 +28,8 @@ export class publisher {
             createPartitioner: Partitioners.DefaultPartitioner,
         })
     ) {
-        this.topic_worker = config_.get_worker_topic();
-        this.topic_reply_to = config_.get_reply_to_topic();
+        this.topic_worker = config_.easy_pubsub.get_worker_topic();
+        this.topic_reply_to = config_.easy_pubsub.get_reply_to_topic();
     }
 
     public static create(config_: config) {
