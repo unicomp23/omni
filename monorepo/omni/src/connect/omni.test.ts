@@ -13,7 +13,7 @@ import {Deferred, delay} from "@esfx/async";
 import crypto from "crypto";
 import {make_paths} from "../common/redis/make_paths";
 import {spawn_server} from "../easy/servers/late.join.server";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 const paths = make_paths(crypto.randomUUID());
 

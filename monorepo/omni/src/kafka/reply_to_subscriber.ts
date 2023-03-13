@@ -4,7 +4,7 @@ import {AsyncQueue, delay} from "@esfx/async";
 import {AirCoreFrame} from "../../proto/gen/devinternal_pb";
 import {AsyncDisposable} from "@esfx/disposable";
 import {kafkaLogLevel} from "./constants";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 export class reply_to_subscriber {
     public readonly frames = new AsyncQueue<AirCoreFrame>();

@@ -5,7 +5,7 @@ import {pubsub} from "../easy/pubsub";
 import {spawn_server} from "../easy/servers/late.join.server";
 import crypto from "crypto";
 import {make_paths} from "../common/redis/make_paths";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 function* range(start: number, end: number) {
     for (let i = start; i < end; i++)

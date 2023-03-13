@@ -6,7 +6,7 @@ import crypto from "crypto";
 import {HashMap} from "@esfx/collections";
 import {Timestamp} from "@bufbuild/protobuf";
 import {AsyncDisposable, AsyncDisposableStack} from "@esfx/disposable";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 export class pubsub {
     private readonly publisher_: publisher;

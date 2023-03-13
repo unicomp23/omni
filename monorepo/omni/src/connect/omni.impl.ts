@@ -19,7 +19,7 @@ import {Deferred} from "@esfx/async";
 import {anydb} from "../common/redis/anydb";
 import {pubsub} from "../easy/pubsub";
 import {createClient} from "redis";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 export class OmniImpl implements ServiceImpl<typeof Omni> {
     private constructor(

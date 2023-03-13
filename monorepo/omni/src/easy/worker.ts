@@ -3,7 +3,7 @@ import {AirCoreFrame} from "../../proto/gen/devinternal_pb";
 import {worker_subscriber} from "../kafka/worker_subscriber";
 import {AsyncDisposable, AsyncDisposableStack} from "@esfx/disposable";
 import {publisher} from "../kafka/publisher";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 export class worker {
     private readonly disposable_stack = new AsyncDisposableStack();

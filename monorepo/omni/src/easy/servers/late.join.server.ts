@@ -1,7 +1,7 @@
 import {worker} from "../worker";
 import {AirCoreFrame, Commands, Coordinates, Path} from "../../../proto/gen/devinternal_pb";
 import {topic_type} from "../../kafka/publisher";
-import {config} from "../../config_easy";
+import {config} from "../../config";
 import {anydb} from "../../common/redis/anydb";
 import {createClient} from "redis";
 import {AsyncDisposableStack} from "@esfx/disposable";

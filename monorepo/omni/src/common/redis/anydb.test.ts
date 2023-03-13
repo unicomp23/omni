@@ -4,7 +4,7 @@ import {AsyncDisposableStack} from "@esfx/disposable";
 import {Payload} from "../../../proto/gen/devinternal_pb";
 import crypto from "crypto";
 import {make_paths} from "./make_paths";
-import {config} from "../../config_easy";
+import {config} from "../../config";
 
 describe(`anydb`, () => {
     test(`publish delta, fetch delta`, async () => {

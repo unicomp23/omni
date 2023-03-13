@@ -5,7 +5,7 @@ import {spawn_server} from "../easy/servers/late.join.server";
 import {OmniImpl} from "../connect/omni.impl";
 import {fastifyConnectPlugin} from "@bufbuild/connect-fastify";
 import {Omni} from "../../proto/gen/devinternal_connect";
-import {config} from "../config_easy";
+import {config} from "../config";
 
 async function main() {
     console.log(`starting ...`);
