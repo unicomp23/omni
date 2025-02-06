@@ -1,0 +1,1831 @@
+File: target.src/shasta/src/loadtest.ts
+=====START=====
+// todo
+=====END=====
+
+File: target.src/shasta/src/lib/constants.ts
+=====START=====
+export const prettySpaces = 2;
+=====END=====
+
+File: target.src/shasta/src/lib/logger/slog.ts
+=====START=====
+import {logger} from 'node-media-utils/libs';
+import {prettySpaces} from "../constants";
+
+export const slog = {
+    info: (message: string, o?: any) => {
+        if (o)
+            message = message + ": " + JSON.stringify(o, null, prettySpaces);
+        logger.info(message);
+    },
+
+    warn: (message: string, o?: any) => {
+        if (o)
+            message = message + ": " + JSON.stringify(o, null, prettySpaces);
+        logger.warn(message);
+    },
+
+    error: (message: string, o?: any) => {
+        if (o)
+            message = message + ": " + JSON.stringify(o, null, prettySpaces);
+        logger.error(message);
+    }
+};
+=====END=====
+
+File: target.src/shasta/src/lib/kafka/constants.ts
+=====START=====
+import {logLevel} from "kafkajs";
+
+export const kafkaLogLevel = logLevel.NOTHING;
+=====END=====
+
+File: target.src/shasta/src/lib/kafka/createKafka.ts
+=====START=====
+import {Kafka} from "kafkajs";
+import {kafkaLogLevel} from "./constants";
+import {createMechanism} from "@jm18457/kafkajs-msk-iam-authentication-mechanism";
+import {env} from "process";
+
+export function createKafka(clientId: string, region: string = 'us-east-1'): Kafka {
+    const bootstrapEndpoints = env.KAFKA_BROKERS?.split(",") || [];
+    if (env.NOTLS) {
+        return new Kafka({
+            clientId,
+            brokers: bootstrapEndpoints,
+            logLevel: kafkaLogLevel,
+        });
+    } else {
+        return new Kafka({
+            clientId,
+            brokers: bootstrapEndpoints,
+            logLevel: kafkaLogLevel,
+            ssl: true,
+            sasl: createMechanism({region}),
+        });
+    }
+}
+=====END=====
+
+File: target.src/shasta/src/lib/pubsub/worker.ts
+=====START=====
+import {Consumer, EachMessagePayload, Kafka, KafkaMessage} from 'kafkajs';
+import {Cluster} from 'ioredis';
+import {TagData, TagDataEnvelope, TagDataObjectIdentifier} from "../../../submodules/src/gen/tag_data_pb";
+import {env} from "process";
+import {slog} from "../logger/slog";
+
+class Worker {
+    private kafkaConsumer: Consumer;
+    private redisClient: Cluster;
+    private readonly topic: string;
+    private groupJoined_: boolean = false;
+
+    constructor(kafka: Kafka, groupId: string, topic: string) {
+        this.kafkaConsumer = kafka.consumer({groupId});
+        this.redisClient = new Cluster([{
+            host: env.REDIS_HOST,
+            port: parseInt(env.REDIS_PORT || "6379")
+        }], {
+            dnsLookup: (address, callback) => callback(null, address),
+            redisOptions: {tls: {},},
+        });
+        this.topic = topic;
+
+        this.redisClient.on('connect', async () => {
+            slog.info('Connected to Redis server');
+        });
+
+        this.redisClient.on('error', async (error) => {
+            slog.error(`Redis error: ${error}`);
+        });
+
+        // Initialize the Kafka consumer and Redis client
+        this.init().catch(e => {
+            slog.error("init error: ", {e});
+        });
+
+        process.on("SIGINT", () => this.shutdown());
+        process.on("SIGTERM", () => this.shutdown());
+    }
+
+    public async groupJoined(): Promise<boolean> {
+        while (!this.groupJoined_) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return true;
+    }
+
+    public async shutdown() {
+        slog.info("Shutting down the worker gracefully ...");
+
+        try {
+            await this.kafkaConsumer.stop();
+            await this.kafkaConsumer.disconnect();
+            slog.info("Disconnected from Kafka consumer");
+        } catch (error) {
+            slog.error("Error while disconnecting from Kafka consumer", error);
+        }
+
+        try {
+            this.redisClient.disconnect();
+            slog.info("Disconnected from Redis server");
+        } catch (error) {
+            slog.error("Error while disconnecting from Redis server", error);
+        }
+    }
+
+    private async init(): Promise<void> {
+        // Connect to Kafka
+        try {
+            await this.kafkaConsumer.connect();
+            slog.info('connected');
+
+            // Kafka disconnection event
+            this.kafkaConsumer.on("consumer.crash", async ({type}) => {
+                slog.error(`Kafka consumer fatal error: ${type}`);
+            });
+            this.kafkaConsumer.on("consumer.group_join", async () => {
+                slog.info("Kafka consumer group join event");
+                this.groupJoined_ = true;
+            });
+        } catch (error) {
+            slog.error(`Error while connecting to Kafka: ${error}`);
+            return;
+        }
+
+        // Subscribe to the Kafka topic and start consuming
+        await this.subscribeToTopic();
+    }
+
+    private async subscribeToTopic(): Promise<void> {
+        await this.kafkaConsumer.subscribe({
+            topic: this.topic,
+            fromBeginning: true
+        });
+
+        await this.kafkaConsumer.run({
+            eachMessage: async (payload: EachMessagePayload) => {
+                const message: KafkaMessage = payload.message;
+
+                if (message.key && message.value) {
+                    try {
+                        const tagDataObjIdentifier: TagDataObjectIdentifier = TagDataObjectIdentifier.fromBinary(Buffer.from(message.key));
+
+                        const redisDeltaKey = tagDataObjIdentifier.name;
+                        if (redisDeltaKey === undefined || redisDeltaKey === "seqno") {
+                            slog.error('invalid tagDataObjIdentifier.name: ', {tagDataObjIdentifier});
+                            return;
+                        }
+                        tagDataObjIdentifier.name = "";
+                        const redisSnapshotKey = Buffer.from(tagDataObjIdentifier.toBinary()).toString("base64");
+
+                        const tagData: TagData = TagData.fromBinary(Buffer.from(message.value));
+                        const commonRedisSnapshotKey = `{${redisSnapshotKey}}:snap:`;
+                        const commonRedisStreamKey = `{${redisSnapshotKey}}:strm:`;
+
+                        const snapshotSeqNo = await this.redisClient.xadd(commonRedisStreamKey, "*", "delta", Buffer.from(tagData.toBinary()).toString("base64"));
+                        if (snapshotSeqNo === null) {
+                            slog.error(`Missing redis seqno: `, {snapshotSeqNo});
+                            return;
+                        }
+                        const tagDataEnvelope = new TagDataEnvelope({
+                            tagData,
+                            sequenceNumber: snapshotSeqNo
+                        });
+                        if (!(snapshotSeqNo && redisDeltaKey)) {
+                            slog.error(`Failed to store the snapshot in Redis: `, {
+                                snapshotSeqNo,
+                                tagData
+                            });
+                            return;
+                        }
+                        await this.redisClient.hset(commonRedisSnapshotKey,
+                            redisDeltaKey, Buffer.from(tagDataEnvelope.toBinary()).toString("base64"),
+                            "seqno", snapshotSeqNo);
+
+                        slog.info(`Worker: `, {
+                            snapshotSeqNo,
+                            commonRedisSnapshotKey,
+                            commonRedisStreamKey,
+                            tagData
+                        });
+                    } catch (e) {
+                        slog.error(`Error processing message ${message.key}: ${e}`);
+                    }
+                } else {
+                    slog.error('bad message: ', {message});
+                }
+            },
+        });
+    }
+
+}
+
+export {Worker};=====END=====
+
+File: target.src/shasta/src/lib/pubsub/subscriber.ts
+=====START=====
+import {AsyncQueue} from '@esfx/async-queue';
+import {Cluster} from 'ioredis';
+import {
+    TagData,
+    TagDataEnvelope,
+    TagDataObjectIdentifier,
+    TagDataSnapshot
+} from '../../../submodules/src/gen/tag_data_pb';
+import {env} from "process";
+import {slog} from "../logger/slog";
+
+type Message = {
+    snapshot?: TagDataSnapshot;
+    delta?: TagData;
+    deleted?: string;
+};
+
+class Subscriber {
+    private readonly redisClient: Cluster;
+    private readonly tagDataObjIdentifier: TagDataObjectIdentifier;
+    private readonly redisSnapshotKey: string;
+    private readonly redisStreamKey: string;
+    private readonly lastHeartbeatMap: Map<string, number> = new Map();
+    private snapshot?: TagDataSnapshot; // Added as a class member
+    private queue?: AsyncQueue<Message>; // Added as a class member
+
+    constructor(tagDataObjIdentifier: TagDataObjectIdentifier) {
+        this.redisClient = new Cluster([{
+            host: env.REDIS_HOST,
+            port: parseInt(env.REDIS_PORT || "6379")
+        }], {
+            dnsLookup: (address, callback) => callback(null, address),
+            redisOptions: {tls: {},},
+        });
+        this.tagDataObjIdentifier = tagDataObjIdentifier.clone();
+        this.tagDataObjIdentifier.name = "";
+
+        const redisSnapshotKey = Buffer.from(this.tagDataObjIdentifier.toBinary()).toString("base64");
+        const commonRedisSnapshotKey = `{${redisSnapshotKey}}:snap:`;
+        this.redisSnapshotKey = commonRedisSnapshotKey;
+        const commonRedisStreamKey = `{${redisSnapshotKey}}:strm:`;
+        this.redisStreamKey = commonRedisStreamKey;
+
+        this.redisClient.on('connect', async () => {
+            slog.info('Connected to Redis server');
+        });
+
+        this.redisClient.on('error', async (error) => {
+            slog.error(`Redis error: ${error}`);
+        });
+    }
+
+    // Stream messages from Redis
+    public async stream(): Promise<AsyncQueue<Message>> {
+        this.queue = new AsyncQueue<Message>(); // Initialize queue here
+
+        // Get the TagDataSnapshot by iterating hgetall() and the snapshotSeqNo via get()
+        const redisSnapshotData = await this.redisClient.hgetall(this.redisSnapshotKey);
+        const snapshotSeqNo = redisSnapshotData['seqno'];
+        delete redisSnapshotData['seqno'];
+        if (snapshotSeqNo === null) {
+            throw new Error("Snapshot sequence number is null");
+        }
+        this.snapshot = new TagDataSnapshot({sequenceNumber: snapshotSeqNo});
+        for (const [key, val] of Object.entries(redisSnapshotData)) {
+            slog.info('subscriber.stream.snapshot: ', {
+                key,
+                val
+            });
+            this.snapshot.snapshot[key] = TagDataEnvelope.fromBinary(Buffer.from(val, "base64"));
+        }
+        this.queue.put({snapshot: this.snapshot});
+
+        // Set up the XREAD() loop to get the delta messages
+        const readStreamMessages = async (lastSeqNo: string) => {
+            if (this.redisClient.status == "ready") {
+                try {
+                    const streamMessages = await this.redisClient.xread(
+                        'COUNT', 100, 'BLOCK', 1000, 'STREAMS', this.redisStreamKey, lastSeqNo
+                    );
+                    slog.info('xread: ', {streamMessages});
+
+                    if (streamMessages) {
+                        for (const [, messages] of streamMessages) {
+                            for (const [seqNo, messageData] of messages) {
+                                slog.info('xread.2: ', {
+                                    seqNo,
+                                    messageData
+                                });
+                                const [, value] = messageData;
+                                const delta = TagData.fromBinary(Buffer.from(value, 'base64'));
+                                const name = delta.identifier?.name; // Extract the name from delta
+                                if (delta.deleted) {
+                                    if (name && this.snapshot?.snapshot) {
+                                        delete this.snapshot.snapshot[name];
+                                        this.queue?.put({ deleted: name });
+                                        this.lastHeartbeatMap.delete(name);
+                                    }
+                                } else {
+                                    this.queue?.put({delta});
+                                    if (name) {
+                                        this.lastHeartbeatMap.set(name, Date.now());
+                                    }
+                                }
+
+                                // Update the last sequence number for the next XREAD() call
+                                lastSeqNo = seqNo;
+                            }
+                        }
+                    }
+
+                    // Recursive call to keep reading from the stream
+                    readStreamMessages(lastSeqNo);
+                } catch (e: any) {
+                    if (e.message.startsWith('Connection is closed.'))
+                        return;
+                    throw e;
+                }
+            }
+        };
+
+        // Call readStreamMessages with the snapshotSeqNo or '0-0' if it doesn't exist
+        readStreamMessages(snapshotSeqNo || '0-0');
+
+        // Start the periodic heartbeat check
+        setInterval(() => this.checkHeartbeats(), 1000); // Check every second (adjust as needed)
+
+        return this.queue;
+    }
+
+    private checkHeartbeats() {
+        const now = Date.now();
+        for (const [name, lastHeartbeat] of this.lastHeartbeatMap) {
+            const tagData = this.snapshot?.snapshot[name]?.tagData;
+            if (tagData && tagData.lifetime) {
+                const heartbeatInterval = tagData.lifetime * 1000; // Convert seconds to milliseconds
+                if (now - lastHeartbeat > heartbeatInterval) {
+                    if (this.snapshot?.snapshot) {
+                        delete this.snapshot.snapshot[name];
+                        this.queue?.put({ deleted: name });
+                        this.lastHeartbeatMap.delete(name);
+                    }
+                }
+            }
+        }
+    }
+
+    // Disconnect from Redis
+    public async disconnect(): Promise<void> {
+        try {
+            this.redisClient.disconnect();
+            slog.info("Disconnected from Redis server successfully");
+        } catch (error) {
+            slog.error('Subscriber, Failed to disconnect from Redis server', error);
+        }
+    }
+}
+
+export {Subscriber};
+=====END=====
+
+File: target.src/shasta/src/lib/pubsub/roundtrip.spec.ts
+=====START=====
+import {ITopicConfig} from "kafkajs";
+import {TagData, TagDataObjectIdentifier} from "../../../submodules/src/gen/tag_data_pb";
+import {Publisher} from "./publisher";
+import {Subscriber} from "./subscriber";
+import {Worker} from "./worker";
+import {createKafka} from "../kafka/createKafka";
+import crypto from "crypto";
+import {envVarsSync} from "../../automation";
+import {expect} from "chai";
+import {after, before, describe, it} from "mocha";
+
+envVarsSync();
+
+const kafkaTopic = `test_topic-${crypto.randomUUID()}`;
+
+const snapCount = 1;
+const deltaCount = 3;
+
+async function waitFor(durationInMs: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, durationInMs));
+}
+
+async function setup() {
+    const identifier = new TagDataObjectIdentifier();
+    identifier.appId = `some-app-id-${crypto.randomUUID()}`;
+    identifier.tag = `tag-id-${crypto.randomUUID()}`;
+    identifier.scope = `scope-id-${crypto.randomUUID()}`;
+    identifier.name = `name-${crypto.randomUUID()}`;
+
+    const kafka = createKafka(`test-kafka-id-${crypto.randomUUID()}`);
+    const admin = kafka.admin();
+    await admin.connect();
+    const topicConfig: ITopicConfig = {
+        topic: kafkaTopic,
+    };
+    await admin.createTopics({
+        topics: [topicConfig],
+    });
+    await admin.disconnect();
+
+    const publisher = new Publisher(kafka, kafkaTopic);
+    await publisher.connect();
+
+    const subscriber = new Subscriber(identifier);
+
+    const groupId = `test-group-id-${crypto.randomUUID()}`;
+    const worker = new Worker(kafka, groupId, kafkaTopic);
+    await worker.groupJoined();
+
+    return {
+        publisher,
+        subscriber,
+        worker,
+        identifier
+    };
+}
+
+async function teardown(publisher: Publisher, subscriber: Subscriber, worker: Worker) {
+    await worker.shutdown();
+    await publisher.disconnect();
+    await subscriber.disconnect();
+}
+
+describe("End-to-End Test", () => {
+    let publisher: Publisher;
+    let subscriber: Subscriber;
+    let worker: Worker;
+    let identifier: TagDataObjectIdentifier;
+    let count = 0;
+
+    before(async () => {
+        const resources = await setup();
+        publisher = resources.publisher;
+        subscriber = resources.subscriber;
+        worker = resources.worker;
+        identifier = resources.identifier;
+    });
+
+    after(async () => {
+        await teardown(publisher, subscriber, worker);
+        expect(count).to.equal(snapCount + deltaCount);
+    });
+
+    it("should process messages from Publisher to Worker via Redis Subscriber", async () => {
+        const tagData = new TagData();
+        tagData.identifier = identifier.clone();
+        tagData.data = "Test Value snapshot";
+
+        await publisher.send(tagData);
+
+        await waitFor(2000);
+
+        const snapshotsQueue = await subscriber.stream();
+
+        const message = await snapshotsQueue.get();
+
+        const snapshot = message.snapshot;
+        expect(snapshot).to.exist;
+        expect(snapshot!.snapshot[identifier.name!].tagData!.data).to.equal(tagData.data);
+        count++;
+
+        for (let i = 0; i < deltaCount; i++) {
+            const tagDataDelta = new TagData();
+            tagDataDelta.identifier = identifier.clone();
+            tagDataDelta.data = `Test Delta Value: ${i}`;
+            await publisher.send(tagDataDelta);
+
+            const deltaMessage = await snapshotsQueue.get();
+
+            const delta = deltaMessage.delta;
+            expect(delta).to.exist;
+            expect(delta?.data).to.equal(tagDataDelta.data);
+            count++;
+        }
+    });
+});
+
+// todo recover redis connection (ie tcp send fail)
+// todo recover kafka connection (ie tcp send fail)
+// todo detect publisher absent due to missing heartbeat
+// todo redis ping/pong
+// todo kafka worker ping/pong
+=====END=====
+
+File: target.src/shasta/src/lib/pubsub/publisher.ts
+=====START=====
+import {Kafka, Producer} from 'kafkajs';
+import {TagData} from "../../../submodules/src/gen/tag_data_pb";
+import {slog} from "../logger/slog";
+
+// Convert message to a buffer
+const encode = (message: TagData): Buffer => {
+    return Buffer.from(message.toBinary());
+};
+
+class Publisher {
+    private producer: Producer;
+    private lifetime: number;
+
+    constructor(kafka: Kafka, readonly topic: string, lifetime: number = 60) {
+        this.producer = kafka.producer();
+        this.lifetime = lifetime;
+    }
+
+    // Connect to Kafka producer
+    public async connect(): Promise<void> {
+        try {
+            await this.producer.connect();
+            slog.info('Connected to Kafka producer successfully');
+        } catch (error) {
+            slog.error(`Failed to connect to the producer: `, error);
+        }
+    }
+
+    // Disconnect from Kafka producer
+    public async disconnect(): Promise<void> {
+        try {
+            await this.producer.disconnect();
+            slog.info("Disconnected from Kafka producer successfully");
+        } catch (error) {
+            slog.error(`Failed to disconnect from the producer: `, error);
+        }
+    }
+
+    // Send TagData message to Kafka topic
+    public async send(tagData: TagData): Promise<void> {
+        try {
+            if (tagData.identifier === undefined) {
+                slog.error("TagData identifier is undefined");
+                return;
+            }
+
+            tagData.lifetime = this.lifetime; // Use the lifetime property
+            // Prepare Kafka message
+            const message = {
+                value: encode(tagData),
+                key: Buffer.from(tagData.identifier.toBinary()),
+            };
+
+            // Send message
+            await this.producer.send({
+                topic: this.topic,
+                messages: [message],
+            });
+
+            slog.info("Message published successfully");
+        } catch (error) {
+            slog.error(`Failed to publish the message: : `, error);
+        }
+    }
+}
+
+export {Publisher};
+=====END=====
+
+File: target.src/shasta/src/lib/pubsub/topic.ts
+=====START=====
+import {slog} from "../logger/slog";
+import {createKafka} from "../kafka/createKafka";
+import {env} from "process";
+
+export async function createTopics(topic: string): Promise<void> {
+    const kafka = createKafka(env.APP || "shasta-app-id");
+
+    const admin = kafka.admin();
+
+    const requiredTopics = [
+        topic
+    ];
+
+    try {
+        await admin.connect();
+
+        await admin.createTopics({
+            topics: requiredTopics.map((topicName) => ({
+                topic: topicName,
+            })),
+            waitForLeaders: true,
+        });
+
+        slog.info("All topics have been created");
+    } catch (error) {
+        slog.error("Error creating topics:", error);
+    } finally {
+        try {
+            await admin.disconnect();
+            slog.info("Cleaned up admin client");
+        } catch (error) {
+            slog.info("Error cleaning up admin client:", error);
+        }
+    }
+}
+=====END=====
+
+File: target.src/shasta/src/main.ts
+=====START=====
+import {Deferred, delay} from "@esfx/async";
+import {createKafka} from "./lib/kafka/createKafka";
+import {Worker} from "./lib/pubsub/worker";
+import {env} from "process";
+import {createTopics} from "./lib/pubsub/topic";
+
+async function main() {
+    const quit = new Deferred<boolean>();
+    let worker: Worker | null = null;
+    try {
+        await createTopics("tag-data");
+
+        const kafka = createKafka(env.APP_ID || "shasta-app-id");
+        worker = new Worker(kafka,
+            env.CONSUMER_GROUP_ID || "tag-data-consumer-group-id",
+            env.KAFKA_TOPIC || "tag-data");
+        while (!await worker.groupJoined())
+            await delay(1000);
+
+        for (; ;) {
+            await delay(1000);
+            // todo, fire quit on some signal from app (ie kill, a shutdown message, etc)
+        }
+    } catch (e) {
+        console.error(`main:`, e);
+    } finally {
+        if(worker)
+            await worker.shutdown();
+        quit.resolve(true);
+    }
+}
+
+main().then(() => {
+    console.log("main exit")
+});
+=====END=====
+
+File: target.src/shasta/src/automation.ts
+=====START=====
+import fs from 'fs';
+
+// Define the Config interface
+interface Config {
+    "#": string,
+    "bootstrap-endpoints": string,
+    "memorydb-endpoint-address": string,
+    "memorydb-endpoint-port": string
+}
+
+function removeJsonComments(dataString: string): string {
+    dataString = dataString.trim();
+    dataString = dataString.substring(1);  // remove first {
+    dataString = dataString.slice(0, -1);  // remove last }
+
+    // split the string by commas
+    let lines = dataString.split(',');
+
+    // filter out lines with '#' key
+    lines = lines.filter(line => !line.trim().startsWith('"#"'));
+
+    // remove trailing comma in last line
+    if (lines[lines.length - 1].trim() === '') {
+        lines.pop();
+    }
+
+    // join the arr back with commas
+    const cleanDataString = lines.join(',');
+
+    return '{' + cleanDataString + '}'; // Adding the opening and closing braces
+}
+
+// Helper function to read and return Config interface object from JSON file
+function getConfig(): Config {
+    const configFilePath = process.env.APP_CONFIG || process.env.AUTOMATION_APP_CONFIG;
+
+    if (configFilePath) {
+        if (fs.existsSync(configFilePath)) {
+            const rawData = fs.readFileSync(configFilePath, 'utf-8');
+            const filteredData = removeJsonComments(rawData);
+            console.log(filteredData);
+            return JSON.parse(filteredData);
+        } else {
+            throw new Error(`File doesn't exist at path: ${configFilePath}`);
+        }
+    } else {
+        throw new Error("Environment variable APP_CONFIG || AUTOMATION_APP_CONFIG is not set");
+    }
+}
+
+export function envVarsSync() {
+    const config_ = getConfig();
+    process.env["KAFKA_BROKERS"] = config_["bootstrap-endpoints"];
+    process.env["REDIS_HOST"] = config_["memorydb-endpoint-address"];
+    process.env["REDIS_PORT"] = config_["memorydb-endpoint-port"];
+}=====END=====
+
+File: target.src/shasta/submodules/src/gen/tag_data_pb.ts
+=====START=====
+//  Copyright © 2023 Aircore.  All rights reserved.
+
+// @generated by protoc-gen-es v1.3.0 with parameter "target=ts"
+// @generated from file tag_data.proto (package TagDataProto, syntax proto2)
+/* eslint-disable */
+// @ts-nocheck
+
+import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
+import { Message, proto2 } from "@bufbuild/protobuf";
+
+/**
+ * @generated from message TagDataProto.TagDataObjectIdentifier
+ */
+export class TagDataObjectIdentifier extends Message<TagDataObjectIdentifier> {
+  /**
+   * the ID of the application
+   *
+   * @generated from field: optional string app_id = 1;
+   */
+  appId?: string;
+
+  /**
+   * the channel ID (room ID in Cantina)
+   *
+   * @generated from field: optional string tag = 2;
+   */
+  tag?: string;
+
+  /**
+   * must be "system" or "application"
+   *
+   * @generated from field: optional string scope = 3;
+   */
+  scope?: string;
+
+  /**
+   * unique identifier for a tag data object within an application, tag, and scope. e.g., "recording/71111-050"
+   *
+   * @generated from field: optional string name = 4;
+   */
+  name?: string;
+
+  constructor(data?: PartialMessage<TagDataObjectIdentifier>) {
+    super();
+    proto2.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto2 = proto2;
+  static readonly typeName = "TagDataProto.TagDataObjectIdentifier";
+  static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "app_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "tag", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "scope", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TagDataObjectIdentifier {
+    return new TagDataObjectIdentifier().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TagDataObjectIdentifier {
+    return new TagDataObjectIdentifier().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TagDataObjectIdentifier {
+    return new TagDataObjectIdentifier().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TagDataObjectIdentifier | PlainMessage<TagDataObjectIdentifier> | undefined, b: TagDataObjectIdentifier | PlainMessage<TagDataObjectIdentifier> | undefined): boolean {
+    return proto2.util.equals(TagDataObjectIdentifier, a, b);
+  }
+}
+
+/**
+ * @generated from message TagDataProto.TagData
+ */
+export class TagData extends Message<TagData> {
+  /**
+   * @generated from field: optional TagDataProto.TagDataObjectIdentifier identifier = 1;
+   */
+  identifier?: TagDataObjectIdentifier;
+
+  /**
+   * indicates that the object has been deleted
+   *
+   * @generated from field: optional bool deleted = 2;
+   */
+  deleted?: boolean;
+
+  /**
+   * lifetime in seconds; informational to clients
+   *
+   * @generated from field: optional uint32 lifetime = 3;
+   */
+  lifetime?: number;
+
+  /**
+   * tag data
+   *
+   * @generated from field: optional string data = 4;
+   */
+  data?: string;
+
+  constructor(data?: PartialMessage<TagData>) {
+    super();
+    proto2.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto2 = proto2;
+  static readonly typeName = "TagDataProto.TagData";
+  static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "identifier", kind: "message", T: TagDataObjectIdentifier, opt: true },
+    { no: 2, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 3, name: "lifetime", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "data", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TagData {
+    return new TagData().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TagData {
+    return new TagData().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TagData {
+    return new TagData().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TagData | PlainMessage<TagData> | undefined, b: TagData | PlainMessage<TagData> | undefined): boolean {
+    return proto2.util.equals(TagData, a, b);
+  }
+}
+
+/**
+ * internal message used to wrap a TagData object with a sequence number
+ *
+ * @generated from message TagDataProto.TagDataEnvelope
+ */
+export class TagDataEnvelope extends Message<TagDataEnvelope> {
+  /**
+   * @generated from field: optional TagDataProto.TagData tag_data = 1;
+   */
+  tagData?: TagData;
+
+  /**
+   * sequence number of the tag data object
+   *
+   * @generated from field: optional string sequence_number = 2;
+   */
+  sequenceNumber?: string;
+
+  constructor(data?: PartialMessage<TagDataEnvelope>) {
+    super();
+    proto2.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto2 = proto2;
+  static readonly typeName = "TagDataProto.TagDataEnvelope";
+  static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "tag_data", kind: "message", T: TagData, opt: true },
+    { no: 2, name: "sequence_number", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TagDataEnvelope {
+    return new TagDataEnvelope().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TagDataEnvelope {
+    return new TagDataEnvelope().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TagDataEnvelope {
+    return new TagDataEnvelope().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TagDataEnvelope | PlainMessage<TagDataEnvelope> | undefined, b: TagDataEnvelope | PlainMessage<TagDataEnvelope> | undefined): boolean {
+    return proto2.util.equals(TagDataEnvelope, a, b);
+  }
+}
+
+/**
+ * internal message used to wrap a map of TagDataEnvelope objects with a sequence number
+ *
+ * @generated from message TagDataProto.TagDataSnapshot
+ */
+export class TagDataSnapshot extends Message<TagDataSnapshot> {
+  /**
+   * map of tag data objects, keyed by name
+   *
+   * @generated from field: map<string, TagDataProto.TagDataEnvelope> snapshot = 1;
+   */
+  snapshot: { [key: string]: TagDataEnvelope } = {};
+
+  /**
+   * sequence number of the snapshot
+   *
+   * @generated from field: optional string sequence_number = 2;
+   */
+  sequenceNumber?: string;
+
+  constructor(data?: PartialMessage<TagDataSnapshot>) {
+    super();
+    proto2.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto2 = proto2;
+  static readonly typeName = "TagDataProto.TagDataSnapshot";
+  static readonly fields: FieldList = proto2.util.newFieldList(() => [
+    { no: 1, name: "snapshot", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "message", T: TagDataEnvelope} },
+    { no: 2, name: "sequence_number", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): TagDataSnapshot {
+    return new TagDataSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): TagDataSnapshot {
+    return new TagDataSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): TagDataSnapshot {
+    return new TagDataSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: TagDataSnapshot | PlainMessage<TagDataSnapshot> | undefined, b: TagDataSnapshot | PlainMessage<TagDataSnapshot> | undefined): boolean {
+    return proto2.util.equals(TagDataSnapshot, a, b);
+  }
+}
+
+=====END=====
+
+File: event_bus.ts
+=====START=====
+type Callback = (...args: any[]) => void;
+
+export class EventBus {
+  private listeners: { [event: string]: Callback[] } = {};
+
+  on(event: string, callback: Callback) {
+    console.log(`Registering listener for event "${event}"`);
+    if (!this.listeners[event]) {
+      this.listeners[event] = [];
+    }
+    this.listeners[event].push(callback);
+  }
+
+  off(event: string, callback: Callback) {
+    // Implementation omitted for brevity
+  }
+
+  emit(event: string, ...args: any[]) {
+    console.log(`Emitting event "${event}"`);
+    if (!this.listeners[event]) {
+      return;
+    }
+    this.listeners[event].forEach((listener) => {
+      listener(...args);
+    });
+  }
+}
+=====END=====
+
+File: app.ts
+=====START=====
+import { EventBus } from './event_bus';
+
+const eventBus = new EventBus();
+
+eventBus.on('myEvent', (data) => {
+  console.log('Event received in app.ts:', data);
+});
+
+eventBus.emit('myEvent', { message: 'Hello from app.ts!' });
+=====END=====
+
+File: main.ai.editor.ts
+=====START=====
+import AnthropicBedrock from '@anthropic-ai/bedrock-sdk';
+import fs from 'fs';
+import path from 'path';
+import { exec } from 'child_process';
+import util from 'util';
+
+const execAsync = util.promisify(exec);
+
+function checkAwsCredentials() {
+  const awsAccessKey = process.env.AWS_ACCESS_KEY_ID;
+  const awsSecretKey = process.env.AWS_SECRET_ACCESS_KEY;
+  const awsSessionToken = process.env.AWS_SESSION_TOKEN;
+
+  if (!awsAccessKey || !awsSecretKey) {
+    throw new Error("AWS access key and secret key must be set as environment variables.");
+  }
+
+  if (!awsSessionToken) {
+    console.warn("AWS session token is not set. Continuing without it. This is fine for non-temporary credentials.");
+  }
+
+  return { awsAccessKey, awsSecretKey, awsSessionToken };
+}
+
+function initializeAnthropicClient() {
+  const { awsAccessKey, awsSecretKey, awsSessionToken } = checkAwsCredentials();
+
+  return new AnthropicBedrock({
+    awsAccessKey,
+    awsSecretKey, 
+    awsSessionToken,
+    awsRegion: AWS_REGION,
+  });
+}
+
+const AWS_REGION = 'us-east-1';
+
+const ANTHROPIC_MODEL_ID = 'anthropic.claude-3-sonnet-20240229-v1:0';
+
+const systemPrompt = `
+As an expert in editing TypeScript files, you can generate git patch files to modify existing code when a user requests changes. Analyze the provided code and suggest modifications in the form of a git patch file. Please delimit git patches with <gitpatch> and </gitpatch> tags.
+
+Aim to keep your responses concise, focusing on the most important information relevant to the user's request. If you are unsure about something or lack the necessary knowledge to provide a complete answer, it's better to acknowledge this limitation rather than guessing or making things up.
+
+When communicating with users, maintain a friendly and professional tone. Use your expertise to guide them towards best practices and optimal solutions for their TypeScript needs.
+
+If you understand and are ready to assist, please introduce yourself and ask the user how you can help with their TypeScript programming today!
+`;
+
+async function main(): Promise<void> {
+  const client = initializeAnthropicClient();
+
+  try {
+    const logFilePath = path.join(__dirname, 'ai.log.txt');
+    const logContent = fs.readFileSync(logFilePath, 'utf-8');
+    
+    await sendMessage(client, logContent);
+  } catch (error) {
+    console.error('Error calling Anthropic API:', error);
+  }
+}
+
+async function sendMessage(client: AnthropicBedrock, logContent: string): Promise<void> {
+  const MAX_TOKENS = 4096;
+  const response = await client.messages.create({
+    model: ANTHROPIC_MODEL_ID,
+    max_tokens: MAX_TOKENS,
+    messages: [
+      {
+        "role": "user", 
+        "content": logContent
+      }
+    ],
+    system: systemPrompt
+  });
+  console.log(response);
+
+  // Append content.text to ai.log.txt with a newline character
+  const logFilePath = path.join(__dirname, 'ai.log.txt');
+  const contentText = response.content[0].text;
+  fs.appendFileSync(logFilePath, 'assistant: ' + contentText + '\n');
+
+  // Check for git patch delimiters in the response
+  const patchRegex = /<gitpatch>([\s\S]*?)<\/gitpatch>/g;
+  const patchMatches = contentText.match(patchRegex);
+
+  if (patchMatches) {
+    // Write the patch content to edits.patch
+    const patchFilePath = path.join(__dirname, 'edits.patch');
+    const cleanedPatchContent = patchMatches[0].replace(/<\/?gitpatch>/g, '');
+    fs.writeFileSync(patchFilePath, cleanedPatchContent, { flag: 'w' });
+    console.log(`Git patch written to ${patchFilePath}`);
+  }
+}
+main().catch(console.error);
+=====END=====
+
+summarize
+assistant: This code is a TypeScript project that demonstrates an end-to-end system for publishing and subscribing to TagData messages using Apache Kafka and Redis. The key components are:
+
+1. **tag_data_pb.ts**: Generated Protobuf message definitions for TagData, TagDataEnvelope, and TagDataSnapshot.
+2. **logger/slog.ts**: A simple logger utility.
+3. **kafka/createKafka.ts**: Utility function to create a Kafka instance with SSL/SASL authentication.
+4. **pubsub/publisher.ts**: Publishes TagData messages to a Kafka topic.
+5. **pubsub/worker.ts**: Consumes messages from a Kafka topic and stores them in Redis.
+6. **pubsub/subscriber.ts**: Subscribes to TagData updates from Redis, maintaining a snapshot and handling deltas.
+7. **pubsub/roundtrip.spec.ts**: An end-to-end test that publishes messages and verifies they are received by the subscriber.
+8. **pubsub/topic.ts**: Creates Kafka topics.
+9. **main.ts**: The main entry point that sets up the Worker and handles graceful shutdown.
+10. **automation.ts**: Utility to load configuration from a JSON file.
+
+Additionally, the project includes an EventBus implementation and a sample app that demonstrates its usage.
+
+The main.ai.editor.ts file sets up communication with the Anthropic API, passing the contents of ai.log.txt as the user prompt. The AI assistant's response is appended to the log file, and any git patch suggestions are written to edits.patch.
+
+explain path of events via pubsub wrapper
+assistant: The flow of events in this project is primarily handled through the Publisher, Worker, and Subscriber components, which form a pub-sub architecture:
+
+1. **Publisher**:
+   - The Publisher is responsible for sending TagData messages to a Kafka topic.
+   - When a user wants to publish a message, they create a new TagData instance and call the `send()` method on the Publisher instance.
+   - The Publisher encodes the TagData message, sets the lifetime property, and sends the message to the configured Kafka topic.
+
+2. **Worker**:
+   - The Worker is responsible for consuming messages from the Kafka topic and storing the data in Redis.
+   - When the Worker is initialized, it connects to the Kafka consumer and subscribes to the configured topic.
+   - Whenever a message is received from the Kafka topic, the Worker processes the message, extracts the TagData, and stores it in Redis.
+   - The Worker also keeps track of the group join event to ensure the consumer group has been successfully joined.
+
+3. **Subscriber**:
+   - The Subscriber is responsible for consuming updates from Redis and maintaining a local snapshot of the TagData.
+   - When the Subscriber is initialized, it connects to the Redis cluster and retrieves the existing snapshot data.
+   - The Subscriber then sets up a loop to continuously read messages from the Redis stream, processing both delta updates and deletions.
+   - The Subscriber maintains a local snapshot of the TagData, updating it as new deltas are received and removing entries when deletions are detected.
+   - The Subscriber also periodically checks the heartbeat of each TagData item and removes any expired data from the snapshot.
+   - The Subscriber exposes an `stream()` method that returns an AsyncQueue, allowing other parts of the application to consume the updates.
+
+The end-to-end test in `pubsub/roundtrip.spec.ts` demonstrates the flow of events by:
+
+1. Setting up the Publisher, Worker, and Subscriber instances.
+2. Publishing a snapshot and a series of delta updates using the Publisher.
+3. Verifying that the Subscriber receives the expected snapshot and delta updates.
+
+This pub-sub architecture allows for the decoupling of the message publishing, consumption, and storage, making the system more scalable and maintainable.
+
+expirations, deletes?
+assistant: The code you provided includes handling for message expirations and deletions in the Subscriber component:
+
+1. **Expirations**:
+   - The Subscriber maintains a `lastHeartbeatMap` that keeps track of the last time a TagData item was updated.
+   - In the `checkHeartbeats()` method, the Subscriber iterates through the `lastHeartbeatMap` and checks if the lifetime of each TagData item has been exceeded.
+   - If the lifetime has been exceeded, the Subscriber removes the corresponding entry from the local snapshot and the `lastHeartbeatMap`, and puts a "deleted" message in the AsyncQueue.
+
+2. **Deletions**:
+   - When the Subscriber reads messages from the Redis stream, it checks if the message indicates a deletion.
+   - If a deletion is detected, the Subscriber removes the corresponding entry from the local snapshot and the `lastHeartbeatMap`, and puts a "deleted" message in the AsyncQueue.
+
+This approach allows the Subscriber to maintain an up-to-date snapshot of the TagData, handling both expirations and explicit deletions. Clients consuming the AsyncQueue from the Subscriber can then react to these events and update their own state accordingly.
+
+The key aspects are:
+
+1. The `lastHeartbeatMap` tracks the last time each TagData item was updated, allowing the Subscriber to detect expirations.
+2. The Subscriber processes the Redis stream messages, looking for deletion indicators and updating the local snapshot accordingly.
+3. The Subscriber puts "deleted" messages in the AsyncQueue, allowing downstream consumers to be notified of deletions.
+
+This mechanism ensures that the Subscriber's local snapshot remains consistent with the data stored in Redis, handling both lifetime-based expirations and explicit deletions.
+
+how many tests we got?
+assistant: Based on the provided code, there is one test file: `pubsub/roundtrip.spec.ts`. This file contains an end-to-end test suite named "End-to-End Test" that tests the entire flow of publishing, consuming, and subscribing to TagData messages.
+
+The test suite consists of a single test case titled "should process messages from Publisher to Worker via Redis Subscriber". Here's a breakdown of what the test does:
+
+1. Before the test case:
+   - The `setup()` function is called to create and initialize instances of the Publisher, Subscriber, and Worker components.
+   - A new Kafka topic is created for the test.
+
+2. Inside the test case:
+   - A snapshot TagData message is published using the Publisher.
+   - After a 2-second delay, the Subscriber's `stream()` method is called to start consuming updates from Redis.
+   - The test verifies that the Subscriber receives the expected snapshot.
+   - A loop then publishes multiple delta TagData messages using the Publisher.
+   - The test verifies that the Subscriber receives each delta message correctly.
+
+3. After the test case:
+   - The `teardown()` function is called to perform cleanup tasks, such as shutting down the Worker, disconnecting the Publisher and Subscriber, and verifying the expected number of messages received.
+
+So, in summary, there is one test suite with a single end-to-end test case that covers the key functionality of publishing, consuming, and subscribing to TagData messages using the provided components.
+
+It's worth noting that the test file also includes some TODO comments for additional tests, such as testing Redis and Kafka connection recovery, publisher heartbeat detection, and Redis/Kafka ping-pong mechanisms. However, these tests are not yet implemented in the provided code.
+
+in pusub folder, similar to roundtrip, using git patch, creates tests for deletes in separate/new file ie /dev/null src in patch
+assistant: Here's a git patch that creates a new test file `deletes.spec.ts` in the `pubsub` folder, similar to `roundtrip.spec.ts`, but focused on testing the deletion of TagData messages:
+
+<gitpatch>
+diff --git a/target.src/shasta/src/lib/pubsub/deletes.spec.ts b/target.src/shasta/src/lib/pubsub/deletes.spec.ts
+new file mode 100644
+index 0000000..72f9caf
+--- /dev/null
++++ b/target.src/shasta/src/lib/pubsub/deletes.spec.ts
+@@ -0,0 +1,95 @@
++import {ITopicConfig} from "kafkajs";
++import {TagData, TagDataObjectIdentifier} from "../../../submodules/src/gen/tag_data_pb";
++import {Publisher} from "./publisher";
++import {Subscriber} from "./subscriber";
++import {Worker} from "./worker";
++import {createKafka} from "../kafka/createKafka";
++import crypto from "crypto";
++import {envVarsSync} from "../../automation";
++import {expect} from "chai";
++import {after, before, describe, it} from "mocha";
++
++envVarsSync();
++
++const kafkaTopic = `test_topic-${crypto.randomUUID()}`;
++
++async function waitFor(durationInMs: number): Promise<void> {
++    return new Promise((resolve) => setTimeout(resolve, durationInMs));
++}
++
++async function setup() {
++    const identifier = new TagDataObjectIdentifier();
++    identifier.appId = `some-app-id-${crypto.randomUUID()}`;
++    identifier.tag = `tag-id-${crypto.randomUUID()}`;
++    identifier.scope = `scope-id-${crypto.randomUUID()}`;
++    identifier.name = `name-${crypto.randomUUID()}`;
++
++    const kafka = createKafka(`test-kafka-id-${crypto.randomUUID()}`);
++    const admin = kafka.admin();
++    await admin.connect();
++    const topicConfig: ITopicConfig = {
++        topic: kafkaTopic,
++    };
++    await admin.createTopics({
++        topics: [topicConfig],
++    });
++    await admin.disconnect();
++
++    const publisher = new Publisher(kafka, kafkaTopic);
++    await publisher.connect();
++
++    const subscriber = new Subscriber(identifier);
++
++    const groupId = `test-group-id-${crypto.randomUUID()}`;
++    const worker = new Worker(kafka, groupId, kafkaTopic);
++    await worker.groupJoined();
++
++    return {
++        publisher,
++        subscriber,
++        worker,
++        identifier
++    };
++}
++
++async function teardown(publisher: Publisher, subscriber: Subscriber, worker: Worker) {
++    await worker.shutdown();
++    await publisher.disconnect();
++    await subscriber.disconnect();
++}
++
++describe("Delete Tests", () => {
++    let publisher: Publisher;
++    let subscriber: Subscriber;
++    let worker: Worker;
++    let identifier: TagDataObjectIdentifier;
++
++    before(async () => {
++        const resources = await setup();
++        publisher = resources.publisher;
++        subscriber = resources.subscriber;
++        worker = resources.worker;
++        identifier = resources.identifier;
++    });
++
++    after(async () => {
++        await teardown(publisher, subscriber, worker);
++    });
++
++    it("should handle TagData deletions", async () => {
++        const tagData = new TagData();
++        tagData.identifier = identifier.clone();
++        tagData.data = "Test Value";
++
++        await publisher.send(tagData);
++        await waitFor(2000);
++
++        const snapshotsQueue = await subscriber.stream();
++        let message = await snapshotsQueue.get();
++        expect(message.snapshot).to.exist;
++
++        const tagDataToDelete = new TagData();
++        tagDataToDelete.identifier = identifier.clone();
++        tagDataToDelete.deleted = true;
++        await publisher.send(tagDataToDelete);
++
++        message = await snapshotsQueue.get();
++        expect(message.deleted).to.equal(identifier.name);
++    });
++});
+</gitpatch>
+
+This patch creates a new file `deletes.spec.ts` in the `pubsub` folder, which includes a test suite named "Delete Tests". The test suite contains a single test case titled "should handle TagData deletions".
+
+Here's what the test case does:
+
+1. Before the test case:
+   - The `setup()` function is called to create and initialize instances of the Publisher, Subscriber, and Worker components.
+   - A new Kafka topic is created for the test.
+
+2. Inside the test case:
+   - A TagData message is published using the Publisher.
+   - After a 2-second delay, the Subscriber's `stream()` method is called to start consuming updates from Redis.
+   - The test verifies that the Subscriber receives the expected snapshot.
+   - A new TagData message with the `deleted` flag set to `true` is published using the Publisher.
+   - The test verifies that the Subscriber receives a "deleted" message with the correct identifier.
+
+3. After the test case:
+   - The `teardown()` function is called to perform cleanup tasks, such as shutting down the Worker, disconnecting the Publisher and Subscriber.
+
+This test case specifically focuses on testing the handling of TagData deletions, ensuring that the Subscriber correctly processes and propagates deletion events to downstream consumers.
+
+To apply this patch, you can save the content between the `<gitpatch>` and `</gitpatch>` tags to a file named `deletes.patch`, and then run the following command in your terminal from the project's root directory:
+
+```
+git apply deletes.patch
+```
+
+This will create the new file `deletes.spec.ts` in the `pubsub` folder, allowing you to run the new test suite along with the existing tests.
+
+File: target.src/shasta/dev.env.sh
+=====START=====
+nvm install 16.17.0
+nvm use 16.17.0
+export GIT_SSH_COMMAND=ssh
+export CC=clang
+export CXX='clang++ -stdlib=libc++'
+export KAFKA_BROKERS="b-6.shastamskautomation78.iugl10.c21.kafka.us-east-1.amazonaws.com:9098,b-2.shastamskautomation78.iugl10.c21.kafka.us-east-1.amazonaws.com:9098,b-4.shastamskautomation78.iugl10.c21.kafka.us-east-1.amazonaws.com:9098"
+export REDIS_HOST="clustercfg.shasta-redis-automation788.3ezarj.memorydb.us-east-1.amazonaws.com"
+export REDIS_PORT=6379
+export NODE_NAME="automation788"
+=====END=====
+
+File: target.src/shasta/submodules/build-protos.sh
+=====START=====
+dir=shasta-proto
+repo=git@github.com:airtimemedia/shasta-proto.git
+
+# check if the directory does not exist
+if [ ! -d "$dir" ]; then
+  # run git clone
+  git clone -b "feature/SHASTA-26-Mocha-tests" "$repo" "$dir"
+else
+  echo "Directory $dir already exists"
+fi
+
+npx buf generate shasta-proto/proto/tag_data.proto
+=====END=====
+
+File: target.src/automation-test.sh
+=====START=====
+#!/bin/bash
+set -e
+set -x
+env
+base="$(pwd)"
+
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+nvm install 16.16.0
+
+rm -rf media-ansible
+git clone git@github.com:airtimemedia/media-ansible.git
+
+# generate config file
+AWS_PROFILE=eng ansible-playbook media-ansible/shasta_automation_config.yml -e "env_override=${NODE_NAME} shasta_config_destination=${base}/shasta-automation.conf"
+
+export AUTOMATION_APP_CONFIG=${base}/shasta-automation.conf
+cat ${AUTOMATION_APP_CONFIG}
+
+cd shasta
+GIT_SSH_COMMAND=ssh npm ci
+npm test
+=====END=====
+
+File: target.src/jenkins.sh
+=====START=====
+#!/bin/bash
+
+set -e
+set -x
+export BUILD_NUMBER=${actual_build_number}
+env
+. ~/.nvm/nvm.sh
+# this value should match the one in CMakeLists.txt, but
+# don't include the epoch "2:"
+# set(AIRTIME_NODE_VERSION "2:16.16.0")
+nvm install 16.16.0
+
+top=$(pwd)
+make init
+make update
+(cd ${top}/shasta;GIT_SSH_COMMAND=ssh npm ci)
+make shasta-package-setup
+make release-rpm release-config-rpm > rpm.log 2>&1
+
+(cd ${top}/shasta;npm run lint)
+
+# create version prop file for downstream job
+echo "VERSION_BASE=$(cat ShastaWorkerVersion.txt)" > version.prop
+=====END=====
+
+File: bump.sh
+=====START=====
+#!/bin/bash
+
+# Directory where the file will be moved
+target_dir="./history"
+
+# Check if the target directory exists, create it if it doesn't
+if [ ! -d "$target_dir" ]; then
+    mkdir -p "$target_dir"
+fi
+
+# Get the current time in milliseconds since the epoch and pad it to 20 digits
+epoch_millis=$(printf "%020d" $(date +%s%3N))
+
+# Construct the new filename with the padded epoch milliseconds
+new_filename="${target_dir}/ai.log.${epoch_millis}.txt"
+
+# Move and rename the file
+mv ai.log.txt "$new_filename"
+
+echo "File moved to $new_filename"
+=====END=====
+
+File: no.pager.sh
+=====START=====
+export AWS_PAGER=""
+=====END=====
+
+File: run.sh
+=====START=====
+npx tsx main.ai.editor.ts
+=====END=====
+
+File: patch.sh
+=====START=====
+patch -p1 < edits.patch -r rejects.txt
+=====END=====
+
+File: show.files.sh
+=====START=====
+#!/bin/bash
+
+# Check if the file extension argument is provided
+if [ $# -eq 0 ]; then
+  echo "Usage: $0 <file_extension>"
+  echo "Example: $0 .ts"
+  exit 1
+fi
+
+# Get the file extension from the argument
+extension="$1"
+
+# Validate the file extension
+if [[ ! $extension =~ ^\.[a-zA-Z0-9]+$ ]]; then
+  echo "Invalid file extension: $extension"
+  echo "File extension must start with a dot and contain only alphanumeric characters."
+  exit 1
+fi
+
+# Delimiter for the start of the file body
+start_delimiter="=====START====="
+
+# Delimiter for the end of the file body
+end_delimiter="=====END====="
+
+# Find all files with the specified extension and process each file
+find -L . -name "*$extension" -type f -not -path "*/node_modules/*" -print0 | while IFS= read -r -d '' file; do
+  # Get the relative file path
+  relative_path="${file#./}"
+
+  # Log the relative file path
+  echo "File: $relative_path"
+
+  # Log the start delimiter
+  echo "$start_delimiter"
+
+  # Log the file body
+  cat "$file"
+
+  # Log the end delimiter
+  echo "$end_delimiter"
+
+  # Add a newline for readability
+  echo ""
+done
+=====END=====
+
+File: compile.example.sh
+=====START=====
+npx tsx event-bus.ts >> ai.log.txt 2>&1
+=====END=====
+
+root@552d5ce51c0e:~/repo/dev/omni/monorepo/anthropic/devloop/src# ./patch.sh
+Invalid file name target.src/shasta/src/lib/pubsub/deletes.spec.ts -- skipping patch
+
+assistant: It seems that the git patch I provided failed to apply cleanly. This could happen for a few reasons:
+
+1. **File Paths Mismatch**: The git patch assumes a specific file structure, and if the paths in your local repository don't match the ones in the patch, it will fail to apply. Double-check the file paths in your project and ensure they match the ones in the patch.
+
+2. **Existing File Content**: If the `deletes.spec.ts` file already exists in your local repository, the patch will fail to apply because it's trying to create a file that already exists. You may need to remove or rename the existing file before applying the patch.
+
+3. **Line Endings**: Git patches can be sensitive to line endings (LF vs. CRLF). If the line endings in your local repository don't match the ones in the patch, it may cause conflicts.
+
+To troubleshoot this issue, you can try the following steps:
+
+1. **Check File Paths**: Verify that the file paths in your local repository match the ones in the patch. If they don't, you can adjust the patch accordingly.
+
+2. **Remove Existing File**: If the `deletes.spec.ts` file already exists, remove or rename it, and then try applying the patch again.
+
+3. **Normalize Line Endings**: You can try to normalize the line endings in your local repository and the patch file. One way to do this is by running the following command in your repository:
+
+   ```
+   git config --global core.autocrlf true
+   ```
+
+   This will automatically convert line endings to the appropriate format for your operating system.
+
+4. **Apply Patch Manually**: If the patch still doesn't apply cleanly, you can try applying it manually. Open the `deletes.patch` file in a text editor, copy the content, and paste it into a new file named `deletes.spec.ts` in the `pubsub` folder. This way, you're creating the file manually instead of relying on the patch command.
+
+5. **Inspect the Patch**: If you're still having trouble, try inspecting the patch file itself. Make sure that the content looks correct and that the file paths and content match what you expect.
+
+If you continue to have issues after trying these steps, feel free to provide more details or share the relevant files, and I'll do my best to assist you further.
+
+root@552d5ce51c0e:~/repo/dev/omni/monorepo/anthropic/devloop/src# ./patch.sh
+Invalid file name target.src/shasta/src/lib/pubsub/deletes.spec.ts -- skipping patch
+root@552d5ce51c0e:~/repo/dev/omni/monorepo/anthropic/devloop/src# ls -l target.src/shasta/src/lib/pubsub/
+total 28
+-rw-r--r-- 1 root root 2039 Apr  3 21:55 publisher.ts
+-rw-r--r-- 1 root root 3782 Apr  3 17:42 roundtrip.spec.ts
+-rw-r--r-- 1 root root 6559 Apr  3 21:24 subscriber.ts
+-rw-r--r-- 1 root root  914 Apr  3 17:42 topic.ts
+-rw-r--r-- 1 root root 5955 Apr  3 17:42 worker.ts
+assistant: Based on the output and the file listing, it appears that the `deletes.spec.ts` file does not exist in your local repository's `pubsub` folder. The patch command is designed to modify existing files, but it cannot create new files.
+
+To create the new `deletes.spec.ts` file, you can simply copy the content from the `<gitpatch>` and `</gitpatch>` tags in the patch and create a new file with that content manually.
+
+Here are the steps you can follow:
+
+1. Open a text editor or an IDE of your choice.
+2. Create a new file and paste the content from the `<gitpatch>` and `</gitpatch>` tags into the file.
+3. Save the file with the name `deletes.spec.ts` in the `target.src/shasta/src/lib/pubsub/` directory.
+
+Alternatively, you can use a command-line tool like `nano` or `vim` to create the new file:
+
+```bash
+# Using nano
+nano target.src/shasta/src/lib/pubsub/deletes.spec.ts
+```
+
+Then, paste the content from the `<gitpatch>` and `</gitpatch>` tags, save the file (Ctrl+O, Enter) and exit (Ctrl+X).
+
+After creating the `deletes.spec.ts` file manually, you should be able to run the new test suite along with the existing tests.
+
+regenerate patches please
+assistant: Sure, here are the git patches regenerated for creating the `deletes.spec.ts` file in the `pubsub` folder.
+
+<gitpatch>
+diff --git a/target.src/shasta/src/lib/pubsub/deletes.spec.ts b/target.src/shasta/src/lib/pubsub/deletes.spec.ts
+new file mode 100644
+index 0000000..72f9caf
+--- /dev/null
++++ b/target.src/shasta/src/lib/pubsub/deletes.spec.ts
+@@ -0,0 +1,95 @@
++import {ITopicConfig} from "kafkajs";
++import {TagData, TagDataObjectIdentifier} from "../../../submodules/src/gen/tag_data_pb";
++import {Publisher} from "./publisher";
++import {Subscriber} from "./subscriber";
++import {Worker} from "./worker";
++import {createKafka} from "../kafka/createKafka";
++import crypto from "crypto";
++import {envVarsSync} from "../../automation";
++import {expect} from "chai";
++import {after, before, describe, it} from "mocha";
++
++envVarsSync();
++
++const kafkaTopic = `test_topic-${crypto.randomUUID()}`;
++
++async function waitFor(durationInMs: number): Promise<void> {
++    return new Promise((resolve) => setTimeout(resolve, durationInMs));
++}
++
++async function setup() {
++    const identifier = new TagDataObjectIdentifier();
++    identifier.appId = `some-app-id-${crypto.randomUUID()}`;
++    identifier.tag = `tag-id-${crypto.randomUUID()}`;
++    identifier.scope = `scope-id-${crypto.randomUUID()}`;
++    identifier.name = `name-${crypto.randomUUID()}`;
++
++    const kafka = createKafka(`test-kafka-id-${crypto.randomUUID()}`);
++    const admin = kafka.admin();
++    await admin.connect();
++    const topicConfig: ITopicConfig = {
++        topic: kafkaTopic,
++    };
++    await admin.createTopics({
++        topics: [topicConfig],
++    });
++    await admin.disconnect();
++
++    const publisher = new Publisher(kafka, kafkaTopic);
++    await publisher.connect();
++
++    const subscriber = new Subscriber(identifier);
++
++    const groupId = `test-group-id-${crypto.randomUUID()}`;
++    const worker = new Worker(kafka, groupId, kafkaTopic);
++    await worker.groupJoined();
++
++    return {
++        publisher,
++        subscriber,
++        worker,
++        identifier
++    };
++}
++
++async function teardown(publisher: Publisher, subscriber: Subscriber, worker: Worker) {
++    await worker.shutdown();
++    await publisher.disconnect();
++    await subscriber.disconnect();
++}
++
++describe("Delete Tests", () => {
++    let publisher: Publisher;
++    let subscriber: Subscriber;
++    let worker: Worker;
++    let identifier: TagDataObjectIdentifier;
++
++    before(async () => {
++        const resources = await setup();
++        publisher = resources.publisher;
++        subscriber = resources.subscriber;
++        worker = resources.worker;
++        identifier = resources.identifier;
++    });
++
++    after(async () => {
++        await teardown(publisher, subscriber, worker);
++    });
++
++    it("should handle TagData deletions", async () => {
++        const tagData = new TagData();
++        tagData.identifier = identifier.clone();
++        tagData.data = "Test Value";
++
++        await publisher.send(tagData);
++        await waitFor(2000);
++
++        const snapshotsQueue = await subscriber.stream();
++        let message = await snapshotsQueue.get();
++        expect(message.snapshot).to.exist;
++
++        const tagDataToDelete = new TagData();
++        tagDataToDelete.identifier = identifier.clone();
++        tagDataToDelete.deleted = true;
++        await publisher.send(tagDataToDelete);
++
++        message = await snapshotsQueue.get();
++        expect(message.deleted).to.equal(identifier.name);
++    });
++});
+</gitpatch>
+
+This patch creates a new file `deletes.spec.ts` in the `pubsub` folder, which includes a test suite named "Delete Tests". The test suite contains a single test case titled "should handle TagData deletions".
+
+Here's what the test case does:
+
+1. Before the test case:
+   - The `setup()` function is called to create and initialize instances of the Publisher, Subscriber, and Worker components.
+   - A new Kafka topic is created for the test.
+
+2. Inside the test case:
+   - A TagData message is published using the Publisher.
+   - After a 2-second delay, the Subscriber's `stream()` method is called to start consuming updates from Redis.
+   - The test verifies that the Subscriber receives the expected snapshot.
+   - A new TagData message with the `deleted` flag set to `true` is published using the Publisher.
+   - The test verifies that the Subscriber receives a "deleted" message with the correct identifier.
+
+3. After the test case:
+   - The `teardown()` function is called to perform cleanup tasks, such as shutting down the Worker, disconnecting the Publisher and Subscriber.
+
+This test case specifically focuses on testing the handling of TagData deletions, ensuring that the Subscriber correctly processes and propagates deletion events to downstream consumers.
+
+To apply this patch, you can save the content between the `<gitpatch>` and `</gitpatch>` tags to a file named `deletes.patch`, and then run the following command in your terminal from the project's root directory:
+
+```
+git apply deletes.patch
+```
+
+This will create the new file `deletes.spec.ts` in the `pubsub` folder, allowing you to run the new test suite along with the existing tests.
+
+no git patch, just show the file, delimited like above
+assistant: Sure, here's the content of the `deletes.spec.ts` file, delimited with `=====START=====` and `=====END=====`:
+
+=====START=====
+import {ITopicConfig} from "kafkajs";
+import {TagData, TagDataObjectIdentifier} from "../../../submodules/src/gen/tag_data_pb";
+import {Publisher} from "./publisher";
+import {Subscriber} from "./subscriber";
+import {Worker} from "./worker";
+import {createKafka} from "../kafka/createKafka";
+import crypto from "crypto";
+import {envVarsSync} from "../../automation";
+import {expect} from "chai";
+import {after, before, describe, it} from "mocha";
+
+envVarsSync();
+
+const kafkaTopic = `test_topic-${crypto.randomUUID()}`;
+
+async function waitFor(durationInMs: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, durationInMs));
+}
+
+async function setup() {
+    const identifier = new TagDataObjectIdentifier();
+    identifier.appId = `some-app-id-${crypto.randomUUID()}`;
+    identifier.tag = `tag-id-${crypto.randomUUID()}`;
+    identifier.scope = `scope-id-${crypto.randomUUID()}`;
+    identifier.name = `name-${crypto.randomUUID()}`;
+
+    const kafka = createKafka(`test-kafka-id-${crypto.randomUUID()}`);
+    const admin = kafka.admin();
+    await admin.connect();
+    const topicConfig: ITopicConfig = {
+        topic: kafkaTopic,
+    };
+    await admin.createTopics({
+        topics: [topicConfig],
+    });
+    await admin.disconnect();
+
+    const publisher = new Publisher(kafka, kafkaTopic);
+    await publisher.connect();
+
+    const subscriber = new Subscriber(identifier);
+
+    const groupId = `test-group-id-${crypto.randomUUID()}`;
+    const worker = new Worker(kafka, groupId, kafkaTopic);
+    await worker.groupJoined();
+
+    return {
+        publisher,
+        subscriber,
+        worker,
+        identifier
+    };
+}
+
+async function teardown(publisher: Publisher, subscriber: Subscriber, worker: Worker) {
+    await worker.shutdown();
+    await publisher.disconnect();
+    await subscriber.disconnect();
+}
+
+describe("Delete Tests", () => {
+    let publisher: Publisher;
+    let subscriber: Subscriber;
+    let worker: Worker;
+    let identifier: TagDataObjectIdentifier;
+
+    before(async () => {
+        const resources = await setup();
+        publisher = resources.publisher;
+        subscriber = resources.subscriber;
+        worker = resources.worker;
+        identifier = resources.identifier;
+    });
+
+    after(async () => {
+        await teardown(publisher, subscriber, worker);
+    });
+
+    it("should handle TagData deletions", async () => {
+        const tagData = new TagData();
+        tagData.identifier = identifier.clone();
+        tagData.data = "Test Value";
+
+        await publisher.send(tagData);
+        await waitFor(2000);
+
+        const snapshotsQueue = await subscriber.stream();
+        let message = await snapshotsQueue.get();
+        expect(message.snapshot).to.exist;
+
+        const tagDataToDelete = new TagData();
+        tagDataToDelete.identifier = identifier.clone();
+        tagDataToDelete.deleted = true;
+        await publisher.send(tagDataToDelete);
+
+        message = await snapshotsQueue.get();
+        expect(message.deleted).to.equal(identifier.name);
+    });
+});
+=====END=====
+
+This file contains a test suite named "Delete Tests" that tests the handling of TagData deletions in the pub-sub system. The test suite includes a single test case titled "should handle TagData deletions".
+
+Here's what the test case does:
+
+1. Before the test case:
+   - The `setup()` function is called to create and initialize instances of the Publisher, Subscriber, and Worker components.
+   - A new Kafka topic is created for the test.
+
+2. Inside the test case:
+   - A TagData message is published using the Publisher.
+   - After a 2-second delay, the Subscriber's `stream()` method is called to start consuming updates from Redis.
+   - The test verifies that the Subscriber receives the expected snapshot.
+   - A new TagData message with the `deleted` flag set to `true` is published using the Publisher.
+   - The test verifies that the Subscriber receives a "deleted" message with the correct identifier.
+
+3. After the test case:
+   - The `teardown()` function is called to perform cleanup tasks, such as shutting down the Worker, disconnecting the Publisher and Subscriber.
+
+This test case specifically focuses on testing the handling of TagData deletions, ensuring that the Subscriber correctly processes and propagates deletion events to downstream consumers.

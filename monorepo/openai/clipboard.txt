@@ -1,0 +1,10 @@
+2023-04-05T21:29:50.394029696Z {"level":"info","ts":1680730190.3935258,"msg":"using provided configuration","config_file":"/etc/caddy/Caddyfile","config_adapter":"caddyfile"}
+2023-04-05T21:29:50.395388628Z {"level":"warn","ts":1680730190.3952255,"msg":"Caddyfile input is not formatted; run the 'caddy fmt' command to fix inconsistencies","adapter":"caddyfile","file":"/etc/caddy/Caddyfile","line":2}
+2023-04-05T21:29:50.397398794Z {"level":"info","ts":1680730190.3972626,"logger":"admin","msg":"admin endpoint started","address":"localhost:2019","enforce_origin":false,"origins":["//localhost:2019","//[::1]:2019","//127.0.0.1:2019"]}
+2023-04-05T21:29:50.398098294Z {"level":"warn","ts":1680730190.397995,"logger":"http","msg":"server is listening only on the HTTP port, so no automatic HTTPS will be applied to this server","server_name":"srv0","http_port":80}
+2023-04-05T21:29:50.398828242Z {"level":"info","ts":1680730190.3985217,"logger":"http.log","msg":"server running","name":"srv0","protocols":["h1","h2","h3"]}
+2023-04-05T21:29:50.399366753Z {"level":"info","ts":1680730190.3992279,"msg":"autosaved config (load with --resume flag)","file":"/config/caddy/autosave.json"}
+2023-04-05T21:29:50.399384026Z {"level":"info","ts":1680730190.399337,"msg":"serving initial configuration"}
+2023-04-05T21:29:50.399395377Z {"level":"info","ts":1680730190.3988664,"logger":"tls","msg":"cleaning storage unit","description":"FileStorage:/data/caddy"}
+2023-04-05T21:29:50.399686989Z {"level":"info","ts":1680730190.398904,"logger":"tls.cache.maintenance","msg":"started background certificate maintenance","cache":"0xc000169b90"}
+2023-04-05T21:29:50.399707155Z {"level":"info","ts":1680730190.3995183,"logger":"tls","msg":"finished cleaning storage units"}

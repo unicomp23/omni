@@ -1,0 +1,51 @@
+ls
+up pubSub.ts 
+in typescript, using jet, generate tests
+cd kafka-redis/
+ls
+up pubSub.ts 
+in typescript, using jest, generate tests
+ls
+up pubSub.ts 
+in typescript, using jest, generate tests.  local instances of kafka and redis are running, do not use mocks.
+pwd
+ls
+?
+up *.ts
+up clipboard.txt 
+https://esfx.js.org/esfx/api/disposable.html?tabs=ts#:~:text=AsyncDisposable%20Indicates%20an%20object%20that%20has%20resources%20that,subclass%20AsyncDisposable.%20Merely%20having%20an%20%5BAsyncDisposable.asyncDispose%5D%28%29method%20is%20sufficient.
+use AsyncDisposableStack, https://esfx.js.org/esfx/api/disposable/asyncdisposablestack.html#_esfx_disposable_AsyncDisposableStack_class
+show PubSub, complete
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+do producer, consumer, redis implement asyncdisposable?
+ls
+up pubSub.ts
+up clipboard.txt 
+what interface must be implemented before calling use() ?
+https://esfx.js.org/esfx/api/disposable/asyncdisposablestack.html#_esfx_disposable_AsyncDisposableStack_class
+up clipboard.txt 
+update tests
+up pubSub.test.ts 
+show tests, complete
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+ls
+up pubSub.ts
+show pubSub.test.ts
+show pubSub.test.ts
+show tests
+ls
+up *.ts
+up clipboard.txt 
+why isn't order guaranteed?
+in the test, add a uuid to the topic string, so test runs don't interfere w/ one another
+show "runWorker processes incoming messages and stores them in Redis"
+do the other tests need updating?
+up clipboard.txt 
+up clipboard.txt 
+in subscribe, xrange needs to be called repeatedly

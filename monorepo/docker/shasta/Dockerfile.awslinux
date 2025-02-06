@@ -1,0 +1,57 @@
+# Use Amazon Linux 2023 as the base image
+FROM arm64v8/fedora:latest
+
+# Install necessary packages
+RUN yum update -y && \
+    yum install -y \
+    gcc \
+    gcc-c++ \
+    cmake \
+    make \
+    git \
+    python3 \
+    which \
+    libstdc++-devel \
+    rpm-build \
+    rpmdevtools \
+    ninja-build \
+    python3-devel \
+    libedit-devel \
+    swig \
+    perl-core \
+    zlib-devel \
+    libxml2-devel \
+    ncurses-devel \
+    libcurl-devel \
+    systemd-devel \
+    binutils-devel
+
+# Set environment variables
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++
+
+# Clone the LLVM project from GitHub
+RUN git clone https://github.com/llvm/llvm-project.git /llvm-project
+# Create a build directory
+RUN mkdir /llvm-project/build
+
+# Set the working directory
+WORKDIR /llvm-project/build
+
+# Configure the build with CMake to include Clang, libc++, libc++abi, and other subprojects (including libunwind)
+RUN cmake -G "Unix Makefiles" \
+    -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;lld;polly" \
+    -DLLVM_ENABLE_RUNTIMES="libcxx;libcxxabi;libunwind" \
+    -DLIBUNWIND_ENABLE_SHARED=OFF \
+    -DLIBCXXABI_USE_LLVM_UNWINDER=ON \
+    -DCMAKE_BUILD_TYPE=Release \
+    ../llvm
+
+# Build the project
+RUN make -j$(nproc)
+
+# Install the built LLVM and its subprojects
+RUN make install
+
+# Set the entrypoint to bash
+ENTRYPOINT ["/bin/bash"]

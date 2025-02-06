@@ -1,0 +1,31 @@
+@startuml
+class PubSub {
+    +publish(seqnoPath: SeqnoPath, tagPath: TagPath, message: Message, ttl: number): Promise<void>
+    +subscribe(seqnoPath: SeqnoPath): AsyncQueue<Message>
+    +runWorker(): Promise<void>
+}
+
+class Kafka
+class Redis
+class Producer
+class Consumer
+class Message {
+    +deserialize(serializedData: string, startingOffset: number): {message: Message, offset: number}
+    +set(tag: string, value: string): void
+    +get(tag: string): string | undefined
+    +serialize(): string
+}
+class SeqnoPath
+class TagPath
+
+Kafka "1" --> "1" Producer :Produces <<>>
+Kafka "1" --> "1" Consumer :Consum <<es>>
+
+PubSub "1" --> "1" Kafka :Uses <<>>
+PubSub "1" --> "1" Redis : <<Uses>>
+PubSub "1" --> "1" Producer : <<Produces>>
+PubSub "1" --> "1" Consumer :Consum <<es>>
+PubSub "1" --> "1" Message : <<Interacts>>
+PubSub "1" --> "1" SeqnoPath : <<Interacts>>
+PubSub "1" --> "1" TagPath : <<Interacts>>
+@enduml

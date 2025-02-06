@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  nodejs:
+    build:
+      context: ./docker/nodejs
+    ports:
+      - "3000:3000"
+    networks:
+      - backend
+
+  redis:
+    build:
+      context: ./docker/redis
+    ports:
+      - "6379:6379"
+    networks:
+      - backend
+
+  redpanda:
+    build:
+      context: ./docker/redpanda
+    ports:
+      - "9092:9092"
+    networks:
+      - backend
+
+  nats:
+    build:
+      context: ./docker/nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - backend
+
+  cloudflared:
+    build:
+      context: ./docker/cloudflared
+    ports:
+      - "8080:8080"
+    networks:
+      - backend
+
+  caddy:
+    build:
+      context: ./docker/caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${PWD}/etc/caddy/Caddyfile:/etc/caddy/Caddyfile
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

@@ -1,0 +1,23 @@
+{
+  "name": "latency.typescript",
+  "version": "1.0.0",
+  "description": "NATS and JetStream latency tests using TypeScript",
+  "main": "src/main.ts",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["nats", "jetstream", "latency", "typescript"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "nats": "^2.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.2.2"
+  }
+}

@@ -1,0 +1,13 @@
+@startuml
+
+actor User
+
+usecase "Publish Message" as UC1
+usecase "Subscribe to Messages" as UC2
+usecase "Run Message Processing Worker" as UC3
+
+User --> UC1 : Publish Message
+User --> UC2 : Subscribe to Messages
+User --> UC3 : Run Worker
+
+@enduml

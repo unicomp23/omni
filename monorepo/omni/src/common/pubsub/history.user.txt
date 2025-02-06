@@ -1,0 +1,110 @@
+ls
+up red*.ts
+ls
+up redPub.ts 
+rewrite publish using lua and evalsha
+TS2339: Property 'scriptLoad' does not exist on type 'Redis'. (we are using ioredis)
+ls
+up redPub.ts 
+rewrite publish using lua and evalsha
+ls
+up redPub.ts 
+rewrite the publish method using lua and evalsha
+make the lua more readable by adding local var names to each of the ARGV's.  why do we have PLACEHOLDER?
+{add return} <-- what?
+all redis commands should be happening via evalsha
+luaScript should be a string const
+validate all args on the lua side
+ls
+up redPub.ts 
+rewrite publish using lua and evalsha
+up redPub.ts 
+rewrite publish using lua and evalsha for invoke the lua.  be sure to assign readable var names to KEYS and ARGS on the lua side.
+cd ../..
+ls
+up redPub.ts 
+up clip.txt 
+up redShared.test.ts 
+cd ../..
+up redPub.ts 
+ls
+up redShared.test.ts 
+cd ../..
+cd ..
+ls
+up redPub.ts 
+up redShared.test.ts 
+publish, all redis commands should be executed in lua.  catch and log all errors.
+KEYS and ARGV, give them readable var names
+ls
+ls
+up redPub.ts 
+similar to streamKey, add a streamTagPathTimeout, "timeouts:" + tagPath.serialize(), which gets passed into the lua code and replaces 'tagPath' in the lua xadd call.
+do lua arrays start at 1 or 0?
+what do we call typescript which is running in a loop calling await'able methods?  a thread?  a coroutine?
+if not using yield, can we still call it a coroutine?
+what about fiber?
+is there a typed language which transpiles to lua?
+TypeScriptToLua, is there a typed redis layer?
+TypeScriptToLua can it be used w/ redis lua?
+is there a typed lua which can be used on redis?
+ls
+up redPub.ts 
+in mermaidjs, generate a sequence diagram
+include lua code in diagram
+no, i meant diagram both the typescript and lua code, showing redis streams, etc.
+looking only at the lua code, do a sequence diagram
+pwd
+ls
+cd ../..
+ls
+cd diagrams.tagpath.timeouts/
+ls
+up redPub.ts 
+using svg markup, create a diagram for the publish method
+in gpt streaming, where are is the seqno located in the payload?
+ls
+up redPub.ts 
+in mermaidjs format, generate a block diagram explaining the code, including lua code
+more detail please
+try again
+up cli
+explain the lua script too, please
+cd ../..
+ls
+up red*.ts
+using plain english, and the plantuml format, explain how the code works
+did we explain the lua script?
+where is the plantuml for explaining lua script
+combine into a single readme.md
+render a version we can past into confluence
+more detail please, include the lua code
+ls
+up red*.ts
+in plain english, using metaphors, explain how everything works, including the lua.
+in detail, explain everything in terms of streams, deltas, snapshots, and seqno's
+up red*.ts
+explain everything in terms of streams, deltas, snapshots, and seqno's
+up red*
+explain everything, including lua, in terms of streams, deltas, snapshots, and seqno's.
+convert all typescript and lua to pseudocode
+include TagDataSnapshotIdentifier, and TagDataObjectIdentifier in the pseudocode
+create an architecture doc
+don't call out the lua script separately, include it's functionality under RedPub
+do not say seqnoPath or tagPath, use TagDataSnapshotIdentifier, TagDataObjectIdentifier instead
+call out the various keys as deriving from TagDataSnapshotIdentifier or TagDataObjectIdentifier
+more detail, please
+the lua part, use TagDataSnapshotIdentifier, and TagDataObjectIdentifier when explaining the keys
+for all keys, use TagDataSnapshotIdentifier, and TagDataObjectIdentifier when explaining how the keys are composed
+why are we not stating whether a key comes from TagDataSnapshotIdentifier or TagDataObjectIdentifier?
+can i paste this into confluence?
+using confluence format, create detailed pseudocode, using TagDataSnapshotIdentifier and TagDataObjectIdentifier wherever possible
+in plantuml format, generate diagrams
+using mermaidjs text format, generate diagram(s) showing how everything works
+show each path, or key, as being derived from TagDataSnapshotIdentifier or TagDataObjectIdentifier
+generate an api doc
+in kafkajs, when consumer group worker attaches, where are the partition id's for the worker found?
+ls
+up red*
+create a contrived example of a chat room where TagDataSnapshotIdentifier represents the overall state of the chat room and TagDataObjectIdentifier represents whether each participant's hand is raised or lowered.
+render example for pasting into confluence w/ header "Contrived Example"

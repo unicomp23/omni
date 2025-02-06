@@ -1,0 +1,18 @@
+2736.3 -- Performing Test CXX_SUPPORTS_FNO_RTTI_FLAG - Failed
+2736.3 CMake Error at /llvm-project/libunwind/src/CMakeLists.txt:102 (message):
+2736.3   Compiler doesn't support generation of unwind tables if exception support
+2736.3   is disabled.  Building libunwind DSO with runtime dependency on C++ ABI
+2736.3   library is not supported.
+2736.3 
+2736.3 
+2736.3 -- Configuring incomplete, errors occurred!
+2736.3 See also "/llvm-project/build/runtimes/runtimes-bins/CMakeFiles/CMakeOutput.log".
+2736.3 See also "/llvm-project/build/runtimes/runtimes-bins/CMakeFiles/CMakeError.log".
+2736.3 make[2]: *** [runtimes/CMakeFiles/runtimes.dir/build.make:94: runtimes/runtimes-stamps/runtimes-configure] Error 1
+2736.3 make[1]: *** [CMakeFiles/Makefile2:127726: runtimes/CMakeFiles/runtimes.dir/all] Error 2
+2736.3 make[1]: *** Waiting for unfinished jobs....
+2736.3 [100%] Building CXX object tools/llvm-reduce/CMakeFiles/llvm-reduce.dir/deltas/StripDebugInfo.cpp.o
+2736.7 [100%] Building CXX object tools/llvm-reduce/CMakeFiles/llvm-reduce.dir/llvm-reduce.cpp.o
+2738.4 [100%] Linking CXX executable ../../bin/llvm-reduce
+2741.5 [100%] Built target llvm-reduce
+2741.5 make: *** [Makefile:156: all] Error 2

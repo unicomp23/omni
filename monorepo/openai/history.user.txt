@@ -1,0 +1,26 @@
+cd talks/
+cd ..
+ls
+cd ..
+up clipboard.txt 
+what should be the port on GF_SERVER_ROOT_URL
+what port does graphana default to 
+then 3000 should be in url?
+logger=context userId=0 orgId=0 uname= t=2023-04-05T21:16:30.316246695Z level=info msg="Request Completed" method=GET path=/grafana/login status=302 remote_addr=172.29.0.1 time_ms=11 duration=11.392206ms size=37 referer= handler=notfound
+ls
+cd ..
+up clipboard.txt 
+up clipboard.txt 
+ls
+cd ..
+ls
+cd ..
+cd ..
+cd ..
+ls
+cd ..
+ls
+cd ..
+cd ..
+ls
+cd ../../..

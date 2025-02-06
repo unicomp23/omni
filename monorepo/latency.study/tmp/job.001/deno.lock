@@ -1,0 +1,15 @@
+{
+  "version": "3",
+  "remote": {
+    "https://deno.land/std@0.177.0/_util/asserts.ts": "178dfc49a464aee693a7e285567b3d0b555dc805ff490505a8aae34f9cfb1462",
+    "https://deno.land/std@0.177.0/encoding/base64.ts": "7de04c2f8aeeb41453b09b186480be90f2ff357613b988e99fabb91d2eeceba1",
+    "https://deno.land/std@0.177.0/encoding/csv.ts": "28561bbbd322c6a1446db8771e8c89aeeb3f9304584ab334617b487aa2592975",
+    "https://deno.land/std@0.177.0/encoding/csv/_io.ts": "532380f87f80c162c16a608093714822a4b4a5f30b304d8b9c73c71af3ba3910",
+    "https://deno.land/std@0.177.0/encoding/csv/_parser.ts": "a8f3ee54410f017bd0b3f8257b6d1840884d7daff227d4e9b8adf8ea231b9b0c"
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@std/assert@1"
+    ]
+  }
+}

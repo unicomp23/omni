@@ -1,0 +1,7 @@
+ls
+up readme.redis.lua.md 
+convert sequence diagram to svg
+in the most visually stimulating way possible, transform the sequence diagram into some sort of svg representation
+show an example of svg markup
+using svg markup, transform the sequence diagram
+do the entire diagram, please

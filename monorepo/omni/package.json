@@ -1,0 +1,38 @@
+{
+  "name": "omni",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "start": "npx tsx /root/app/omni/src/server/main.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@bufbuild/buf": "^1.14.0",
+    "@types/jest": "^29.4.0",
+    "@types/uuid": "^9.0.1",
+    "ts-jest": "^29.0.5",
+    "tsx": "^3.12.3",
+    "typescript": "^4.9.5"
+  },
+  "dependencies": {
+    "@bufbuild/connect": "^0.8.1",
+    "@bufbuild/connect-fastify": "^0.8.1",
+    "@bufbuild/protobuf": "^1.0.0",
+    "@bufbuild/protoc-gen-connect-es": "^0.8.1",
+    "@bufbuild/protoc-gen-es": "^1.0.0",
+    "@esfx/async": "^1.0.0",
+    "@esfx/async-queue": "^1.0.0",
+    "@esfx/collections": "^1.0.2",
+    "@esfx/disposable": "^1.0.0",
+    "@jm18457/kafkajs-msk-iam-authentication-mechanism": "^3.1.1",
+    "fastify": "^4.13.0",
+    "ioredis": "^5.3.2",
+    "jest": "^29.4.3",
+    "kafkajs": "^2.2.3",
+    "redis": "^4.6.6",
+    "uuid": "^9.0.0"
+  }
+}

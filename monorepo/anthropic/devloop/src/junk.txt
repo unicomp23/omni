@@ -1,0 +1,16 @@
+As a developer who uses Aircore APIs, I would like tag data objects to expire if they are not refreshed within their lifetimes so that my user interface is not cluttered with detritus associated with operations (such as recordings) that have failed and are no longer in progress.
+
+Acceptance Conditions
+Tag data objects must be removed from the system if they are not updated or refreshed within the lifetime specified when they were created.
+
+Tag data objects that expire must be treated as though they were explicitly deleted.
+
+Shasta clients (in our current environment, the stream notifier) who have registered interest in an app ID and tag combination must be notified that tag data objects associated with that combination have been deleted when those objects expire.
+
+Objects that expire must be indistinguishable from objects that are explicitly deleted from the perspective of Shasta clients.
+
+Must extend the Shasta automation test suite to exercise this functionality.
+
+
+in worker, if deleted not set, expire snapshot and stream using 3 * lifeTime
+in subscriber, if lifeTime set, run a timer to detect absence of updates within 3 * lifeTime

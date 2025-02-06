@@ -1,0 +1,26 @@
+ls
+cd caddy/
+cd ..
+cd ..
+ls
+cd caddy/
+ls
+cd cloudflared/
+cd ..
+cd caddy/
+cd ..
+ls
+cd caddy/
+ls
+cd prometheus/
+ls
+cd prometheus/
+ls
+cd prometheus/
+ls
+cd nats/
+ls
+cd prometheus/
+cd prometheus/
+ls
+cd caddy/

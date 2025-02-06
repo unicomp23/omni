@@ -1,0 +1,223 @@
+# Use a lightweight ARM64 base image
+FROM arm64v8/ubuntu:22.04 AS build
+
+# Set DEBIAN_FRONTEND to noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install required packages and remove unnecessary ones
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    wget \
+    ca-certificates \
+    gnupg \
+    apt-transport-https \
+    curl \
+    build-essential \
+    cmake \
+    ninja-build \
+    ccache \
+    git \
+    git-lfs \
+    yasm \
+    unzip \
+    zip \
+    emacs \
+    exuberant-ctags \
+    python2.7 \
+    python-pip \
+    clang-13 \
+    libstdc++-12-dev \
+    zlib1g-dev \
+    libjemalloc-dev \
+    jq \
+    autoconf \
+    automake \
+    libtool \
+    openssl \
+    libssl-dev \
+    dnsutils \
+    netcat \
+    net-tools \
+    iputils-ping \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set up Python and pip
+RUN ln -sf /usr/bin/python2.7 /usr/bin/python && \
+    ln -sf /usr/bin/pip2 /usr/bin/pip && \
+    pip install --no-cache-dir --upgrade pip
+
+# Set up Git configuration
+RUN git config --global user.email "john.davis@cantina.ai" && \
+    git config --global user.name "John Davis"
+
+# Install Deno
+RUN curl -fsSL https://deno.land/x/install/install.sh | sh && \
+    mv /root/.deno/bin/deno /usr/local/bin
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    echo "source \$HOME/.cargo/env" >> /root/.bashrc
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install NVM
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || exit 1
+
+# Set up NVM environment
+ENV NVM_DIR=/root/.nvm
+ENV NODE_VERSION=18
+
+# Install Node.js and npm
+ENV NODE_VERSION=20.x
+RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g npm@latest
+
+# Verify installation
+RUN node --version && npm --version
+
+# Install global npm packages
+RUN npm install -g cdk8s-cli aws-cdk typescript typescript-language-server
+
+# Add NVM to PATH and bash profile
+RUN echo 'export NVM_DIR="$HOME/.nvm"' >> $HOME/.bashrc && \
+    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> $HOME/.bashrc && \
+    echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> $HOME/.bashrc
+
+# Create necessary directories and clone repositories
+WORKDIR /root/repo/dev
+RUN echo "git clone git@github.com:airtimemedia/shasta.git" >> clone.shasta.sh && \
+    echo "git clone git@github.com:unicomp23/omni.git" >> clone.omni.sh && \
+    chmod +x ./clone.shasta.sh ./clone.omni.sh
+
+# Install AWS CLI
+RUN curl "https://d1vvhvl2y92vvt.cloudfront.net/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip ./aws
+
+# Install Boost libraries
+RUN apt-get update && apt-get install -y --no-install-recommends libboost-all-dev && rm -rf /var/lib/apt/lists/*
+
+# Optionally, set the default clang version to clang-13
+RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 100
+
+# Install Docker Engine and Docker CLI
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
+    echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+    docker-ce \
+    docker-ce-cli \
+    containerd.io \
+    docker-compose-plugin && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb" -o "session-manager-plugin.deb"
+RUN dpkg -i session-manager-plugin.deb
+
+# Set working directory to /tmp for Cloudflare Tunnel installation
+WORKDIR /tmp
+
+# Download and install Cloudflare Tunnel (cloudflared)
+RUN curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb -o cloudflared.deb && \
+    dpkg -i cloudflared.deb && \
+    rm -f cloudflared.deb
+
+# Change working directory back to /root/repo/dev or any other directory as needed
+WORKDIR /root/repo/dev
+
+# Install OpenSSH server
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        openssh-server && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configure SSH server
+RUN mkdir /var/run/sshd && \
+    echo 'root:pwd' | chpasswd && \
+    sed -i 's/#*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Expose SSH server port
+EXPOSE 22
+
+# Download typescript-ctags configuration file
+RUN curl https://raw.githubusercontent.com/jb55/typescript-ctags/master/.ctags -o /root/.ctags
+
+# Install AWS Corretto dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends java-common && rm -rf /var/lib/apt/lists/*
+
+# Install AWS Corretto
+RUN wget -O corretto.deb https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-linux-jdk.deb && \
+    dpkg --install corretto.deb && \
+    rm -f corretto.deb
+
+# Install SDKMAN and Kotlin
+RUN curl -s "https://get.sdkman.io" | bash && \
+    bash -c "source \$HOME/.sdkman/bin/sdkman-init.sh && sdk install kotlin"
+
+# Disable Emacs backup files
+RUN echo "(setq make-backup-files nil)" >> /root/.emacs
+
+RUN apt-get update && apt-get install -y groff less
+
+# Install Maven
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends maven && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Gradle
+RUN wget -q https://services.gradle.org/distributions/gradle-7.6.1-bin.zip -O gradle.zip && \
+    unzip -d /opt/gradle gradle.zip && \
+    rm gradle.zip && \
+    ln -s /opt/gradle/gradle-7.6.1 /opt/gradle/latest
+
+# Add Maven and Gradle to PATH for all shells
+RUN echo 'export PATH=$PATH:/usr/bin:/opt/gradle/latest/bin' >> /etc/profile.d/maven_gradle.sh && \
+    chmod +x /etc/profile.d/maven_gradle.sh
+
+# Ensure profile is sourced for SSH sessions
+RUN echo '. /etc/profile' >> /etc/ssh/sshrc
+
+# Install Docker Buildx
+RUN BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name":' | cut -d'"' -f4) && \
+    mkdir -p /root/.docker/cli-plugins && \
+    curl -L "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-arm64" -o /root/.docker/cli-plugins/docker-buildx && \
+    chmod +x /root/.docker/cli-plugins/docker-buildx
+
+# Start SSH server
+CMD ["/usr/sbin/sshd", "-D"]
+
+# Remove the old golang-go package installation and add the official Go installation
+RUN rm -rf /usr/local/go && \
+    curl -fsSL https://go.dev/dl/go1.22.1.linux-arm64.tar.gz | tar -C /usr/local -xzf - && \
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile && \
+    echo 'export PATH=$PATH:/usr/local/go/bin' >> /root/.bashrc
+
+# Install HashiCorp's official GPG key
+RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
+    gpg --dearmor | \
+    tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
+
+# Add HashiCorp repository
+RUN echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
+    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
+    tee /etc/apt/sources.list.d/hashicorp.list
+
+# Install Terraform
+RUN apt-get update && \
+    apt-get install -y terraform && \
+    rm -rf /var/lib/apt/lists/*
+
+# Enable Terraform autocomplete
+RUN terraform -install-autocomplete

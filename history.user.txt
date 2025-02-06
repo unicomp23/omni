@@ -1,0 +1,8 @@
+ls
+cd monorepo/
+cd monorepo/
+cd monorepo/etc/
+ls
+cd ..
+cd monorepo/
+cd monorepo/

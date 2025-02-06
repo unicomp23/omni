@@ -1,0 +1,172 @@
+version: '3.9'
+
+x-config: &x-config
+  ENVIRONMENT: 'dev'
+  KAFKA_BOOTSTRAP_SERVERS: 'PLAINTEXT://redpanda:9092'
+  REDIS_URI: 'redis://redis:6379'
+
+services:
+  nats:
+    image: nats:2.6.2
+    container_name: nats
+    command: ["-c", "/nats/nats.conf"]
+    ports:
+      - "4222"
+      - "8222"
+      - "7778:8222"
+      - "7777:7777"
+    volumes:
+      - "./etc/nats/nats.conf:/nats/nats.conf"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+    extra_hosts:
+      - "nats-server-exporter:127.0.0.1"
+  nats_exporter:
+    image: natsio/prometheus-nats-exporter:latest
+    command:
+      - -DV
+      - -varz
+      - -connz
+      - -routez
+      - -subz
+      - "http://nats:8222"
+    ports:
+      - '7778:7777'
+    depends_on:
+      - nats
+  nats-websocket-proxy:
+    image: jwnmulder/websockify
+    command: 8000 nats:4222
+    ports:
+      - "8000"
+  nats-cli:
+    image: synadia/nats-box:latest
+    container_name: nats-box
+    depends_on:
+      - nats
+    entrypoint: "/bin/sh"
+    stdin_open: true
+    tty: true
+  redis:
+    image: bitnami/redis:6.2
+    environment:
+      ALLOW_EMPTY_PASSWORD: 'yes'
+    healthcheck:
+      test: 'redis-cli ping'
+      interval: '5s'
+      timeout: '1s'
+      retries: 20
+    ports:
+      - '6379'
+  redpanda:
+    image: vectorized/redpanda:latest
+    command:
+      - redpanda
+      - start
+      - --smp
+      - '1'
+      - --mode
+      - dev-container
+      - --node-id
+      - '0'
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://redpanda:9092
+      - --pandaproxy-addr
+      - PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+      - --advertise-pandaproxy-addr
+      - PLAINTEXT://redpanda:28082,OUTSIDE://redpanda:8082
+      - --set
+      - "redpanda.auto_create_topics_enabled=true"
+    ports:
+      - '8082' # http pandaproxy rest api
+      - '9092' # kafka wire protocol
+    healthcheck:
+      test: 'curl --fail --silent http://localhost:8082/topics || exit 1'
+      interval: '5s'
+      timeout: '1s'
+      retries: 20
+    volumes:
+      - '/var/lib/redpanda/data'
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./etc/caddy:/etc/caddy
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    ports:
+      - '80'
+  cloudflare:
+    image: cloudflare/cloudflared:latest
+    command: [ "tunnel", "--no-autoupdate", "--url", "http://caddy:80" ]
+
+  omni:
+    build:
+      context: omni
+      dockerfile: Dockerfile
+    command: ["sleep", "infinity"]
+    #command: sh -c "npm install && npm start"
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    volumes:
+      - '.:/root/app' # will mount local source code into the container
+    depends_on:
+      redis:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      <<: *x-config
+    ports:
+      - '80'
+  webchat:
+    build:
+      context: examples/web.chat
+      dockerfile: Dockerfile
+    working_dir: /root/app/examples/web.chat
+    #command: ["sleep", "infinity"]
+    command: sh -c "npm install && npm start"
+    healthcheck:
+      test: exit 0
+      interval: 10s
+    volumes:
+      - '.:/root/app' # will mount local source code into the container
+    depends_on:
+      omni:
+        condition: service_healthy
+    environment:
+      <<: *x-config
+    ports:
+      - '8080'
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "password"
+      GF_SERVER_ROOT_URL: "http://localhost/grafana/"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    depends_on:
+      - nats
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - './etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml'
+    depends_on:
+      - nats_exporter
+    ports:
+      - "9090"
+networks:
+  default: { }
+volumes:
+  grafana-storage:

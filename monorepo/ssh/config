@@ -1,0 +1,19 @@
+Host bastion
+    HostName ec2-3-85-52-199.compute-1.amazonaws.com
+    User ec2-user
+    ForwardAgent yes
+    IdentityFile ~/.ssh/john.davis.pem
+    StrictHostKeyChecking no
+
+Host 10.* ip-10-*
+    User ec2-user
+    ProxyCommand ssh bastion -W %h:%p
+    StrictHostKeyChecking no
+
+Host localhost
+    HostName localhost
+    Port 2222
+    User root
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    ForwardAgent yes

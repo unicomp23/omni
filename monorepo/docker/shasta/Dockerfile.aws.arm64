@@ -1,0 +1,76 @@
+# FROM amazonlinux:2023
+FROM arm64v8/amazonlinux:2023
+
+# Install necessary packages
+RUN yum update -y && \
+    yum install -y \
+    gcc \
+    gcc-c++ \
+    cmake \
+    make \
+    git \
+    python3 \
+    which \
+    libstdc++-devel \
+    rpm-build \
+    rpmdevtools \
+    ninja-build \
+    python3-devel \
+    libedit-devel \
+    swig \
+    perl-core \
+    zlib-devel \
+    libxml2-devel \
+    ncurses-devel \
+    libcurl-devel \
+    systemd-devel \
+    binutils-devel
+
+# Set environment variables
+ENV CC=/usr/bin/gcc
+ENV CXX=/usr/bin/g++
+ENV CMAKE_C_COMPILER=/usr/bin/gcc
+ENV CMAKE_CXX_COMPILER=/usr/bin/g++
+
+# Copy the LLVM project directory
+COPY llvm-project /llvm-project
+
+# Create a build directory
+RUN mkdir /llvm-project/build
+
+# Set the working directory
+WORKDIR /llvm-project/build
+
+# Configure the build with CMake to include Clang, libc++, libc++abi, and other subprojects
+RUN cmake -G Ninja \
+    -DLLVM_ENABLE_PROJECTS="clang;compiler-rt;lld;polly" \
+    -DCMAKE_BUILD_TYPE=Release \
+    ../llvm
+
+# Build the project
+RUN ninja
+
+# Install the built LLVM and its subprojects
+RUN ninja install
+
+# Build RPM packages
+RUN mkdir /rpm && \
+    cd /rpm && \
+    find /llvm-project -type f \( \
+        -name "optrecord.py" -o \
+        -name "opt-diff.py" -o \
+        -name "opt-stats.py" -o \
+        -name "opt-viewer.py" \
+    \) -exec sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' {} + && \
+    cmake /llvm-project/llvm \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCPACK_GENERATOR=RPM \
+    -DCPACK_RPM_PACKAGE_RELEASE=1 \
+    -DCPACK_RPM_PACKAGE_LICENSE="Apache-2.0 with LLVM Exception" \
+    -DCPACK_RPM_PACKAGE_GROUP="Development/Tools" \
+    -DCPACK_RPM_PACKAGE_URL="https://llvm.org" && \
+    make package
+
+# Set the entrypoint to bash
+ENTRYPOINT ["/bin/bash"]

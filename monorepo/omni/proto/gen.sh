@@ -1,0 +1,1 @@
+../../protos/gen.sh

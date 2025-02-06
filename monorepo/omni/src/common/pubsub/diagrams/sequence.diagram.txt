@@ -1,0 +1,53 @@
+skinparam sequence {
+    ArrowColor black
+    LifeLineBorderColor black
+    LifeLineBackgroundColor white
+    ParticipantBorderColor black
+    ParticipantBackgroundColor white
+    ActorFontName "Open Sans"
+}
+
+actor "User" as user
+
+participant "PubSub" as pubsub
+participant "Kafka" as kafka
+participant "Redis" as redis
+database "RedisDB" as redis_db
+participant "Producer" as producer
+participant "Consumer" as consumer
+
+pubsub -> kafka: Create new Kafka client
+pubsub -> redis: Create new Redis client
+
+== publish(seqnoPath, tagPath, message, ttl) ==
+
+user -> pubsub: publish(seqnoPath, tagPath, message, ttl)
+pubsub -> producer: lazilyConnectProducer()
+producer -> kafka: connect()
+pubsub ->.kafka: send a new message
+pubsub -> user: return
+
+== subscribe(seqnoPath) ==
+
+user -> pubsub: subscribe(seqnoPath)
+pubsub -> redis: get snapshot and deltas
+redis -> redis_db: Retrieve snapshot and deltas from RedisDB
+pubsub -> user: return outputQueue with messages from RedisDB
+
+== runWorker() ==
+
+user -> pubsub: runWorker()
+pubsub -> consumer: Connect consumer to Kafka
+consumer -> kafka: connect()
+consumer -> kafka: subscribe to Kafka topic
+consumer -> kafka: start consuming messages
+... consumer continues consuming messages ...
+
+== Async disposal ==
+
+user -> pubsub: dispose PubSub
+pubsub -> producer: disconnect()
+pubsub -> consumer: disconnect()
+pubsub -> kafka: close Kafka client
+pubsub -> redis: close Redis client
+pubsub -> user: PubSub fully disposed

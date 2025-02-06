@@ -1,0 +1,39 @@
+ls
+up Caddyfile 
+reverse proxy grafana:3000 to a url
+repeat
+logger=context userId=0 orgId=0 uname= t=2023-04-05T20:01:49.777285221Z level=info msg="Request Completed" method=GET path=/grafana/ status=302 remote_addr=172.21.0.2 time_ms=11 duration=11.09137ms size=29 referer= handler=notfound
+ls
+cd ..
+ls
+up Caddyfile 
+what is GF_SERVER_ROOT_URL
+grafana browser 3000
+ls
+cd ..
+ls
+up Caddyfile 
+Cannot GET /grafana
+up Caddyfile 
+cd ..
+up Caddyfile 
+Cannot GET /grafana
+repeat
+up Caddyfile 
+up Caddyfile 
+up Caddyfile 
+cd ..
+up Caddyfile 
+we already tried that
+ls
+up Caddyfile 
+cd ../..
+up Caddyfile 
+add a prometheus targets entry
+Get "http://nats:9090/metrics": dial tcp 172.22.0.5:9090: connect: connection refused
+Get "http://nats:9090/metrics": dial tcp 172.23.0.4:9090: connect: connection refused
+ls
+up Caddyfile 
+cd ../..
+up Caddyfile 
+cd ../nats/

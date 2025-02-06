@@ -1,0 +1,23 @@
+up clipboard.txt 
+create a docker compose file for launching everything
+failed to solve: failed to compute cache key: "/Caddyfile" not found: not found
+ls
+up clipboard.txt 
+up clipboard.txt 
+build?
+yaml: line 5: did not find expected key
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+howto specify volume mount relative to docker context
+howto specify volume mount relative to docker context, in docker compose
+up clipboard.txt 
+docker compose, how many different contexts?
+what is a build context?  is there another context aside from build context?
+docker compose.  what is a build context?  is there another context aside from build context?
+up clipboard.txt 
+show files
+up clipboard.txt 
+up clipboard.txt 

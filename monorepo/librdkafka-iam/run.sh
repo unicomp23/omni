@@ -1,0 +1,1 @@
+docker run -it --rm my-example-producer "b-3.shastaprovisionedmskc.cpzrgs.c21.kafka.us-east-1.amazonaws.com:9092,b-2.shastaprovisionedmskc.cpzrgs.c21.kafka.us-east-1.amazonaws.com:9092,b-1.shastaprovisionedmskc.cpzrgs.c21.kafka.us-east-1.amazonaws.com:9092" "mytopic"

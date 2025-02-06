@@ -1,0 +1,215 @@
+syntax = "proto3";
+
+package aircore.media.omni.v1;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+enum Tags {
+  UNKNOWN_TAG = 0;
+
+  SCOPE_TYPE = 10; // ScopeTypes
+  PATH_TYPE = 20; // PathTypes
+
+  APP_ID = 105;
+  APP_CHANNEL_ID = 110;
+  APP_GROUP_ID = 115;
+  APP_SUB_GROUP_ID = 120;
+  APP_ROOM_ID = 125;
+  APP_USER_ID = 130;
+  APP_SESSION_ID = 135;
+  APP_BLAH_BLAH_ID = 140;
+  APP_HANDLE_RAISED = 145;
+
+  DB_NAME = 250;
+  DB_TABLE = 255;
+  DB_ROW_ID = 260;
+  DB_COLUMN_ID = 265;
+  DB_BLAH_BLAH_ID = 270;
+}
+
+enum ScopeTypes {
+  UNKNOWN_SCOPE_TYPE = 0;
+
+  SYSTEM = 10;
+  USER = 20;
+}
+
+enum PathTypes {// ie PATH_TYPE tag, specific to a sequence_number_path format
+  UNKNOWN_PATH_TYPE = 0;
+
+  SEQ_APP = 5;
+  SEQ_APP_CHAN = 10;
+  SEQ_APP_ROOM = 15;
+  SEQ_APP_ROOM_GROUP = 20;
+
+  ITEM_APP_CHAN_USER = 25;
+
+  SEQ_DB_NAME_TABLE = 30;
+  ITEM_DB_NAME_TABLE_ROW_COLUMN = 50;
+
+  SEQ_RECORDING = 60;
+  ITEM_RECORDING = 65;
+}
+
+enum Commands {
+  UNKNOWN_COMMAND = 0;
+  UPSERT = 10; // aka PUBLISH
+  DELETE = 20;
+  SUBSCRIBE = 30; // kafka client
+  FETCH_DELTAS = 40; // grpc request/response
+  KEEP_ALIVE = 50;
+}
+
+message PathElement {
+  Tags tag = 10;
+
+  oneof x {
+    ScopeTypes scope_type = 15;
+    PathTypes path_type = 20;
+
+    string text = 25;
+    google.protobuf.Any proto = 30;
+    bytes buffer = 35;
+
+    int32 integer = 50;
+    float fraction = 55;
+  }
+}
+
+message Path {
+  repeated PathElement hops = 10;  // first hop is always a PATH_TYPE:PathTypes.xxx
+}
+
+message KafkaParitionKey {
+  oneof x {
+    Path sequence_number_path = 10; // deterministic serialize // https://github.com/bufbuild/protobuf-es/issues/251
+    int32 partition_integer = 20;
+  }
+}
+
+message KafkaKey {
+  //string kafka_topic = 20;
+  KafkaParitionKey kafka_partition_key = 30;
+}
+
+message Coordinates {
+  KafkaKey kafka_key = 40; // in-mem hash, redis, aurora, etc.
+  string correlation_id = 50;
+}
+
+message Sequencing {
+  google.protobuf.Timestamp epoc = 10;
+  int64 sequence_number = 20;
+}
+
+message Payload {
+  oneof x {
+    bytes buffer = 50;
+    string text = 60;
+    google.protobuf.Any val = 70;
+  }
+
+  Sequencing sequencing = 90;
+
+  Path item_path = 100;
+}
+
+message AirCoreFrame {
+  Commands command = 10;
+
+  // global addressing
+  Coordinates send_to = 20;
+
+  // correlation of response(s) 1:1, 1:n
+  Coordinates reply_to = 30;
+
+  // the value, scalar, blob, etc.
+  repeated Payload payloads = 50;
+
+  // the value published, if network connectivity lost
+  // ie heartbeat timeout
+  repeated Payload timeout_payloads = 60;
+
+  string heartbeat_id = 70;
+}
+
+/// in-mem tracking data structures
+message Subscriptions {
+  map<string/*correlation_id*/, KafkaKey> callbacks = 10;
+}
+
+message UpsertRequest {
+  Path sequence_number_path = 10;
+  Payload payload = 30;
+}
+
+message DelayedUpsertRequest {
+  Path sequence_number_path = 10;
+  Payload inital = 30;
+  Payload delayed = 40; // timeout is system setting
+}
+
+message DelayedUpsertResponse {
+  string heartbeat_id = 10;
+  Path sequence_number_path = 20;
+  Path item_path = 30;
+}
+
+message KeepAlives {
+  repeated DelayedUpsertResponse keep_alives = 10;
+}
+
+message GetSnapshotResponse {
+  repeated Payload payloads = 10; // map<item_path, payload>
+  int64 deltas_start_sequence_number = 20;
+}
+
+message GetDeltasRequest {
+  Path sequence_number_path = 10;
+  int64 sequence_number = 20;
+}
+
+message GetDeltasResponse {
+  repeated Payload payloads = 10;
+}
+
+service Omni {
+  rpc Publish(UpsertRequest) returns (google.protobuf.Empty);
+
+  rpc PublishWithTimeout(DelayedUpsertRequest) returns (DelayedUpsertResponse);
+  rpc PublishWithTimeoutHeartbeats(KeepAlives) returns (google.protobuf.Empty);
+
+  rpc GetSnapshot(Path /*sequence_number_path*/) returns (GetSnapshotResponse);
+  rpc GetDeltas(GetDeltasRequest) returns (GetDeltasResponse);
+
+  rpc Ping(google.protobuf.Empty) returns (google.protobuf.Empty);
+}
+
+// ex. sequence_number_path = app_id/123/  chan_id/456
+//
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /hand_raised//
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//
+//     item_path = app_id/123  /chan_id/456  /user_id/789  /session_id/321 presence//
+//     item_path = app_id/123  /chan_id/456  /config//  /channel_background_color//
+
+// a "snapshot" lives at the sequence_number_path level
+// "snapshot" is composed of item_path's, where each item_path is the tag for a value.  think map<tag, value>
+// "delta" holds a mutation in the item_path/value pair
+// "delta" is merged into the "snapshot"
+
+message OmniWebsocketFrame {
+  oneof x {
+    UpsertRequest publish_request = 100;
+    DelayedUpsertRequest publish_with_timeout_request = 200;
+    DelayedUpsertResponse publish_with_timeout_response = 300;
+    KeepAlives publish_with_timeout_heartbeats_request = 400;
+    Path get_snapshot_request = 500;
+    GetSnapshotResponse get_snapshot_response = 600;
+    GetDeltasRequest get_deltas_request = 700;
+    GetDeltasResponse get_deltas_response = 800;
+    google.protobuf.Empty ping_request = 900;
+  }
+}

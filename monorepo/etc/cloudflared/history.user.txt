@@ -1,0 +1,5 @@
+ls
+cat config.yml 
+up config.yml 
+Cannot GET /grafana
+cd ..

@@ -1,0 +1,30 @@
+```
+diff --git a/docker-compose.yml b/docker-compose.yml
+index xxxxxxx..yyyyyyy 100644
+--- a/docker-compose.yml
++++ b/docker-compose.yml
+@@ -xx,6 +yy,18 @@
+       - '.:/root/app' # will mount local source code into the container
+     ports:
+       - '8080'
++  grafana:
++    image: grafana/grafana:latest
++    container_name: grafana
++    ports:
++      - 3000:3000
++    volumes:
++      - grafana-storage:/var/lib/grafana
++    environment:
++      - GF_INSTALL_PLUGINS=grafana-piechart-panel,grafana-clock-panel
++      - GF_SECURITY_ADMIN_USER=admin
++      - GF_SECURITY_ADMIN_PASSWORD=secret
++
+ networks:
+   default: { }
+
+@@ -xx,3 +yy,6 @@
+
+ volumes:
+   redpanda-data:
++  grafana-storage:
+```

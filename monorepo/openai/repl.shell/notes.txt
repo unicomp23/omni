@@ -1,0 +1,7 @@
+count by (__name__) ({__name__=~".+"})
+
+/prometheus/targets
+
+gnatsd_varz_slow_consumers{}
+
+sum(gnatsd_varz_out_bytes)

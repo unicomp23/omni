@@ -1,0 +1,50 @@
+ls
+up prometheus.yml 
+cd ../..
+ls
+up prometheus.yml 
+ls
+cd ../..
+ls
+up prometheus.yml 
+ls
+cd ../..
+ls
+up prometheus.yml 
+no data
+ls
+up prometheus.yml 
+howto prometheus add nats
+howto prometheus add nats data source
+prometheus ui, add nats data source
+no data
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])  no data
+ls
+cd ../..
+ls
+up prometheus.yml 
+cd ../..
+up prometheus.yml 
+Get "http://nats:9090/metrics": dial tcp 172.23.0.4:9090: connect: connection refused
+no data
+no data
+ls
+up prometheus.yml 
+no data
+cd ../..
+up prometheus.yml 
+cd ..
+up prometheus.yml 
+cd ../..
+up prometheus.yml 
+no data
+          await finished.promise;
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])
+no data
+ls
+cd ../..
+up prometheus.yml 
+Get "http://nats:7778/metrics": dial tcp 172.29.0.7:7778: connect: connection refused
+nats_exporter, what's the curl url?
+ls
+cd ../..

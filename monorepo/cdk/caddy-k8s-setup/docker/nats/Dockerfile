@@ -1,0 +1,6 @@
+FROM nats:2.6.1
+
+# Enable JetStream
+ENV NATS_JETSTREAM_ENABLED="true"
+
+EXPOSE 4222 8222

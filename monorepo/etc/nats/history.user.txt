@@ -1,0 +1,10 @@
+ls
+up nats.conf 
+cd ..
+ls
+up nats.conf 
+..cd 
+ls
+cd ..
+up nats.conf 
+cd ../prometheus/

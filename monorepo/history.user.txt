@@ -1,0 +1,136 @@
+ls
+cd etc/
+ls
+up docker-compose.yml 
+ls
+cd etc/caddy/
+ls
+up docker-compose.yml 
+is GF_SERVER_ROOT_URL correct?
+howto graphana caddyfile
+howto graphana caddyfile and cloudflare argo tunnel
+cd ..
+cd openai/
+ls
+up docker-compose.yml 
+cd etc/
+cd openai/
+ls
+cd etc/caddy/
+cd etc/
+up docker-compose.yml 
+Cannot GET /grafana
+cd ..
+up docker-compose.yml 
+it works, thanks!
+how do i setup graphana to monitor nats jetstream?
+ls
+cd ..
+cd etc/
+up docker-compose.yml 
+[+] Running 1/1
+cd ..
+up clipboard.txt 
+ls
+up clipboard.txt 
+why not latest?
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])
+grafana say "no data"
+ls
+up docker-compose.yml 
+cd etc/
+up docker-compose.yml 
+up clipboard.txt 
+ls
+show nats_exporter
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])
+no data
+continue
+continue
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])
+up docker-compose.yml 
+[1] 2023/04/05 22:35:35.918784 [FTL] Unable to parse URL "http": parse "http": invalid URI for request
+2023-04-05T22:45:01.955860081Z [1] 2023/04/05 22:45:01.955377 [FTL] error starting the exporter: no Collectors specfied
+ls
+up clipboard.txt 
+up clipboard.txt 
+do we need nats_exporter?  is there another way?
+ls
+up clipboard.txt 
+we tried that already
+https://github.com/nats-io/prometheus-nats-exporter
+ls
+up docker-compose.yml 
+ls
+up clipboard.txt 
+up clipboard.txt 
+does have jetstream enabled affect nats?
+howto enable nats monitoring endpoints
+should docker compose mount a config volume for nats?
+nats example query prometheus
+no data
+ls
+up docker-compose.yml 
+up docker-compose.yml 
+prometheus, no data
+ls
+cd etc/nats/
+ls
+up clipboard.txt 
+no data
+ls
+up docker-compose.yml 
+cd etc/
+ls
+up clipboard.txt 
+ls
+up docker-compose.yml 
+cd etc/
+the ui looks different, do i have a newer prometheus?
+pwd
+ls
+cd etc/caddy/
+ls
+up docker-compose.yml 
+cd etc/prometheus/
+ls
+up clipboard.txt 
+up clipboard.txt 
+up docker-compose.yml 
+up clipboard.txt 
+cd etc/prometheus/
+up docker-compose.yml 
+no data
+no data
+cd etc/prometheus/
+up docker-compose.yml 
+ls
+up clipboard.txt 
+ls
+up docker-compose.yml 
+up clipboard.txt 
+up clipboard.txt 
+up clipboard.txt 
+up docker-compose.yml 
+rate(jetstream_consumer_delivered_msgs{peer="nats"}[1m])
+no data
+cd etc/prometheus/
+up etc/prometheus/prometheus.yml 
+ls
+up clipboard.txt 
+Get "http://nats:7778/metrics": dial tcp 172.30.0.7:7778: connect: connection refused
+up etc/nats/nats.conf 
+up etc/nats/nats.conf 
+up etc/prometheus/prometheus.yml 
+up docker-compose.yml 
+up docker-compose.yml 
+up etc/prometheus/prometheus.yml 
+http://nats:8222/metrics server returned HTTP status 404 Not Found
+https://github.com/nats-io/prometheus-nats-exporter
+what metrics does nats_exporter support
+how do i query connection metrics in prometheus
+what about byte counts
+howto query connection count
+cd openai/repl.emacs/
+cd ../../../..
+cd ../..

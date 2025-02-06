@@ -1,0 +1,126 @@
+# Use a lightweight ARM64 Fedora base image
+FROM arm64v8/fedora:latest AS build
+
+# Install required packages and remove unnecessary ones
+RUN dnf install -y \
+    wget \
+    ca-certificates \
+    gnupg \
+    curl \
+    make \
+    cmake \
+    ninja-build \
+    ccache \
+    git \
+    git-lfs \
+    golang \
+    yasm \
+    unzip \
+    zip \
+    emacs \
+    ctags \
+    python3 \
+    python3-pip \
+    clang \
+    libstdc++-devel \
+    zlib-devel \
+    jemalloc-devel \
+    jq \
+    autoconf \
+    automake \
+    libtool \
+    openssl \
+    && dnf clean all
+
+# Set up Python and pip
+RUN ln -sf /usr/bin/python3 /usr/bin/python && \
+    ln -sf /usr/bin/pip3 /usr/bin/pip && \
+    pip install --no-cache-dir --upgrade pip
+
+# Set up Git configuration
+RUN git config --global user.email "john.davis@cantina.ai" && \
+    git config --global user.name "John Davis"
+
+# Install Deno
+RUN curl -fsSL https://deno.land/x/install/install.sh | sh && \
+    mv /root/.deno/bin/deno /usr/local/bin
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    echo "source \$HOME/.cargo/env" >> /root/.bashrc
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install Node.js
+RUN curl -fsSL https://rpm.nodesource.com/setup_18.x | bash - && \
+    dnf install -y nodejs && \
+    npm install -g cdk8s-cli aws-cdk typescript typescript-language-server
+
+# Create necessary directories and clone repositories
+WORKDIR /root/repo/dev
+RUN echo "git clone git@github.com:airtimemedia/shasta.git" >> clone.shasta.sh && \
+    echo "git clone git@github.com:unicomp23/omni.git" >> clone.omni.sh && \
+    chmod +x ./clone.shasta.sh ./clone.omni.sh
+
+# Install AWS CLI
+RUN curl "https://d1vvhvl2y92vvt.cloudfront.net/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip ./aws
+
+# Install Boost libraries
+RUN dnf install -y boost-devel && dnf clean all
+
+# Add Docker CE repository and install Docker Engine and Docker CLI
+RUN dnf install -y dnf-plugins-core && \
+    dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo && \
+    dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin && \
+    dnf clean all
+
+# Install Session Manager plugin
+RUN curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/linux_arm64/session-manager-plugin.rpm" -o "session-manager-plugin.rpm" && \
+    rpm -ivh session-manager-plugin.rpm
+
+# Set working directory to /tmp for Cloudflare Tunnel installation
+WORKDIR /tmp
+
+# Download and install Cloudflare Tunnel (cloudflared)
+RUN curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared && \
+    chmod +x cloudflared
+
+# Change working directory back to /root/repo/dev or any other directory as needed
+WORKDIR /root/repo/dev
+
+# Install OpenSSH server
+RUN dnf install -y openssh-server && dnf clean all
+
+# Configure SSH server
+RUN mkdir /var/run/sshd && \
+    echo 'root:pwd' | chpasswd && \
+    sed -i 's/#*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Expose SSH server port
+EXPOSE 22
+
+# Download typescript-ctags configuration file
+RUN curl https://raw.githubusercontent.com/jb55/typescript-ctags/master/.ctags -o /root/.ctags
+
+# Install AWS Corretto dependencies
+RUN dnf install -y java-latest-openjdk-devel && dnf clean all
+
+# Install AWS Corretto
+RUN curl -OL https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-linux-jdk.rpm && \
+    rpm -ivh amazon-corretto-11-aarch64-linux-jdk.rpm && \
+    rm amazon-corretto-11-aarch64-linux-jdk.rpm
+
+# Install SDKMAN and Kotlin
+RUN curl -s "https://get.sdkman.io" | bash && \
+    bash -c "source \$HOME/.sdkman/bin/sdkman-init.sh && sdk install kotlin"
+
+# Disable Emacs backup files
+RUN echo "(setq make-backup-files nil)" >> /root/.emacs
+
+RUN dnf install -y groff less && dnf clean all
+
+# Start SSH server
+CMD ["/usr/sbin/sshd", "-D"]

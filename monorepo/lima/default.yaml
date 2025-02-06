@@ -1,0 +1,40 @@
+# Lima VM configuration
+arch: "aarch64"
+
+# Use native macOS virtualization
+vmType: "vz"
+
+# VM resources
+cpus: 4
+memory: "24GiB"
+disk: "100GiB"
+
+# Use Ubuntu latest ARM64 image
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+
+# Mount home directory and docker socket
+mounts:
+  - location: "~"
+    writable: true
+
+# SSH configuration
+ssh:
+  forwardAgent: true
+  loadDotSSHPubKeys: true
+  localPort: 22222
+  forwardX11: false
+  forwardX11Trusted: false
+
+# Docker support
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      apt-get update
+      apt-get install -y docker.io docker-compose
+      addgroup lima docker
+      systemctl enable docker
+      systemctl start docker
+      usermod -aG docker ubuntu 

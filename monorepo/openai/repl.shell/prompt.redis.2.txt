@@ -1,0 +1,40 @@
+In TypeScript, using ioredis library, create a class called RedPubSub that utilizes the event sourcing pattern with Redis as the backend. Also, use the esfx AsyncQueue for managing concurrency.
+https://github.com/esfx/esfx/blob/6ca9e57a429a5678386e8c895bfe2eacfcd320de/packages/async-queue/src/index.ts
+
+The system shall have two pathways, SeqnoPath and TagPath, both extending the PathArray.
+From an event sourcing perspective, SeqnoPath is used to track snapshots while TagPath tracks deltas, which together form the snapshot. The prefix of each TagPath should be the SeqnoPath.
+
+Use Redis hset and hgetall commands to update and fetch snapshots; the key for these operations will be the SeqnoPath, and the field name will be the TagPath.
+Deltas are tracked using xadd and xrange commands; the stream key in these operations is the SeqnoPath, while the message contains a serialized TagPath in a field called "tagPath".
+
+Create two classes, RedPub and RedSub, to handle publishing and subscribing operations.
+
+For RedPub.publish(SeqnoPath, TagPath, Message): both update the snapshot and add deltas to the Redis stream as part of the atomic operation. First, perform an incr operation on SeqnoPath to get the seqno, then add a seqno field to the Message. The serialized Message should always include a seqno for xadd and hset commands. Use the obtained seqno as the ID for xadd instead of "*". Make sure that the first entries in the TagPath match the SeqnoPath.
+
+For RedSub.subscribe(SeqnoPath): use an esfx AsyncQueue where the first entry is the snapshot from the hgetall operation. The starting seqno for the xrange operation will be the maximum seqno found in the snapshot Messages. In successive entries, store deltas fetched from xrange. Keep polling xrange in a loop with incrementing seqno.
+Ensure JSON is not used in the implementation.
+
+Prefix keys with the following:
+- "seqno:" for incr operations
+- "stream:" for xadd stream keys
+- "snap:" for hset keys
+
+```
+        const redisClient = new Redis({
+            // Provide the required configuration options here
+            host,
+            port,
+        });
+```
+
+```
+    async subscribe(seqnoPath: SeqnoPath): Promise<{
+        queue: AsyncQueue<{
+            tagPath: TagPath,
+            seqno: string,
+            message: Message }>,
+        queue_worker: Promise<void>
+    }> {
+```
+
+Optimize the solution for consistency with the requirements, and ensure it adheres to the ioredis API and the provided prompt.code.txt.

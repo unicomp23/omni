@@ -1,0 +1,19 @@
+in typescript, using ioredis
+https://github.com/esfx/esfx/blob/6ca9e57a429a5678386e8c895bfe2eacfcd320de/packages/async-queue/src/index.ts
+SeqnoPath and TagPath both extend PathArray
+from an event sourcing perspective, SeqnoPath tracks the snapshot and TagPath tracks the deltas which are merged together to form the snapshot.
+The prefix of each TagPath is the SeqnoPath.
+Redis hset and hgetall are used to update and fetch the snapshot.  The key is SeqnoPath, and the field name is TagPath.
+Deltas are tracked via xadd, and xrange.  The stream key is the SeqnoPath, the message contains a tagPath field which is a serialized TagPath.
+In a class named RedPubSub.
+publish(SeqnoPath,TagPath,Message) where both the snapshot is updated, and deltas are put on redis stream, both should be done together atomically.  when publishing, do an incr on SeqnoPath to get seqno, and add seqno field to Message.  xadd, hset should always contain a seqno in the serialized Message
+xadd should use the incr() seqno as the stream entry id.
+when publishing, make sure first entries in TagPath match SeqnoPath
+subscribe(SeqnoPath) uses an esfx AsyncQueue where first entry is snapshot from hgetall, the start seqno for xrange is the max seqno found in snapshot Message's.  subsequent entries are deltas from xrange and xrange is polled in a loop using incrementing seqno.
+do not use json.
+split RedPubSub into RedPub and RedSub.
+incr key should be prefixed w/ "seqno:"
+xadd stream keys should be prefixed w/ "stream:"
+hset keys should be prefixed w/ "snap:"
+optimize for consistency w/ requirements
+optimize for consistency w/ ioredis api and prompt.code.txt

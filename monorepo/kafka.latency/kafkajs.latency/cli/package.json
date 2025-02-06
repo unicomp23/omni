@@ -1,0 +1,20 @@
+{
+  "name": "cli",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node launch_containers.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@aws-sdk/client-ec2": "^3.696.0",
+    "@aws-sdk/client-ssm": "^3.696.0",
+    "aws-sdk": "^2.1692.0",
+    "ssh2": "^1.16.0",
+    "uuid": "^11.0.3"
+  }
+}
