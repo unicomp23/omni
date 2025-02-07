@@ -14,7 +14,3 @@ fi
 
 # Connect to Lima VM with SSH agent forwarding
 limactl shell default 
-
-# Added GitHub SSH connection test
-echo "Testing GitHub SSH connection..."
-ssh -T git@github.com || true 
