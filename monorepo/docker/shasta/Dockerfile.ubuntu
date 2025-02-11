@@ -221,3 +221,25 @@ RUN apt-get update && \
 
 # Enable Terraform autocomplete
 RUN terraform -install-autocomplete
+
+# Remove existing CMake installation and install latest version
+RUN apt-get update && \
+    apt-get remove --purge -y cmake && \
+    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends cmake && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create directory structure and add wrapper script
+RUN mkdir -p /opt/media-tools-bin/linux/cmake/3.26.4/bin
+
+# Copy and set up CMake wrapper script
+COPY cmake-wrapper.sh /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake
+RUN chmod +x /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake && \
+    # Verify the wrapper script works
+    /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake --version
+
+# Set environment variables
+ENV CMAKE_COMMAND=/usr/bin/cmake \
+    PATH="/usr/bin:${PATH}"
