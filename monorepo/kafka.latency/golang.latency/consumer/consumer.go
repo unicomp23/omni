@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ var (
 	lastMessageTime   atomic.Value
 	logFile           *os.File
 	logMutex          sync.Mutex // Add mutex for synchronizing log writes
+	lineCount         atomic.Uint64
 )
 
 // Add error handling helper
@@ -48,7 +50,15 @@ func main() {
 	if err := initialize(ctx); err != nil {
 		log.Fatalf("Failed to initialize: %v", err)
 	}
-	defer logFile.Close()
+
+	// Close the final log file
+	defer func() {
+		logMutex.Lock()
+		defer logMutex.Unlock()
+		if logFile != nil {
+			logFile.Close()
+		}
+	}()
 
 	latency := &Latency{duration: newMetrics()}
 
@@ -91,14 +101,88 @@ func initialize(ctx context.Context) error {
 
 	lastMessageTime.Store(time.Now())
 
-	// Create log filename with sortable timestamp
-	timestamp := time.Now().Format("20060102_150405")
-	logFileName := fmt.Sprintf("consumer.%s.jsonl", timestamp)
+	// Create initial log file with milliseconds from epoch
+	if err := createNewLogFile(); err != nil {
+		return err
+	}
 
+	return nil
+}
+
+// createNewLogFile creates a new log file with milliseconds from epoch in the filename
+func createNewLogFile() error {
+	logMutex.Lock()
+	defer logMutex.Unlock()
+
+	// Close existing file if it's open
+	if logFile != nil {
+		oldFile := logFile
+		logFile = nil
+
+		// Close the file in a goroutine to avoid blocking
+		go func(file *os.File, filename string) {
+			file.Close()
+			// Compress the file asynchronously
+			go compressFile(filename)
+		}(oldFile, oldFile.Name())
+	}
+
+	// Create log filename with milliseconds from epoch (zero-padded to 13 digits)
+	millis := time.Now().UnixNano() / int64(time.Millisecond)
+	logFileName := fmt.Sprintf("consumer.%013d.jsonl", millis)
+
+	// Open log file in current directory
 	var err error
 	logFile, err = os.OpenFile(logFileName, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open log file: %w", err)
+	}
+
+	// Reset line counter
+	lineCount.Store(0)
+
+	log.Printf(`{"type":"info","message":"created_new_log_file","filename":%q}`, logFileName)
+	return nil
+}
+
+// compressFile compresses the given file using gzip
+func compressFile(filename string) {
+	log.Printf(`{"type":"info","message":"starting_compression","filename":%q}`, filename)
+
+	// Use gzip command to compress the file
+	cmd := exec.Command("gzip", filename)
+	if err := cmd.Run(); err != nil {
+		log.Printf(`{"type":"error","message":"compression_failed","filename":%q,"error":%q}`, filename, err.Error())
+		return
+	}
+
+	log.Printf(`{"type":"info","message":"compression_complete","filename":%q}`, filename)
+}
+
+// writeToLogFile writes data to the log file and handles rotation if needed
+func writeToLogFile(data []byte) error {
+	logMutex.Lock()
+	defer logMutex.Unlock()
+
+	if logFile == nil {
+		return fmt.Errorf("log file is nil")
+	}
+
+	// Write the data and a newline
+	if _, err := logFile.Write(append(data, '\n')); err != nil {
+		return err
+	}
+
+	// Increment line count and check if we need to rotate
+	newCount := lineCount.Add(1)
+	if newCount >= 1000000 { // Rotate after 10^6 lines
+		// Release the lock before creating a new file (which acquires the lock)
+		logMutex.Unlock()
+		err := createNewLogFile()
+		logMutex.Lock() // Re-acquire the lock
+		if err != nil {
+			return fmt.Errorf("failed to rotate log file: %w", err)
+		}
 	}
 
 	return nil
@@ -209,11 +293,9 @@ func (l *Latency) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama
 		}
 
 		if bytes, err := json.Marshal(event); err == nil {
-			logMutex.Lock() // Lock before writing to file
-			if _, err := logFile.Write(append(bytes, '\n')); err != nil {
+			if err := writeToLogFile(bytes); err != nil {
 				logError("failed to write log entry", err)
 			}
-			logMutex.Unlock() // Unlock after writing
 		} else {
 			logError("failed to marshal event", err)
 		}

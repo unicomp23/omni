@@ -48,7 +48,7 @@ echo "Using binary: $BINARY"
 $BINARY \
   -broker "$BOOTSTRAP_SERVER" \
   -topic "latency-test" \
-  -thread 10 \
+  -thread 100 \
   -ack 1 \
   -addr :8082 \
   -iterations 7200

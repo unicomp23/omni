@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"strings"
 	"sync"
@@ -28,6 +30,8 @@ var (
 	payload              []byte
 	wg                   sync.WaitGroup
 	logFile              *os.File
+	lineCount            atomic.Uint64
+	logFileMutex         sync.Mutex
 )
 
 func init() {
@@ -38,9 +42,31 @@ func init() {
 		log.Panicf("Unable to generate payload %v", err)
 	}
 
-	// Create log filename with sortable timestamp
-	timestamp := time.Now().Format("20060102_150405")
-	logFileName := "producer." + timestamp + ".jsonl"
+	// Create initial log file with milliseconds from epoch
+	createNewLogFile()
+}
+
+// createNewLogFile creates a new log file with milliseconds from epoch in the filename
+func createNewLogFile() {
+	logFileMutex.Lock()
+	defer logFileMutex.Unlock()
+
+	// Close existing file if it's open
+	if logFile != nil {
+		oldFile := logFile
+		logFile = nil
+
+		// Close the file in a goroutine to avoid blocking
+		go func(file *os.File, filename string) {
+			file.Close()
+			// Compress the file asynchronously
+			go compressFile(filename)
+		}(oldFile, oldFile.Name())
+	}
+
+	// Create log filename with milliseconds from epoch (zero-padded to 13 digits)
+	millis := time.Now().UnixNano() / int64(time.Millisecond)
+	logFileName := fmt.Sprintf("producer.%013d.jsonl", millis)
 
 	// Open log file in current directory
 	var err error
@@ -48,6 +74,25 @@ func init() {
 	if err != nil {
 		log.Fatalf("Failed to open log file: %v", err)
 	}
+
+	// Reset line counter
+	lineCount.Store(0)
+
+	log.Printf("Created new log file: %s", logFileName)
+}
+
+// compressFile compresses the given file using gzip
+func compressFile(filename string) {
+	log.Printf("Starting compression of %s", filename)
+
+	// Use gzip command to compress the file
+	cmd := exec.Command("gzip", filename)
+	if err := cmd.Run(); err != nil {
+		log.Printf("Error compressing file %s: %v", filename, err)
+		return
+	}
+
+	log.Printf("Successfully compressed %s", filename)
 }
 
 func main() {
@@ -77,7 +122,14 @@ func main() {
 		cancel()
 	}()
 
-	defer logFile.Close()
+	// Close the final log file
+	defer func() {
+		logFileMutex.Lock()
+		defer logFileMutex.Unlock()
+		if logFile != nil {
+			logFile.Close()
+		}
+	}()
 
 	<-ctx.Done()
 	// test app, not doing proper shutdown
@@ -151,12 +203,34 @@ func produceMsg(producer sarama.SyncProducer, delay time.Duration) {
 
 		// Write event to file
 		if bytes, err := json.Marshal(event); err == nil {
-			logFile.Write(bytes)
-			logFile.Write([]byte("\n"))
+			writeToLogFile(bytes)
 		}
 
 		count++
 		<-ticker.C
+	}
+}
+
+// writeToLogFile writes data to the log file and handles rotation if needed
+func writeToLogFile(data []byte) {
+	logFileMutex.Lock()
+	defer logFileMutex.Unlock()
+
+	if logFile == nil {
+		return
+	}
+
+	// Write the data and a newline
+	logFile.Write(data)
+	logFile.Write([]byte("\n"))
+
+	// Increment line count and check if we need to rotate
+	newCount := lineCount.Add(1)
+	if newCount >= 1000000 { // Rotate after 10^6 lines
+		// Release the lock before creating a new file (which acquires the lock)
+		logFileMutex.Unlock()
+		createNewLogFile()
+		logFileMutex.Lock()
 	}
 }
 
