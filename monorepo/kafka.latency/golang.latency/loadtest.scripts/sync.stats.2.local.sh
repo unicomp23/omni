@@ -20,6 +20,7 @@ aws s3 sync "s3://cantina-jd/golang.reports/data/" "${LOCAL_DIR}" \
     --region ${AWS_REGION} \
     --exclude "*" \
     --include "*.jsonl" \
+    --include "*.jsonl.gz" \
     --include "*.log"
 
 # Sync reports FROM local TO S3
@@ -28,6 +29,7 @@ aws s3 sync "${LOCAL_DIR}" "s3://cantina-jd/golang.reports/data/" \
     --region ${AWS_REGION} \
     --exclude "*" \
     --include "*.jsonl" \
+    --include "*.jsonl.gz" \
     --include "*.log" \
     --include "*.json"
 

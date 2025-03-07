@@ -39,7 +39,7 @@ download_logs() {
             --document-name "AWS-RunShellScript" \
             --parameters "{\"commands\":[
                 \"cd /home/ec2-user/golang/${ROLE}\",
-                \"aws s3 cp . ${S3_PATH} --recursive --exclude '*' --include '*.jsonl' --include '*.log' --region ${AWS_REGION}\"
+                \"aws s3 cp . ${S3_PATH} --recursive --exclude '*' --include '*.jsonl' --include '*.jsonl.gz' --include '*.log' --region ${AWS_REGION}\"
             ]}" \
             --cloud-watch-output-config '{"CloudWatchOutputEnabled":true}' \
             --comment "Copy ${ROLE} logs to S3" \
