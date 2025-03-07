@@ -1,5 +1,6 @@
 import { walk } from "https://deno.land/std/fs/walk.ts";
 import { parse as parseJsonl } from "https://deno.land/std/jsonc/mod.ts";
+import { gunzip } from "https://deno.land/x/compress@v0.4.5/mod.ts";
 
 interface ConsumerEvent {
   type: string;
@@ -34,11 +35,22 @@ async function analyzeConsumerLogs(testDir: string): Promise<LatencyStats> {
   const latencies: number[] = [];
   let withinKpiCount = 0;
 
-  // Walk through all consumer.*.jsonl files in this test directory
+  // Walk through all consumer.*.jsonl and consumer.*.jsonl.gz files in this test directory
   for await (const entry of walk(testDir)) {
-    if (!entry.isFile || !entry.name.match(/^consumer.*\.jsonl$/)) continue;
+    if (!entry.isFile || !entry.name.match(/^consumer.*\.(jsonl|jsonl\.gz)$/)) continue;
 
-    const content = await Deno.readTextFile(entry.path);
+    let content: string;
+    if (entry.name.endsWith('.jsonl.gz')) {
+      // Handle gzipped files
+      console.log(`Processing gzipped file: ${entry.path}`);
+      const compressedData = await Deno.readFile(entry.path);
+      const decompressedData = await gunzip(compressedData);
+      content = new TextDecoder().decode(decompressedData);
+    } else {
+      // Handle regular jsonl files
+      content = await Deno.readTextFile(entry.path);
+    }
+
     if (!content.trim()) {
       console.log(`Skipping empty file: ${entry.path}`);
       continue;
