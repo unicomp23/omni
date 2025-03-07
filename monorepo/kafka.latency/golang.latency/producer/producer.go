@@ -32,6 +32,7 @@ var (
 	logFile              *os.File
 	lineCount            atomic.Uint64
 	logFileMutex         sync.Mutex
+	compressionWg        sync.WaitGroup // WaitGroup to track compression goroutines
 )
 
 func init() {
@@ -60,7 +61,11 @@ func createNewLogFile() {
 		go func(file *os.File, filename string) {
 			file.Close()
 			// Compress the file asynchronously
-			go compressFile(filename)
+			compressionWg.Add(1)
+			go func() {
+				defer compressionWg.Done()
+				compressFile(filename)
+			}()
 		}(oldFile, oldFile.Name())
 	}
 
@@ -141,6 +146,11 @@ func main() {
 		} else {
 			logFileMutex.Unlock()
 		}
+
+		// Wait for any ongoing compression goroutines to complete
+		log.Println("Waiting for compression tasks to complete...")
+		compressionWg.Wait()
+		log.Println("All compression tasks completed")
 	}()
 
 	<-ctx.Done()

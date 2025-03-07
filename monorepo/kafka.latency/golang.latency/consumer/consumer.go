@@ -36,6 +36,7 @@ var (
 	logFile           *os.File
 	logMutex          sync.Mutex // Add mutex for synchronizing log writes
 	lineCount         atomic.Uint64
+	compressionWg     sync.WaitGroup // WaitGroup to track compression goroutines
 )
 
 // Add error handling helper
@@ -70,6 +71,11 @@ func main() {
 		} else {
 			logMutex.Unlock()
 		}
+
+		// Wait for any ongoing compression goroutines to complete
+		log.Printf(`{"type":"info","message":"waiting_for_compression_tasks"}`)
+		compressionWg.Wait()
+		log.Printf(`{"type":"info","message":"all_compression_tasks_completed"}`)
 	}()
 
 	latency := &Latency{duration: newMetrics()}
@@ -135,7 +141,11 @@ func createNewLogFile() error {
 		go func(file *os.File, filename string) {
 			file.Close()
 			// Compress the file asynchronously
-			go compressFile(filename)
+			compressionWg.Add(1)
+			go func() {
+				defer compressionWg.Done()
+				compressFile(filename)
+			}()
 		}(oldFile, oldFile.Name())
 	}
 
