@@ -51,12 +51,24 @@ func main() {
 		log.Fatalf("Failed to initialize: %v", err)
 	}
 
-	// Close the final log file
+	// Close and gzip the final log file
 	defer func() {
 		logMutex.Lock()
-		defer logMutex.Unlock()
 		if logFile != nil {
+			filename := logFile.Name()
 			logFile.Close()
+			logFile = nil
+			logMutex.Unlock()
+
+			// Gzip the last file synchronously on exit
+			log.Printf(`{"type":"info","message":"compressing_final_file","filename":%q}`, filename)
+			if err := compressFileSync(filename); err != nil {
+				log.Printf(`{"type":"error","message":"final_compression_failed","filename":%q,"error":%q}`, filename, err.Error())
+			} else {
+				log.Printf(`{"type":"info","message":"final_compression_complete","filename":%q}`, filename)
+			}
+		} else {
+			logMutex.Unlock()
 		}
 	}()
 
@@ -157,6 +169,12 @@ func compressFile(filename string) {
 	}
 
 	log.Printf(`{"type":"info","message":"compression_complete","filename":%q}`, filename)
+}
+
+// compressFileSync compresses the given file using gzip synchronously
+func compressFileSync(filename string) error {
+	cmd := exec.Command("gzip", filename)
+	return cmd.Run()
 }
 
 // writeToLogFile writes data to the log file and handles rotation if needed

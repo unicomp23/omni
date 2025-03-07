@@ -122,12 +122,24 @@ func main() {
 		cancel()
 	}()
 
-	// Close the final log file
+	// Close and gzip the final log file
 	defer func() {
 		logFileMutex.Lock()
-		defer logFileMutex.Unlock()
 		if logFile != nil {
+			filename := logFile.Name()
 			logFile.Close()
+			logFile = nil
+			logFileMutex.Unlock()
+
+			// Gzip the last file synchronously on exit
+			log.Printf("Compressing final file: %s", filename)
+			if err := compressFileSync(filename); err != nil {
+				log.Printf("Error compressing final file %s: %v", filename, err)
+			} else {
+				log.Printf("Successfully compressed final file: %s", filename)
+			}
+		} else {
+			logFileMutex.Unlock()
 		}
 	}()
 
@@ -270,4 +282,10 @@ func registerMetrics() {
 	)
 
 	prometheus.MustRegister(succ, fail)
+}
+
+// compressFileSync compresses the given file using gzip synchronously
+func compressFileSync(filename string) error {
+	cmd := exec.Command("gzip", filename)
+	return cmd.Run()
 }
