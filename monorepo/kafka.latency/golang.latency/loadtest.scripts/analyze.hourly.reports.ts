@@ -9,7 +9,6 @@ interface ConsumerEvent {
   timestamp: string;
   key: string;
   latency_ms: number;
-  within_kpi: boolean;
 }
 
 interface LatencyStats {
@@ -24,8 +23,7 @@ interface LatencyStats {
   p99: number;
   p99_9: number;
   p99_99: number;
-  within_kpi_count: number;
-  within_kpi_pct: number;
+  p99_999: number;
   exceeds_threshold: boolean;
 }
 
@@ -35,11 +33,15 @@ interface HourlyStats {
 
 interface HourlyBucket {
   latencies: number[];
-  withinKpiCount: number;
 }
 
 // Create a unique temporary directory for this run
 const TEMP_DIR = join("/tmp", `kafka-latency-analysis-${Date.now()}`);
+
+// Configure performance settings
+const CONCURRENCY_LIMIT = 10; // Increased from 5 to 10
+const BUFFER_SIZE = 1024 * 1024; // 1MB buffer for file operations
+const BATCH_SIZE = 1000; // Process events in batches of 1000
 
 function calculatePercentile(sortedLatencies: number[], percentile: number): number {
   if (sortedLatencies.length === 0) return 0;
@@ -47,7 +49,7 @@ function calculatePercentile(sortedLatencies: number[], percentile: number): num
   return sortedLatencies[Math.max(0, index)];
 }
 
-function calculateStats(latencies: number[], withinKpiCount: number): LatencyStats {
+function calculateStats(latencies: number[]): LatencyStats {
   if (latencies.length === 0) {
     return {
       count: 0,
@@ -61,8 +63,7 @@ function calculateStats(latencies: number[], withinKpiCount: number): LatencySta
       p99: 0,
       p99_9: 0,
       p99_99: 0,
-      within_kpi_count: 0,
-      within_kpi_pct: 0,
+      p99_999: 0,
       exceeds_threshold: false,
     };
   }
@@ -71,7 +72,9 @@ function calculateStats(latencies: number[], withinKpiCount: number): LatencySta
   latencies.sort((a, b) => a - b);
 
   const p99_99 = calculatePercentile(latencies, 99.99);
-  const exceeds_threshold = p99_99 > 100; // Flag when p99.99 > 100ms
+  const p99_999 = calculatePercentile(latencies, 99.999);
+  // Flag when p99.99 > 100ms or p99.999 > 150ms
+  const exceeds_threshold = p99_99 > 100 || p99_999 > 150;
 
   return {
     count: latencies.length,
@@ -85,8 +88,7 @@ function calculateStats(latencies: number[], withinKpiCount: number): LatencySta
     p99: calculatePercentile(latencies, 99),
     p99_9: calculatePercentile(latencies, 99.9),
     p99_99,
-    within_kpi_count: withinKpiCount,
-    within_kpi_pct: (withinKpiCount / latencies.length) * 100,
+    p99_999,
     exceeds_threshold,
   };
 }
@@ -112,55 +114,50 @@ async function processGzippedFile(filePath: string, fileHourBucket: string): Pro
     console.log(`Processing ${lines.length} lines from ${filePath}`);
 
     // Group events by hour bucket based on their actual timestamps
-    const hourBucketData: Record<string, { latencies: string, kpiCount: number }> = {};
+    const hourBucketData: Record<string, { latencies: string }> = {};
     
-    for (const line of lines) {
-      if (!line.trim()) continue; // Skip empty lines
+    // Process lines in batches for better memory efficiency
+    for (let i = 0; i < lines.length; i += BATCH_SIZE) {
+      const batch = lines.slice(i, i + BATCH_SIZE);
       
-      try {
-        const event = parseJsonl(line) as ConsumerEvent;
-        if (event.type !== "consume") continue;
+      for (const line of batch) {
+        if (!line.trim()) continue; // Skip empty lines
+        
+        try {
+          const event = parseJsonl(line) as ConsumerEvent;
+          if (event.type !== "consume") continue;
 
-        // Use the event's actual timestamp to determine the hour bucket
-        const eventTimestamp = new Date(event.timestamp).getTime();
-        const eventHourBucket = getHourBucket(eventTimestamp);
-        
-        // Initialize this hour bucket if it doesn't exist
-        if (!hourBucketData[eventHourBucket]) {
-          hourBucketData[eventHourBucket] = { latencies: "", kpiCount: 0 };
+          // Use the event's actual timestamp to determine the hour bucket
+          const eventTimestamp = new Date(event.timestamp).getTime();
+          const eventHourBucket = getHourBucket(eventTimestamp);
+          
+          // Initialize this hour bucket if it doesn't exist
+          if (!hourBucketData[eventHourBucket]) {
+            hourBucketData[eventHourBucket] = { latencies: "" };
+          }
+          
+          // Add this event's data to its hour bucket
+          hourBucketData[eventHourBucket].latencies += `${event.latency_ms}\n`;
+        } catch (e) {
+          // Log the problematic line for debugging
+          console.error(`Error parsing line in ${filePath}:`, e);
         }
-        
-        // Add this event's data to its hour bucket
-        hourBucketData[eventHourBucket].latencies += `${event.latency_ms}\n`;
-        if (event.within_kpi) hourBucketData[eventHourBucket].kpiCount++;
-      } catch (e) {
-        // Log the problematic line for debugging
-        console.error(`Error parsing line in ${filePath}:`, e);
       }
     }
     
     // Write data for each hour bucket
-    for (const [hourBucket, data] of Object.entries(hourBucketData)) {
+    const writePromises = Object.entries(hourBucketData).map(async ([hourBucket, data]) => {
       const hourBucketPath = join(TEMP_DIR, hourBucket);
       await ensureDir(hourBucketPath);
       
       const latenciesPath = join(hourBucketPath, "latencies.jsonl");
-      const kpiPath = join(hourBucketPath, "kpi.jsonl");
       
       // Append latencies to the hour bucket file
       await Deno.writeTextFile(latenciesPath, data.latencies, { append: true });
-      
-      // Update KPI count
-      let currentKpiCount = 0;
-      try {
-        const kpiContent = await Deno.readTextFile(kpiPath);
-        currentKpiCount = parseInt(kpiContent) || 0;
-      } catch (_) {
-        // File doesn't exist yet, start with 0
-      }
-      
-      await Deno.writeTextFile(kpiPath, String(currentKpiCount + data.kpiCount));
-    }
+    });
+    
+    // Wait for all writes to complete
+    await Promise.all(writePromises);
   } catch (error) {
     console.error(`Error processing file ${filePath}:`, error);
   }
@@ -177,6 +174,7 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
   // Collect all files to process
   const filesToProcess: { path: string; fileHourBucket: string }[] = [];
   
+  console.log(`Scanning directory: ${testDir}`);
   // Walk through all consumer.*.jsonl and consumer.*.jsonl.gz files in this test directory
   for await (const entry of walk(testDir, { maxDepth: 3 })) {
     if (!entry.isFile || !entry.name.match(/^consumer\.\d+\.(jsonl|jsonl\.gz)$/)) continue;
@@ -192,16 +190,12 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
     const fileHourBucket = getHourBucket(fileTimestamp);
     hourBuckets.add(fileHourBucket);
     
-    if (entry.name.endsWith('.jsonl.gz')) {
-      filesToProcess.push({ path: entry.path, fileHourBucket });
-    } else {
-      // Handle regular jsonl files immediately (these are typically smaller)
-      await processGzippedFile(entry.path, fileHourBucket);
-    }
+    filesToProcess.push({ path: entry.path, fileHourBucket });
   }
   
-  // Process gzipped files concurrently with a reasonable concurrency limit
-  const CONCURRENCY_LIMIT = 5;
+  console.log(`Found ${filesToProcess.length} files to process`);
+  
+  // Process files concurrently with increased concurrency limit
   const chunks: Array<{ path: string; fileHourBucket: string }[]> = [];
   
   for (let i = 0; i < filesToProcess.length; i += CONCURRENCY_LIMIT) {
@@ -209,17 +203,33 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
     chunks.push(chunk);
   }
   
+  console.log(`Processing files in ${chunks.length} chunks of up to ${CONCURRENCY_LIMIT} files each`);
+  
+  let processedChunks = 0;
+  const totalChunks = chunks.length;
+  
   for (const chunk of chunks) {
     await Promise.all(chunk.map(file => processGzippedFile(file.path, file.fileHourBucket)));
+    processedChunks++;
+    console.log(`Processed chunk ${processedChunks}/${totalChunks} (${Math.round(processedChunks/totalChunks*100)}%)`);
   }
   
   // Now read all the temp files and calculate stats
   const hourlyStats: HourlyStats = {};
   
-  for (const fileHourBucket of hourBuckets) {
+  // Get all directories in the temp directory to find all hour buckets
+  const allHourBuckets = new Set<string>();
+  for await (const entry of Deno.readDir(TEMP_DIR)) {
+    if (entry.isDirectory) {
+      allHourBuckets.add(entry.name);
+    }
+  }
+  
+  console.log(`Found ${allHourBuckets.size} hour buckets to analyze`);
+  
+  for (const fileHourBucket of allHourBuckets) {
     const fileHourBucketPath = join(TEMP_DIR, fileHourBucket);
     const latenciesPath = join(fileHourBucketPath, "latencies.jsonl");
-    const kpiPath = join(fileHourBucketPath, "kpi.jsonl");
     
     try {
       // Read latencies
@@ -234,17 +244,8 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
         console.log(`No latencies found for hour: ${fileHourBucket}`);
       }
       
-      // Read KPI count
-      let withinKpiCount = 0;
-      try {
-        const kpiContent = await Deno.readTextFile(kpiPath);
-        withinKpiCount = parseInt(kpiContent) || 0;
-      } catch (e) {
-        console.log(`No KPI count found for hour: ${fileHourBucket}`);
-      }
-      
       console.log(`Calculating stats for hour: ${fileHourBucket} (${latencies.length} events)`);
-      hourlyStats[fileHourBucket] = calculateStats(latencies, withinKpiCount);
+      hourlyStats[fileHourBucket] = calculateStats(latencies);
       
       // Clean up this hour's temp files immediately after processing
       try {
@@ -301,7 +302,6 @@ async function main() {
             stats: {
               ...stats,
               avg: Number(stats.avg.toFixed(2)),
-              within_kpi_pct: Number(stats.within_kpi_pct.toFixed(2)),
             },
           })).sort((a, b) => a.hour.localeCompare(b.hour)),
         };
@@ -313,24 +313,42 @@ async function main() {
         console.log(`Hourly report generated for ${entry.name}:`, reportPath);
         
         // Print a summary of the hourly stats
+        let p99_99_exceeded = false;
+        let p99_999_exceeded = false;
+        
         for (const hourData of report.hourly_stats) {
-          const thresholdFlag = hourData.stats.exceeds_threshold ? "⚠️ THRESHOLD EXCEEDED" : "✅ OK";
+          let thresholdFlag = "✅ OK";
+          if (hourData.stats.exceeds_threshold) {
+            if (hourData.stats.p99_99 > 100 && hourData.stats.p99_999 > 150) {
+              thresholdFlag = "⚠️ BOTH P99.99 & P99.999 THRESHOLDS EXCEEDED";
+              p99_99_exceeded = true;
+              p99_999_exceeded = true;
+            } else if (hourData.stats.p99_99 > 100) {
+              thresholdFlag = "⚠️ P99.99 THRESHOLD EXCEEDED";
+              p99_99_exceeded = true;
+            } else {
+              thresholdFlag = "⚠️ P99.999 THRESHOLD EXCEEDED";
+              p99_999_exceeded = true;
+            }
+          }
+          
           console.log(
             `Hour: ${hourData.hour}, Count: ${hourData.stats.count}, ` +
             `Avg: ${hourData.stats.avg}ms, P99: ${hourData.stats.p99}ms, ` +
-            `P99.99: ${hourData.stats.p99_99}ms, Within KPI: ${hourData.stats.within_kpi_pct}% ${thresholdFlag}`
+            `P99.99: ${hourData.stats.p99_99}ms, P99.999: ${hourData.stats.p99_999}ms ${thresholdFlag}`
           );
         }
         
-        // Log a summary of threshold violations
-        const violatingHours = report.hourly_stats.filter(h => h.stats.exceeds_threshold);
-        if (violatingHours.length > 0) {
-          console.log(`\n⚠️ ALERT: ${violatingHours.length} hour(s) exceeded the 100ms p99.99 threshold:`);
-          for (const hour of violatingHours) {
-            console.log(`  - ${hour.hour}: p99.99 = ${hour.stats.p99_99}ms`);
-          }
+        // Print overall summary
+        if (!p99_99_exceeded && !p99_999_exceeded) {
+          console.log("✅ All hours are below both the 100ms p99.99 threshold and the 150ms p99.999 threshold");
         } else {
-          console.log(`\n✅ All hours are below the 100ms p99.99 threshold`);
+          if (p99_99_exceeded) {
+            console.log("⚠️ Some hours exceeded the 100ms p99.99 threshold");
+          }
+          if (p99_999_exceeded) {
+            console.log("⚠️ Some hours exceeded the 150ms p99.999 threshold");
+          }
         }
       } catch (error) {
         console.error(`Error analyzing test run ${entry.name}:`, error);
