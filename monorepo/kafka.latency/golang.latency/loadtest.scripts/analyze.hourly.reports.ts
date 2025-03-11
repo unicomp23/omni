@@ -1,3 +1,5 @@
+/// <reference lib="deno.ns" />
+
 import { walk } from "https://deno.land/std/fs/walk.ts";
 import { parse as parseJsonl } from "https://deno.land/std/jsonc/mod.ts";
 import { gunzip } from "https://deno.land/x/compress@v0.4.5/mod.ts";
@@ -37,6 +39,9 @@ interface HourlyBucket {
 
 // Create a unique temporary directory for this run
 const TEMP_DIR = join("/tmp", `kafka-latency-analysis-${Date.now()}`);
+// Define a constant for the hourly report file
+// Delete the hourly report file if it exists
+const HOURLY_REPORT_FILE = join("/tmp", "hourly_reports_${Date.now()}.jsonl");
 
 // Configure performance settings
 const CONCURRENCY_LIMIT = 10; // Increased from 5 to 10
@@ -96,6 +101,37 @@ function calculateStats(latencies: number[]): LatencyStats {
 function getHourBucket(timestamp: number): string {
   const date = new Date(timestamp);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}_${String(date.getHours()).padStart(2, '0')}`;
+}
+
+/**
+ * Logs hour information to a report file in /tmp with a filename containing zero-padded epoch milliseconds
+ * @param hour The hour string in format YYYY-MM-DD_HH
+ * @param stats The latency statistics for this hour
+ */
+async function logHourToTmpFile(hour: string, stats: LatencyStats): Promise<void> {
+  try {
+    // Ensure the temp directory exists
+    await ensureDir(TEMP_DIR);
+    
+    // Format the log entry
+    const logEntry = {
+      timestamp: new Date().toISOString(),
+      hour,
+      stats: {
+        ...stats,
+        avg: Number(stats.avg.toFixed(2)),
+      }
+    };
+    
+    // Convert to JSON line format with newline
+    const logLine = JSON.stringify(logEntry) + "\n";
+    
+    // Append to the file (create if doesn't exist)
+    await Deno.writeTextFile(HOURLY_REPORT_FILE, logLine, { append: true });
+    console.log(`Hour log appended to: ${HOURLY_REPORT_FILE} for hour: ${hour}`);
+  } catch (error) {
+    console.error(`Error logging hour to tmp file: ${error}`);
+  }
 }
 
 async function processGzippedFile(filePath: string, fileHourBucket: string): Promise<void> {
@@ -247,6 +283,9 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
       console.log(`Calculating stats for hour: ${fileHourBucket} (${latencies.length} events)`);
       hourlyStats[fileHourBucket] = calculateStats(latencies);
       
+      // Log hour information to tmp file with zero-padded epoch milliseconds
+      await logHourToTmpFile(fileHourBucket, hourlyStats[fileHourBucket]);
+      
       // Clean up this hour's temp files immediately after processing
       try {
         await Deno.remove(fileHourBucketPath, { recursive: true });
@@ -337,6 +376,9 @@ async function main() {
             `Avg: ${hourData.stats.avg}ms, P99: ${hourData.stats.p99}ms, ` +
             `P99.99: ${hourData.stats.p99_99}ms, P99.999: ${hourData.stats.p99_999}ms ${thresholdFlag}`
           );
+          
+          // Log each hour to a tmp file with zero-padded epoch milliseconds
+          await logHourToTmpFile(hourData.hour, hourData.stats);
         }
         
         // Print overall summary
