@@ -40,13 +40,35 @@ interface HourlyBucket {
 // Create a unique temporary directory for this run
 const TEMP_DIR = join("/tmp", `kafka-latency-analysis-${Date.now()}`);
 // Define a constant for the hourly report file
-// Delete the hourly report file if it exists
-const HOURLY_REPORT_FILE = join("/tmp", "hourly_reports_${Date.now()}.jsonl");
+// A new file will be created for each test run with a unique timestamp
+let HOURLY_REPORT_FILE = "";
+
+// Store hourly reports in memory before writing them out sorted
+const hourlyReports: Array<{hour: string, stats: LatencyStats}> = [];
 
 // Configure performance settings
 const CONCURRENCY_LIMIT = 10; // Increased from 5 to 10
 const BUFFER_SIZE = 1024 * 1024; // 1MB buffer for file operations
 const BATCH_SIZE = 1000; // Process events in batches of 1000
+
+/**
+ * Compare two hour strings in format "YYYY-MM-DD_HH" for sorting in reverse chronological order
+ * @param hourA First hour string
+ * @param hourB Second hour string
+ * @returns Negative if hourA is more recent, positive if hourB is more recent
+ */
+function compareHoursReverseChrono(hourA: string, hourB: string): number {
+  // Parse the hour strings into Date objects
+  const [dateA, hoursA] = hourA.split('_');
+  const [dateB, hoursB] = hourB.split('_');
+  
+  // Create comparable date strings with hours
+  const dateTimeA = `${dateA}T${hoursA}:00:00`;
+  const dateTimeB = `${dateB}T${hoursB}:00:00`;
+  
+  // Sort in reverse chronological order (most recent first)
+  return new Date(dateTimeB).getTime() - new Date(dateTimeA).getTime();
+}
 
 function calculatePercentile(sortedLatencies: number[], percentile: number): number {
   if (sortedLatencies.length === 0) return 0;
@@ -113,24 +135,61 @@ async function logHourToTmpFile(hour: string, stats: LatencyStats): Promise<void
     // Ensure the temp directory exists
     await ensureDir(TEMP_DIR);
     
-    // Format the log entry
-    const logEntry = {
-      timestamp: new Date().toISOString(),
+    // Store the entry in memory
+    hourlyReports.push({
       hour,
       stats: {
         ...stats,
         avg: Number(stats.avg.toFixed(2)),
       }
-    };
+    });
     
-    // Convert to JSON line format with newline
-    const logLine = JSON.stringify(logEntry) + "\n";
-    
-    // Append to the file (create if doesn't exist)
-    await Deno.writeTextFile(HOURLY_REPORT_FILE, logLine, { append: true });
-    console.log(`Hour log appended to: ${HOURLY_REPORT_FILE} for hour: ${hour}`);
+    console.log(`Hour data stored for hour: ${hour}`);
   } catch (error) {
-    console.error(`Error logging hour to tmp file: ${error}`);
+    console.error(`Error storing hour data: ${error}`);
+  }
+}
+
+/**
+ * Write all hourly reports to file, sorted by hour
+ */
+async function writeSortedHourlyReports(): Promise<void> {
+  try {
+    // Skip if there are no reports to write
+    if (hourlyReports.length === 0) {
+      console.log("No hourly reports to write.");
+      return;
+    }
+    
+    // Ensure the temp directory exists
+    await ensureDir(TEMP_DIR);
+    
+    // Sort reports by hour in reverse chronological order (most recent first)
+    hourlyReports.sort((a, b) => compareHoursReverseChrono(a.hour, b.hour));
+    
+    // First, create an array of all the report lines
+    const reportLines: string[] = [];
+    
+    for (const report of hourlyReports) {
+      const logEntry = {
+        timestamp: new Date().toISOString(),
+        hour: report.hour,
+        stats: report.stats
+      };
+      
+      // Convert to JSON line format with newline
+      reportLines.push(JSON.stringify(logEntry));
+    }
+    
+    // Write all lines at once to the file (create new file)
+    await Deno.writeTextFile(HOURLY_REPORT_FILE, reportLines.join("\n") + "\n");
+    
+    console.log(`All hourly reports written to: ${HOURLY_REPORT_FILE}`);
+    
+    // Clear the hourly reports array after writing to file
+    hourlyReports.length = 0;
+  } catch (error) {
+    console.error(`Error writing sorted hourly reports: ${error}`);
   }
 }
 
@@ -325,12 +384,22 @@ async function main() {
       console.log(`Analyzing test run: ${entry.name}`);
       
       try {
+        // Create a new hourly report file for each test run
+        HOURLY_REPORT_FILE = join("/tmp", `hourly_reports_${Date.now()}.jsonl`);
+        console.log(`Using hourly report file: ${HOURLY_REPORT_FILE}`);
+        
+        // Clear the hourly reports array at the beginning of each test run
+        hourlyReports.length = 0;
+        
         const hourlyStats = await analyzeConsumerLogsByHour(testDir);
         
         if (Object.keys(hourlyStats).length === 0) {
           console.log(`No data found for test run: ${entry.name}`);
           continue;
         }
+        
+        // Write sorted hourly reports to the JSONL file
+        await writeSortedHourlyReports();
         
         // Format the report
         const report = {
@@ -342,7 +411,7 @@ async function main() {
               ...stats,
               avg: Number(stats.avg.toFixed(2)),
             },
-          })).sort((a, b) => a.hour.localeCompare(b.hour)),
+          })).sort((a, b) => compareHoursReverseChrono(a.hour, b.hour)),
         };
 
         // Write report to the timestamp directory
