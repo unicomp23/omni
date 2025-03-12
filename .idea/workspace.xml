@@ -7,54 +7,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="696bd085-595b-4546-90d8-9d212be67d27" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/omni.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.nvmrc" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/Dockerfile" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/async.notifications.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.dev.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-down.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-up.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/jest.config.js" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/kafka.primitives.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package-lock.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/package.json" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/buf.gen.yaml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/devinternal.proto" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/gen.sh" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/gen/devinternal_connect.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proto/gen/devinternal_pb.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubsub.api.kafka.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/bin/main.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/constants.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/ksortable_length_delimiter.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/ksortable_length_delimiter.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/redis/anydb.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/redis/anydb.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/redis/make_paths.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/common/topic_array.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/config.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/connect/omni.impl.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/connect/omni.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/easy/pubsub.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/easy/servers/late.join.server.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/easy/worker.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/integ/primitives_round_trip.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/integ/serde.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/integ/simple_api_late_joiner.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/integ/simple_api_round_trip.test.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kafka/constants.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kafka/publisher.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kafka/reply_to_subscriber.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/kafka/worker_subscriber.ts" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/tsconfig.json" beforeDir="false" />
-    </list>
+    <list default="true" id="696bd085-595b-4546-90d8-9d212be67d27" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -82,30 +35,36 @@
   <component name="ProblemsViewState">
     <option name="selectedTabId" value="ProjectErrors" />
   </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "customColor": "",
+  "associatedIndex": 6
+}]]></component>
   <component name="ProjectId" id="2L6PYIxy1UfQWs4pTR8xpc6ZK5J" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;TODO_SCOPE&quot;: &quot;All Places&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/johndavis/repo/dev/omni&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
-    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;ts.external.directory.path&quot;: &quot;/Users/johndavis/repo/dev/omni/node_modules/typescript/lib&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "TODO_SCOPE": "All Places",
+    "WebServerToolWindowFactoryState": "false",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/johndavis/repo/dev/omni",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "run.code.analysis.last.selected.profile": "pProject Default",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "ts.external.directory.path": "/Users/johndavis/Applications/WebStorm.app/Contents/plugins/javascript-plugin/jsLanguageServicesImpl/external",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="$PROJECT_DIR$/src/easy/servers" />
@@ -113,6 +72,13 @@
       <recent name="$PROJECT_DIR$/src/common" />
       <recent name="$PROJECT_DIR$/src/kafka" />
     </key>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-76f8388c3a79-JavaScript-WS-243.24978.60" />
+      </set>
+    </attachedChunks>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="TaskManager">
@@ -140,6 +106,7 @@
       <workItem from="1677533421610" duration="15756000" />
       <workItem from="1677607978786" duration="59618000" />
       <workItem from="1677782077039" duration="9070000" />
+      <workItem from="1740088693442" duration="119000" />
     </task>
     <servers />
   </component>

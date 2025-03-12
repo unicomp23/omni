@@ -39,6 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     netcat \
     net-tools \
     iputils-ping \
+    ripgrep \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up Python and pip
@@ -76,7 +77,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - && \
 RUN node --version && npm --version
 
 # Install global npm packages
-RUN npm install -g cdk8s-cli aws-cdk typescript typescript-language-server
+RUN npm install -g cdk8s-cli aws-cdk typescript typescript-language-server @anthropic-ai/claude-code
 
 # Add NVM to PATH and bash profile
 RUN echo 'export NVM_DIR="$HOME/.nvm"' >> $HOME/.bashrc && \
