@@ -2,7 +2,7 @@
 
 import { walk } from "https://deno.land/std/fs/walk.ts";
 import { parse as parseJsonl } from "https://deno.land/std/jsonc/mod.ts";
-import { gunzip } from "https://deno.land/x/compress@v0.4.5/mod.ts";
+import { gunzip, gzip } from "https://deno.land/x/compress@v0.4.5/mod.ts";
 import { ensureDir } from "https://deno.land/std/fs/ensure_dir.ts";
 import { join } from "https://deno.land/std/path/mod.ts";
 
@@ -246,9 +246,18 @@ async function processGzippedFile(filePath: string, fileHourBucket: string): Pro
       await ensureDir(hourBucketPath);
       
       const latenciesPath = join(hourBucketPath, "latencies.jsonl");
+      const latenciesGzPath = join(hourBucketPath, "latencies.jsonl.gz");
       
-      // Append latencies to the hour bucket file
+      // Write uncompressed data first
       await Deno.writeTextFile(latenciesPath, data.latencies, { append: true });
+      
+      // Compress the file
+      const uncompressedData = await Deno.readFile(latenciesPath);
+      const compressedData = await gzip(uncompressedData);
+      await Deno.writeFile(latenciesGzPath, compressedData);
+      
+      // Remove the uncompressed file
+      await Deno.remove(latenciesPath);
     });
     
     // Wait for all writes to complete
@@ -324,13 +333,15 @@ async function analyzeConsumerLogsByHour(testDir: string): Promise<HourlyStats> 
   
   for (const fileHourBucket of allHourBuckets) {
     const fileHourBucketPath = join(TEMP_DIR, fileHourBucket);
-    const latenciesPath = join(fileHourBucketPath, "latencies.jsonl");
+    const latenciesGzPath = join(fileHourBucketPath, "latencies.jsonl.gz");
     
     try {
       // Read latencies
       let latencies: number[] = [];
       try {
-        const latenciesContent = await Deno.readTextFile(latenciesPath);
+        const compressedData = await Deno.readFile(latenciesGzPath);
+        const decompressedData = await gunzip(compressedData);
+        const latenciesContent = new TextDecoder().decode(decompressedData);
         latencies = latenciesContent
           .split("\n")
           .filter(line => line.trim())
