@@ -5,6 +5,7 @@ import (
 	"flag"
 	"log"
 	"slices"
+	"time"
 
 	"github.com/IBM/sarama"
 )
@@ -50,4 +51,21 @@ func parseKafkaVersion(s string) (sarama.KafkaVersion, error) {
 	}
 
 	return v, errors.New("not a supported Kafka version")
+}
+
+// GetProducerConfig returns a configured Sarama config for the producer
+func GetProducerConfig() (*sarama.Config, error) {
+	config := sarama.NewConfig()
+	
+	// Set network configuration
+	config.Net.KeepAlive = 50 * time.Millisecond // Aggressive TCP keep-alive
+	
+	// Parse Kafka version
+	kafkaVersion, err := parseKafkaVersion(brokerVer)
+	if err != nil {
+		return nil, err
+	}
+	config.Version = kafkaVersion
+	
+	return config, nil
 }
