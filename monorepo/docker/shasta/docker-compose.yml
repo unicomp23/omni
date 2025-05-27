@@ -39,26 +39,13 @@ services:
       - ${SSH_AUTH_SOCK:-/dev/null}:/ssh-agent
       - /var/run/docker.sock:/var/run/docker.sock
       - /Users/johndavis/tmp:/tmp  # added volume for /tmp
+      - /data:/data  # map Lima VM /data to container /data
     environment:
       - SSH_AUTH_SOCK=/ssh-agent
     ports:
       - "2222:22"
     networks:
       - mynetwork
-
-  devenv-2:
-    build:
-      context: .
-      dockerfile: Dockerfile.ubuntu
-    volumes:
-      - $HOME/.ssh:/root/.ssh
-      - /var/run/docker.sock:/var/run/docker.sock
-      - $HOME/.aws:/root/.aws
-      - /tmp:/tmp  # added volume for /tmp
-    networks:
-      - mynetwork
-    ports:
-      - "127.0.0.1:2223:22"  # map host port 2223 to container's SSH port 22, only accessible on the loopback interface
 
   nats:
     image: nats:latest
@@ -92,7 +79,6 @@ services:
       - ./ssl:/etc/nginx/ssl:ro
     depends_on:
       - devenv
-      - devenv-2
     networks:
       - mynetwork
 

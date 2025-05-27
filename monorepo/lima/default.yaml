@@ -18,6 +18,9 @@ images:
 mounts:
   - location: "~"
     writable: true
+  - location: "/Users/johndavis/data"
+    mountPoint: "/data"
+    writable: true
 
 # SSH configuration
 ssh:
