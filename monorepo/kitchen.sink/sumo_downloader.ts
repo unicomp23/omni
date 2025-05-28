@@ -1,5 +1,16 @@
 #!/usr/bin/env -S deno run --allow-all
 
+// Type declarations for Deno globals
+declare const Deno: {
+  writeTextFile(path: string, data: string): Promise<void>;
+  readTextFile(path: string): Promise<string>;
+  env: {
+    get(key: string): string | undefined;
+  };
+  args: string[];
+  exit(code: number): never;
+};
+
 interface SumoConfig {
   accessId: string;
   accessKey: string;
@@ -368,7 +379,7 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
+if ((import.meta as any).main) {
   await main();
 }
 
