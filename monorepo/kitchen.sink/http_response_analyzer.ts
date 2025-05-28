@@ -197,6 +197,7 @@ async function analyzeHttpResponses(inputPath: string) {
   const methodStats = new Map<string, { count: number; totalResponseTime: number }>();
   const statusStats = new Map<number, { count: number; totalResponseTime: number }>();
   const orphanedEndpoints = new Map<string, number>();
+  const orphanedResponseEndpoints = new Map<string, number>();
   const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
@@ -300,6 +301,11 @@ async function analyzeHttpResponses(inputPath: string) {
           orphanedEndpoints.set(orphan.url, (orphanedEndpoints.get(orphan.url) || 0) + 1);
         }
         
+        // Aggregate orphaned response endpoints
+        for (const orphan of chunkResults.orphanedResponses) {
+          orphanedResponseEndpoints.set(orphan.url, (orphanedResponseEndpoints.get(orphan.url) || 0) + 1);
+        }
+        
         // Trim arrays to prevent memory growth
         if (slowestResponses.length > 1000) {
           slowestResponses.sort((a, b) => b.responseTimeMs - a.responseTimeMs);
@@ -382,6 +388,10 @@ async function analyzeHttpResponses(inputPath: string) {
       
       for (const orphan of chunkResults.orphanedRequests) {
         orphanedEndpoints.set(orphan.url, (orphanedEndpoints.get(orphan.url) || 0) + 1);
+      }
+      
+      for (const orphan of chunkResults.orphanedResponses) {
+        orphanedResponseEndpoints.set(orphan.url, (orphanedResponseEndpoints.get(orphan.url) || 0) + 1);
       }
       
       if (httpRecords.length > 0) {
@@ -557,6 +567,20 @@ async function analyzeHttpResponses(inputPath: string) {
         console.log(`${count.toLocaleString()}\t\t${endpoint}`);
       }
     }
+
+    // Show summary of orphaned responses by endpoint (top 10)
+    if (orphanedResponseEndpoints.size > 0) {
+      console.log("\n" + "-".repeat(100));
+      console.log("TOP 10 ORPHANED RESPONSE ENDPOINTS:");
+      console.log("-".repeat(100));
+      console.log("Count\t\tEndpoint");
+      console.log("-".repeat(100));
+      
+      const sortedOrphanResponses = [...orphanedResponseEndpoints.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+      for (const [endpoint, count] of sortedOrphanResponses) {
+        console.log(`${count.toLocaleString()}\t\t${endpoint}`);
+      }
+    }
     
     console.log("\n" + "=".repeat(100));
     console.log("ANALYSIS COMPLETE");
@@ -577,6 +601,7 @@ async function analyzeHttpResponses(inputPath: string) {
       fastestResponses,
       extremelySlowResponses,
       orphanedEndpoints,
+      orphanedResponseEndpoints,
       minTimestamp,
       maxTimestamp
     );
@@ -765,6 +790,7 @@ async function generateMarkdownReport(
   fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
   extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
   orphanedEndpoints: Map<string, number>,
+  orphanedResponseEndpoints: Map<string, number>,
   minTimestamp: number,
   maxTimestamp: number
 ): Promise<void> {
@@ -932,7 +958,21 @@ ${[...orphanedEndpoints.entries()]
                  endpoint.includes('test') ? 'Test environment' :
                  endpoint.includes('session') ? 'Session management' : 'Unknown';
     return `| \`${endpoint}\` | ${count} | ${notes} |`;
-  }).join('\n')}` : '### ✅ Minimal Orphaned Records\n\nExcellent data quality with minimal orphaned records.'}
+  }).join('\n')}
+
+${orphanedResponseEndpoints.size > 0 ? `### Top Orphaned Response Endpoints
+| Endpoint | Count | Notes |
+|----------|-------|-------|
+${[...orphanedResponseEndpoints.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5)
+  .map(([endpoint, count]) => {
+    const notes = endpoint.includes('health') ? 'Health check endpoint' :
+                 endpoint.includes('allocate') ? 'Subscription endpoint' :
+                 endpoint.includes('test') ? 'Test environment' :
+                 endpoint.includes('session') ? 'Session management' : 'Unknown';
+    return `| \`${endpoint}\` | ${count} | ${notes} |`;
+  }).join('\n')}` : ''}` : '### ✅ Minimal Orphaned Records\n\nExcellent data quality with minimal orphaned records.'}
 
 ---
 
