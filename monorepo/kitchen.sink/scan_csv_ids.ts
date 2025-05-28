@@ -1,5 +1,12 @@
 #!/usr/bin/env -S deno run --allow-all
 
+// Type declarations for Deno globals
+declare const Deno: {
+  readTextFile(path: string): Promise<string>;
+  args: string[];
+  exit(code: number): never;
+};
+
 async function scanCsvIds(filePath: string) {
   console.log(`Scanning CSV file for HTTP requests without matching responses: ${filePath}`);
   
@@ -170,7 +177,7 @@ async function scanCsvIds(filePath: string) {
 }
 
 // Main execution
-if (import.meta.main) {
+if ((import.meta as any).main) {
   const filePath = Deno.args[0] || "/data/search-results-2025-05-27T11_16_26.214-0700.csv";
   
   if (!filePath) {

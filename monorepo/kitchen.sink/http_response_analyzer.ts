@@ -1,5 +1,12 @@
 #!/usr/bin/env -S deno run --allow-all
 
+// Type declarations for Deno globals
+declare const Deno: {
+  readTextFile(path: string): Promise<string>;
+  args: string[];
+  exit(code: number): never;
+};
+
 interface HttpRecord {
   id: string;
   timestamp: number;
@@ -364,7 +371,7 @@ async function analyzeHttpResponses(filePath: string) {
 }
 
 // Main execution
-if (import.meta.main) {
+if ((import.meta as any).main) {
   const filePath = Deno.args[0] || "/data/search-results-2025-05-27T16_18_33.456-0700.csv";
   
   if (!filePath) {
