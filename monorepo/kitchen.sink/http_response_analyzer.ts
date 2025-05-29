@@ -209,6 +209,10 @@ async function analyzeHttpResponses(inputPath: string) {
   const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   
+  // Track specific orphaned record IDs
+  const orphanedRequestIds: Array<{ id: string; method: string; url: string }> = [];
+  const orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string }> = [];
+  
   // Performance distribution counters
   let sub10msCount = 0;
   let ms10to100Count = 0;
@@ -368,11 +372,28 @@ async function analyzeHttpResponses(inputPath: string) {
         // Aggregate orphaned endpoints (with memory limits)
         for (const orphan of chunkResults.orphanedRequests) {
           orphanedEndpoints.set(orphan.url, (orphanedEndpoints.get(orphan.url) || 0) + 1);
+          // Track specific orphaned request IDs (limit to prevent memory growth)
+          if (orphanedRequestIds.length < 1000) {
+            orphanedRequestIds.push({
+              id: orphan.id,
+              method: orphan.method,
+              url: orphan.url
+            });
+          }
         }
         
         // Aggregate orphaned response endpoints (with memory limits)
         for (const orphan of chunkResults.orphanedResponses) {
           orphanedResponseEndpoints.set(orphan.url, (orphanedResponseEndpoints.get(orphan.url) || 0) + 1);
+          // Track specific orphaned response IDs (limit to prevent memory growth)
+          if (orphanedResponseIds.length < 1000) {
+            orphanedResponseIds.push({
+              id: orphan.id,
+              status: orphan.statusCode,
+              method: orphan.method,
+              url: orphan.url
+            });
+          }
         }
         
         // Limit orphaned endpoint tracking to prevent memory growth
@@ -483,10 +504,27 @@ async function analyzeHttpResponses(inputPath: string) {
       
       for (const orphan of chunkResults.orphanedRequests) {
         orphanedEndpoints.set(orphan.url, (orphanedEndpoints.get(orphan.url) || 0) + 1);
+        // Track specific orphaned request IDs
+        if (orphanedRequestIds.length < 1000) {
+          orphanedRequestIds.push({
+            id: orphan.id,
+            method: orphan.method,
+            url: orphan.url
+          });
+        }
       }
       
       for (const orphan of chunkResults.orphanedResponses) {
         orphanedResponseEndpoints.set(orphan.url, (orphanedResponseEndpoints.get(orphan.url) || 0) + 1);
+        // Track specific orphaned response IDs
+        if (orphanedResponseIds.length < 1000) {
+          orphanedResponseIds.push({
+            id: orphan.id,
+            status: orphan.statusCode,
+            method: orphan.method,
+            url: orphan.url
+          });
+        }
       }
       
       if (httpRecords.length > 0) {
@@ -672,6 +710,47 @@ async function analyzeHttpResponses(inputPath: string) {
       }
     }
     
+    // Show specific orphaned request IDs
+    if (orphanedRequestIds.length > 0) {
+      console.log("\n" + "-".repeat(100));
+      console.log("SPECIFIC ORPHANED REQUEST IDs:");
+      console.log("-".repeat(100));
+      console.log("ID\t\tMethod\tEndpoint");
+      console.log("-".repeat(100));
+      
+      const displayCount = Math.min(orphanedRequestIds.length, 20);
+      for (let i = 0; i < displayCount; i++) {
+        const { id, method, url } = orphanedRequestIds[i];
+        const shortUrl = url.length > 60 ? url.substring(0, 57) + '...' : url;
+        console.log(`${id}\t\t${method}\t${shortUrl}`);
+      }
+      
+      if (orphanedRequestIds.length > 20) {
+        console.log(`\n... and ${orphanedRequestIds.length - 20} more orphaned requests`);
+      }
+    }
+    
+    // Show specific orphaned response IDs
+    if (orphanedResponseIds.length > 0) {
+      console.log("\n" + "-".repeat(100));
+      console.log("SPECIFIC ORPHANED RESPONSE IDs:");
+      console.log("-".repeat(100));
+      console.log("ID\t\tStatus\tMethod\tEndpoint");
+      console.log("-".repeat(100));
+      
+      const displayCount = Math.min(orphanedResponseIds.length, 20);
+      for (let i = 0; i < displayCount; i++) {
+        const { id, status, method, url } = orphanedResponseIds[i];
+        const statusStr = status || 'N/A';
+        const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
+        console.log(`${id}\t\t${statusStr}\t${method}\t${shortUrl}`);
+      }
+      
+      if (orphanedResponseIds.length > 20) {
+        console.log(`\n... and ${orphanedResponseIds.length - 20} more orphaned responses`);
+      }
+    }
+    
     console.log("\n" + "=".repeat(100));
     console.log("ANALYSIS COMPLETE");
     console.log("=".repeat(100));
@@ -692,6 +771,8 @@ async function analyzeHttpResponses(inputPath: string) {
       extremelySlowResponses,
       orphanedEndpoints,
       orphanedResponseEndpoints,
+      orphanedRequestIds,
+      orphanedResponseIds,
       minTimestamp,
       maxTimestamp,
       sampleCount,
@@ -889,6 +970,8 @@ async function generateMarkdownReport(
   extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
   orphanedEndpoints: Map<string, number>,
   orphanedResponseEndpoints: Map<string, number>,
+  orphanedRequestIds: Array<{ id: string; method: string; url: string }>,
+  orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string }>,
   minTimestamp: number,
   maxTimestamp: number,
   sampleCount: number,
@@ -1019,7 +1102,7 @@ ${extremelySlowCount > 0 ? `### 🚨 Extremely Slow Responses (>5 Seconds)
 
 | ID | Response Time | Status | Method | Endpoint | Issue Type |
 |----|--------------:|--------|--------|----------|------------|
-${extremelySlowResponses.slice(0, 10).map(r => {
+${extremelySlowResponses.map(r => {
   const timeSeconds = (r.responseTimeMs / 1000).toFixed(2);
   const statusStr = r.status || 'N/A';
   const issueType = r.url.includes('sitecore') ? '**Security Attack**' :
@@ -1028,7 +1111,9 @@ ${extremelySlowResponses.slice(0, 10).map(r => {
   return `| ${r.id} | **${timeSeconds}s** | ${statusStr} | ${r.method} | \`${r.url}\` | ${issueType} |`;
 }).join('\n')}
 
-` : '### ✅ No Critical >5s Responses Found\n\nExcellent! No responses exceeded 5 seconds during the analysis period.\n\n'}### Top 10 Slowest Responses
+` : '### ✅ No Critical >5s Responses Found\n\nExcellent! No responses exceeded 5 seconds during the analysis period.\n\n'}
+
+### Top 10 Slowest Responses
 | Rank | ID | Response Time | Status | Method | Endpoint |
 |------|----|--------------:|--------|--------|----------|
 ${slowestResponses.slice(0, 10).map((r, i) => {
@@ -1102,7 +1187,25 @@ ${extremelySlowResponses.slice(0, 3).map(r => {
   return `1. **🔴 Performance issue** - ${r.url} taking ${r.responseTimeMs}ms`;
 }).join('\n')}` : '### ✅ No Critical Issues\n\nNo responses exceeded 5 seconds - excellent system health!'}
 
----
+${orphanedRequestIds.length > 0 ? `### 🔍 Specific Orphaned Request IDs
+**Total: ${orphanedRequestIds.length} orphaned requests**
+
+| ID | Method | Endpoint |
+|----|--------|----------|
+${orphanedRequestIds.map(r => 
+  `| \`${r.id}\` | ${r.method} | \`${r.url.length > 50 ? r.url.substring(0, 47) + '...' : r.url}\` |`
+).join('\n')}
+
+` : ''}${orphanedResponseIds.length > 0 ? `### 🔍 Specific Orphaned Response IDs
+**Total: ${orphanedResponseIds.length} orphaned responses**
+
+| ID | Status | Method | Endpoint |
+|----|--------|--------|----------|
+${orphanedResponseIds.map(r => 
+  `| \`${r.id}\` | ${r.status || 'N/A'} | ${r.method} | \`${r.url.length > 45 ? r.url.substring(0, 42) + '...' : r.url}\` |`
+).join('\n')}
+
+` : ''}---
 
 ## 6. Recommendations
 
@@ -1211,4 +1314,4 @@ if ((import.meta as any).main) {
   await analyzeHttpResponses(inputPath);
 }
 
-export {}; 
+export {};
