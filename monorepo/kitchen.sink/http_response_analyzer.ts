@@ -193,7 +193,14 @@ async function analyzeHttpResponses(inputPath: string) {
   let totalMultipleOccurrences = 0;
   let extremelySlowCount = 0; // Responses > 5 seconds
   
+  // Memory-efficient sampling for response times (max 50K samples)
+  const maxSamples = 50000;
   const allResponseTimes: number[] = [];
+  let totalResponseTimeSum = 0;
+  let minResponseTime = Infinity;
+  let maxResponseTime = 0;
+  let sampleCount = 0;
+  
   const methodStats = new Map<string, { count: number; totalResponseTime: number }>();
   const statusStats = new Map<number, { count: number; totalResponseTime: number }>();
   const orphanedEndpoints = new Map<string, number>();
@@ -201,6 +208,12 @@ async function analyzeHttpResponses(inputPath: string) {
   const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
   const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
+  
+  // Performance distribution counters
+  let sub10msCount = 0;
+  let ms10to100Count = 0;
+  let ms100to5sCount = 0;
+  let over5sCount = 0;
   
   let minTimestamp = Infinity;
   let maxTimestamp = 0;
@@ -241,20 +254,50 @@ async function analyzeHttpResponses(inputPath: string) {
         totalOrphanedResponses += chunkResults.orphanedResponses.length;
         totalMultipleOccurrences += chunkResults.multipleOccurrences.length;
         
-        // Collect response times (sample to avoid memory issues)
+        // Memory-efficient response time processing
         for (const pair of chunkResults.completePairs) {
-          allResponseTimes.push(pair.responseTimeMs);
+          const responseTime = pair.responseTimeMs;
+          
+          // Update running statistics
+          totalResponseTimeSum += responseTime;
+          minResponseTime = Math.min(minResponseTime, responseTime);
+          maxResponseTime = Math.max(maxResponseTime, responseTime);
+          sampleCount++;
+          
+          // Sample response times for percentile calculation (reservoir sampling)
+          if (allResponseTimes.length < maxSamples) {
+            allResponseTimes.push(responseTime);
+          } else {
+            // Reservoir sampling: randomly replace existing sample
+            const randomIndex = Math.floor(Math.random() * sampleCount);
+            if (randomIndex < maxSamples) {
+              allResponseTimes[randomIndex] = responseTime;
+            }
+          }
+          
+          // Update performance distribution counters
+          if (responseTime < 10) {
+            sub10msCount++;
+          } else if (responseTime < 100) {
+            ms10to100Count++;
+          } else if (responseTime < 5000) {
+            ms100to5sCount++;
+          } else {
+            over5sCount++;
+          }
           
           // Track extremely slow responses (>5 seconds)
-          if (pair.responseTimeMs > 5000) {
+          if (responseTime > 5000) {
             extremelySlowCount++;
-            extremelySlowResponses.push({
-              id: pair.id,
-              responseTimeMs: pair.responseTimeMs,
-              status: pair.response.statusCode,
-              method: pair.response.method,
-              url: pair.response.url
-            });
+            if (extremelySlowResponses.length < 100) {
+              extremelySlowResponses.push({
+                id: pair.id,
+                responseTimeMs: responseTime,
+                status: pair.response.statusCode,
+                method: pair.response.method,
+                url: pair.response.url
+              });
+            }
           }
           
           // Update method stats
@@ -264,7 +307,7 @@ async function analyzeHttpResponses(inputPath: string) {
           }
           const mStats = methodStats.get(method)!;
           mStats.count++;
-          mStats.totalResponseTime += pair.responseTimeMs;
+          mStats.totalResponseTime += responseTime;
           
           // Update status stats
           const status = pair.response.statusCode || 0;
@@ -273,61 +316,98 @@ async function analyzeHttpResponses(inputPath: string) {
           }
           const sStats = statusStats.get(status)!;
           sStats.count++;
-          sStats.totalResponseTime += pair.responseTimeMs;
+          sStats.totalResponseTime += responseTime;
           
-          // Track slowest responses (keep top 100)
-          slowestResponses.push({
-            id: pair.id,
-            responseTimeMs: pair.responseTimeMs,
-            status: pair.response.statusCode,
-            method: pair.response.method,
-            url: pair.response.url
-          });
+          // Track slowest responses (keep top 50 to reduce memory)
+          if (slowestResponses.length < 50) {
+            slowestResponses.push({
+              id: pair.id,
+              responseTimeMs: responseTime,
+              status: pair.response.statusCode,
+              method: pair.response.method,
+              url: pair.response.url
+            });
+          } else {
+            // Only keep if it's slower than the current slowest
+            slowestResponses.sort((a, b) => b.responseTimeMs - a.responseTimeMs);
+            if (responseTime > slowestResponses[49].responseTimeMs) {
+              slowestResponses[49] = {
+                id: pair.id,
+                responseTimeMs: responseTime,
+                status: pair.response.statusCode,
+                method: pair.response.method,
+                url: pair.response.url
+              };
+            }
+          }
+          
+          // Track fastest responses (keep top 50 to reduce memory)
+          if (fastestResponses.length < 50) {
+            fastestResponses.push({
+              id: pair.id,
+              responseTimeMs: responseTime,
+              status: pair.response.statusCode,
+              method: pair.response.method,
+              url: pair.response.url
+            });
+          } else {
+            // Only keep if it's faster than the current fastest
+            fastestResponses.sort((a, b) => a.responseTimeMs - b.responseTimeMs);
+            if (responseTime < fastestResponses[49].responseTimeMs) {
+              fastestResponses[49] = {
+                id: pair.id,
+                responseTimeMs: responseTime,
+                status: pair.response.statusCode,
+                method: pair.response.method,
+                url: pair.response.url
+              };
+            }
+          }
         }
         
-        // Track fastest responses (keep top 100)
-        for (const pair of chunkResults.completePairs) {
-          fastestResponses.push({
-            id: pair.id,
-            responseTimeMs: pair.responseTimeMs,
-            status: pair.response.statusCode,
-            method: pair.response.method,
-            url: pair.response.url
-          });
-        }
-        
-        // Aggregate orphaned endpoints
+        // Aggregate orphaned endpoints (with memory limits)
         for (const orphan of chunkResults.orphanedRequests) {
           orphanedEndpoints.set(orphan.url, (orphanedEndpoints.get(orphan.url) || 0) + 1);
         }
         
-        // Aggregate orphaned response endpoints
+        // Aggregate orphaned response endpoints (with memory limits)
         for (const orphan of chunkResults.orphanedResponses) {
           orphanedResponseEndpoints.set(orphan.url, (orphanedResponseEndpoints.get(orphan.url) || 0) + 1);
         }
         
-        // Trim arrays to prevent memory growth
-        if (slowestResponses.length > 1000) {
-          slowestResponses.sort((a, b) => b.responseTimeMs - a.responseTimeMs);
-          slowestResponses.splice(100);
+        // Limit orphaned endpoint tracking to prevent memory growth
+        if (orphanedEndpoints.size > 1000) {
+          const sortedEntries = [...orphanedEndpoints.entries()].sort((a, b) => b[1] - a[1]).slice(0, 500);
+          orphanedEndpoints.clear();
+          for (const [url, count] of sortedEntries) {
+            orphanedEndpoints.set(url, count);
+          }
         }
-        if (fastestResponses.length > 1000) {
-          fastestResponses.sort((a, b) => a.responseTimeMs - b.responseTimeMs);
-          fastestResponses.splice(100);
-        }
-        if (extremelySlowResponses.length > 1000) {
-          extremelySlowResponses.sort((a, b) => b.responseTimeMs - a.responseTimeMs);
-          extremelySlowResponses.splice(100); // Keep top 100 slowest
+        
+        if (orphanedResponseEndpoints.size > 1000) {
+          const sortedEntries = [...orphanedResponseEndpoints.entries()].sort((a, b) => b[1] - a[1]).slice(0, 500);
+          orphanedResponseEndpoints.clear();
+          for (const [url, count] of sortedEntries) {
+            orphanedResponseEndpoints.set(url, count);
+          }
         }
         
         // Free memory by clearing the chunk records
         httpRecords.length = 0;
         
         console.log(`  Processed chunk ${i + 1}/${chunkFiles.length} - Total pairs so far: ${totalCompletePairs.toLocaleString()}`);
+        
+        // Force garbage collection hint every 10 chunks
+        if ((i + 1) % 10 === 0) {
+          // Clear some temporary arrays to help with memory
+          if (globalThis.gc) {
+            globalThis.gc();
+          }
+        }
       }
       
     } else {
-      // Single file processing (existing logic but simplified)
+      // Single file processing (existing logic but with memory optimization)
       const httpRecords = await processSingleFile(inputPath);
       const chunkResults = processChunkRecords(httpRecords);
       
@@ -337,29 +417,44 @@ async function analyzeHttpResponses(inputPath: string) {
       totalOrphanedResponses = chunkResults.orphanedResponses.length;
       totalMultipleOccurrences = chunkResults.multipleOccurrences.length;
       
-      // Collect data
+      // Process response times with sampling
       for (const pair of chunkResults.completePairs) {
-        allResponseTimes.push(pair.responseTimeMs);
+        const responseTime = pair.responseTimeMs;
         
-        // Track extremely slow responses (>5 seconds)
-        if (pair.responseTimeMs > 5000) {
+        totalResponseTimeSum += responseTime;
+        minResponseTime = Math.min(minResponseTime, responseTime);
+        maxResponseTime = Math.max(maxResponseTime, responseTime);
+        sampleCount++;
+        
+        if (allResponseTimes.length < maxSamples) {
+          allResponseTimes.push(responseTime);
+        }
+        
+        // Update performance distribution
+        if (responseTime < 10) sub10msCount++;
+        else if (responseTime < 100) ms10to100Count++;
+        else if (responseTime < 5000) ms100to5sCount++;
+        else over5sCount++;
+        
+        if (responseTime > 5000) {
           extremelySlowCount++;
           extremelySlowResponses.push({
             id: pair.id,
-            responseTimeMs: pair.responseTimeMs,
+            responseTimeMs: responseTime,
             status: pair.response.statusCode,
             method: pair.response.method,
             url: pair.response.url
           });
         }
         
+        // Update stats maps
         const method = pair.response.method;
         if (!methodStats.has(method)) {
           methodStats.set(method, { count: 0, totalResponseTime: 0 });
         }
         const mStats = methodStats.get(method)!;
         mStats.count++;
-        mStats.totalResponseTime += pair.responseTimeMs;
+        mStats.totalResponseTime += responseTime;
         
         const status = pair.response.statusCode || 0;
         if (!statusStats.has(status)) {
@@ -367,11 +462,11 @@ async function analyzeHttpResponses(inputPath: string) {
         }
         const sStats = statusStats.get(status)!;
         sStats.count++;
-        sStats.totalResponseTime += pair.responseTimeMs;
+        sStats.totalResponseTime += responseTime;
         
         slowestResponses.push({
           id: pair.id,
-          responseTimeMs: pair.responseTimeMs,
+          responseTimeMs: responseTime,
           status: pair.response.statusCode,
           method: pair.response.method,
           url: pair.response.url
@@ -379,7 +474,7 @@ async function analyzeHttpResponses(inputPath: string) {
         
         fastestResponses.push({
           id: pair.id,
-          responseTimeMs: pair.responseTimeMs,
+          responseTimeMs: responseTime,
           status: pair.response.statusCode,
           method: pair.response.method,
           url: pair.response.url
@@ -420,11 +515,7 @@ async function analyzeHttpResponses(inputPath: string) {
       console.log(`\nTIMESTAMP RANGE (FILTERED DATA - 2024+ ONLY):`);
       console.log(`Min timestamp: ${minTimestamp} (${new Date(minTimestamp).toISOString()})`);
       console.log(`Max timestamp: ${maxTimestamp} (${new Date(maxTimestamp).toISOString()})`);
-      console.log(`Time range: ${timeRangeMs.toLocaleString()}ms`);
-      console.log(`  = ${timeRangeSeconds.toFixed(2)}s`);
-      console.log(`  = ${timeRangeMinutes.toFixed(2)} minutes`);
-      console.log(`  = ${timeRangeHours.toFixed(2)} hours`);
-      console.log(`  = ${timeRangeDays.toFixed(2)} days`);
+      console.log(`Duration: ${timeRangeDays.toFixed(1)} days`);
       console.log(`Activity rate: ${(totalHttpRecords / timeRangeSeconds).toFixed(2)} HTTP operations/second`);
     }
     
@@ -494,14 +585,12 @@ async function analyzeHttpResponses(inputPath: string) {
       }
     }
     
-    // Response time statistics
-    if (allResponseTimes.length > 0) {
+    // Response time statistics using sampled data
+    if (sampleCount > 0) {
       allResponseTimes.sort((a, b) => a - b);
-      const avgResponseTime = allResponseTimes.reduce((a, b) => a + b, 0) / allResponseTimes.length;
-      const minResponseTime = allResponseTimes[0];
-      const maxResponseTime = allResponseTimes[allResponseTimes.length - 1];
+      const avgResponseTime = totalResponseTimeSum / sampleCount;
       
-      // Calculate percentiles
+      // Calculate percentiles from sample
       const p50 = allResponseTimes[Math.floor(allResponseTimes.length * 0.5)];
       const p90 = allResponseTimes[Math.floor(allResponseTimes.length * 0.9)];
       const p95 = allResponseTimes[Math.floor(allResponseTimes.length * 0.95)];
@@ -510,20 +599,21 @@ async function analyzeHttpResponses(inputPath: string) {
       console.log("\n" + "-".repeat(100));
       console.log("RESPONSE TIME STATISTICS:");
       console.log("-".repeat(100));
+      console.log(`Sample size: ${allResponseTimes.length.toLocaleString()} (from ${sampleCount.toLocaleString()} total)`);
       console.log(`Average response time: ${avgResponseTime.toFixed(2)}ms`);
       console.log(`Min response time: ${minResponseTime}ms`);
-      console.log(`Max response time: ${maxResponseTime}ms`);
+      console.log(`Max response time: ${maxResponseTime.toLocaleString()}ms`);
       console.log(`50th percentile (median): ${p50}ms`);
       console.log(`90th percentile: ${p90}ms`);
       console.log(`95th percentile: ${p95}ms`);
       console.log(`99th percentile: ${p99}ms`);
       
-      // Additional statistics for large datasets
+      // Performance summary using counters
       console.log(`\nPERFORMANCE SUMMARY:`);
-      console.log(`✅ Sub-10ms responses: ${allResponseTimes.filter(t => t < 10).length.toLocaleString()} (${(allResponseTimes.filter(t => t < 10).length / allResponseTimes.length * 100).toFixed(1)}%)`);
-      console.log(`⚠️  10-100ms responses: ${allResponseTimes.filter(t => t >= 10 && t < 100).length.toLocaleString()} (${(allResponseTimes.filter(t => t >= 10 && t < 100).length / allResponseTimes.length * 100).toFixed(1)}%)`);
-      console.log(`🔴 100ms-5s responses: ${allResponseTimes.filter(t => t >= 100 && t < 5000).length.toLocaleString()} (${(allResponseTimes.filter(t => t >= 100 && t < 5000).length / allResponseTimes.length * 100).toFixed(1)}%)`);
-      console.log(`🚨 >5s responses: ${allResponseTimes.filter(t => t >= 5000).length.toLocaleString()} (${(allResponseTimes.filter(t => t >= 5000).length / allResponseTimes.length * 100).toFixed(1)}%) - CRITICAL!`);
+      console.log(`✅ Sub-10ms responses: ${sub10msCount.toLocaleString()} (${(sub10msCount / sampleCount * 100).toFixed(1)}%)`);
+      console.log(`⚠️  10-100ms responses: ${ms10to100Count.toLocaleString()} (${(ms10to100Count / sampleCount * 100).toFixed(1)}%)`);
+      console.log(`🔴 100ms-5s responses: ${ms100to5sCount.toLocaleString()} (${(ms100to5sCount / sampleCount * 100).toFixed(1)}%)`);
+      console.log(`🚨 >5s responses: ${over5sCount.toLocaleString()} (${(over5sCount / sampleCount * 100).toFixed(1)}%) - CRITICAL!`);
     }
     
     // Method breakdown
@@ -603,7 +693,15 @@ async function analyzeHttpResponses(inputPath: string) {
       orphanedEndpoints,
       orphanedResponseEndpoints,
       minTimestamp,
-      maxTimestamp
+      maxTimestamp,
+      sampleCount,
+      totalResponseTimeSum,
+      minResponseTime,
+      maxResponseTime,
+      sub10msCount,
+      ms10to100Count,
+      ms100to5sCount,
+      over5sCount
     );
     
   } catch (error) {
@@ -792,7 +890,15 @@ async function generateMarkdownReport(
   orphanedEndpoints: Map<string, number>,
   orphanedResponseEndpoints: Map<string, number>,
   minTimestamp: number,
-  maxTimestamp: number
+  maxTimestamp: number,
+  sampleCount: number,
+  totalResponseTimeSum: number,
+  minResponseTime: number,
+  maxResponseTime: number,
+  sub10msCount: number,
+  ms10to100Count: number,
+  ms100to5sCount: number,
+  over5sCount: number
 ): Promise<void> {
   const reportPath = `comprehensive_http_analysis_report_${new Date().toISOString().replace(/[:.]/g, '-')}.md`;
   
@@ -804,20 +910,15 @@ async function generateMarkdownReport(
   
   // Calculate response time statistics
   allResponseTimes.sort((a, b) => a - b);
-  const avgResponseTime = allResponseTimes.reduce((a, b) => a + b, 0) / allResponseTimes.length;
-  const minResponseTime = allResponseTimes[0];
-  const maxResponseTime = allResponseTimes[allResponseTimes.length - 1];
+  const avgResponseTime = totalResponseTimeSum / sampleCount;
+  
+  // Calculate percentiles from sample
   const p50 = allResponseTimes[Math.floor(allResponseTimes.length * 0.5)];
   const p90 = allResponseTimes[Math.floor(allResponseTimes.length * 0.9)];
   const p95 = allResponseTimes[Math.floor(allResponseTimes.length * 0.95)];
   const p99 = allResponseTimes[Math.floor(allResponseTimes.length * 0.99)];
   
-  // Performance distribution
-  const sub10ms = allResponseTimes.filter(t => t < 10).length;
-  const ms10to100 = allResponseTimes.filter(t => t >= 10 && t < 100).length;
-  const ms100to5s = allResponseTimes.filter(t => t >= 100 && t < 5000).length;
-  const over5s = allResponseTimes.filter(t => t >= 5000).length;
-  
+  // Calculate success rate for reporting
   const successRate = ((totalCompletePairs / (totalCompletePairs + totalOrphanedRequests + totalOrphanedResponses)) * 100).toFixed(2);
   
   const report = `# HTTP Request/Response Analysis Report - Production Scale
@@ -876,10 +977,10 @@ ${extremelySlowCount > 0 ? `- **🚨 Extremely slow responses (>5s):** ${extreme
 ### Performance Distribution
 | Category | Count | Percentage | Status |
 |----------|-------|------------|---------|
-| ✅ Sub-10ms responses | ${sub10ms.toLocaleString()} | ${(sub10ms / allResponseTimes.length * 100).toFixed(1)}% | Excellent |
-| ⚠️ 10-100ms responses | ${ms10to100.toLocaleString()} | ${(ms10to100 / allResponseTimes.length * 100).toFixed(1)}% | Acceptable |
-| 🔴 100ms-5s responses | ${ms100to5s.toLocaleString()} | ${(ms100to5s / allResponseTimes.length * 100).toFixed(1)}% | Needs attention |
-| 🚨 >5s responses | ${over5s.toLocaleString()} | ${(over5s / allResponseTimes.length * 100).toFixed(1)}% | ${over5s > 0 ? '**CRITICAL!**' : '✅ None'} |
+| ✅ Sub-10ms responses | ${sub10msCount.toLocaleString()} | ${(sub10msCount / sampleCount * 100).toFixed(1)}% | Excellent |
+| ⚠️ 10-100ms responses | ${ms10to100Count.toLocaleString()} | ${(ms10to100Count / sampleCount * 100).toFixed(1)}% | Acceptable |
+| 🔴 100ms-5s responses | ${ms100to5sCount.toLocaleString()} | ${(ms100to5sCount / sampleCount * 100).toFixed(1)}% | Needs attention |
+| 🚨 >5s responses | ${over5sCount.toLocaleString()} | ${(over5sCount / sampleCount * 100).toFixed(1)}% | ${over5sCount > 0 ? '**CRITICAL!**' : '✅ None'} |
 
 ### Performance by HTTP Method
 | Method | Count | Avg Response Time | Performance |
@@ -979,7 +1080,7 @@ ${[...orphanedResponseEndpoints.entries()]
 ## 5. Performance Insights
 
 ### 🟢 Excellent Performance Indicators
-1. **Outstanding response times** - ${(sub10ms / allResponseTimes.length * 100).toFixed(1)}% under 10ms
+1. **Outstanding response times** - ${(sub10msCount / sampleCount * 100).toFixed(1)}% under 10ms
 2. **High success rate** - ${successRate}% of requests have matching responses
 3. **Consistent logging** - Minimal gaps across ${timeRangeDays.toFixed(1)}-day period
 4. **Strong 99th percentile** - ${p99}ms keeps most users satisfied
@@ -1056,16 +1157,16 @@ ${[...methodStats.entries()]
 4. **📊 Orphan rate >1%** - Data integrity alert
 
 ### Performance SLAs
-- **${(sub10ms / allResponseTimes.length * 100).toFixed(0)}% of requests** currently complete under 10ms
-- **${((sub10ms + ms10to100) / allResponseTimes.length * 100).toFixed(0)}% of requests** currently complete under 100ms
-- **${((allResponseTimes.length - over5s) / allResponseTimes.length * 100).toFixed(1)}% of requests** currently complete under 5s
+- **${(sub10msCount / sampleCount * 100).toFixed(0)}% of requests** currently complete under 10ms
+- **${((sub10msCount + ms10to100Count) / sampleCount * 100).toFixed(0)}% of requests** currently complete under 100ms
+- **${((sampleCount - over5sCount) / sampleCount * 100).toFixed(1)}% of requests** currently complete under 5s
 - **Zero tolerance** for >5s responses (except during attacks)
 
 ---
 
 ## 9. Conclusion
 
-The system demonstrates **${sub10ms / allResponseTimes.length > 0.7 ? 'exceptional' : 'good'}** performance with ${(sub10ms / allResponseTimes.length * 100).toFixed(1)}% of responses under 10ms and a ${successRate}% success rate across **${totalCompletePairs.toLocaleString()} transactions**.
+The system demonstrates **${sub10msCount / sampleCount > 0.7 ? 'exceptional' : 'good'}** performance with ${(sub10msCount / sampleCount * 100).toFixed(1)}% of responses under 10ms and a ${successRate}% success rate across **${totalCompletePairs.toLocaleString()} transactions**.
 
 ${extremelySlowCount > 0 ? 
 `**Critical attention needed:** ${extremelySlowCount} response${extremelySlowCount > 1 ? 's' : ''} exceeded 5 seconds, indicating potential security threats or performance bottlenecks.` :
