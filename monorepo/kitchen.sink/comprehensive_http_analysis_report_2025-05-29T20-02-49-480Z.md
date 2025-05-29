@@ -15,7 +15,7 @@ This report analyzes HTTP request/response pairs from a **54.9-day period** of p
 - **Total HTTP records:** 8,990,982
 - **Complete pairs:** 318,400 (99.98% success rate)
 - **Average response time:** 10.09ms
-- **99th percentile:** 130ms
+- **99th percentile:** 128ms
 - **System load:** ~1.90 requests/second
 - **🚨 Critical responses (>5s):** 7
 
@@ -47,9 +47,9 @@ This report analyzes HTTP request/response pairs from a **54.9-day period** of p
 | Minimum | 0ms |
 | Maximum | 11,935ms |
 | 50th percentile (median) | 2ms |
-| 90th percentile | 20ms |
+| 90th percentile | 21ms |
 | 95th percentile | 60ms |
-| 99th percentile | 130ms |
+| 99th percentile | 128ms |
 
 ### Performance Distribution
 | Category | Count | Percentage | Status |
@@ -92,15 +92,15 @@ This report analyzes HTTP request/response pairs from a **54.9-day period** of p
 ### 🚨 Extremely Slow Responses (>5 Seconds)
 **TOTAL: 7 responses**
 
-| ID | Response Time | Status | Method | Endpoint | Issue Type |
-|----|--------------:|--------|--------|----------|------------|
-| 17 | **11.94s** | 404 | POST | `/` | **System Issue** |
-| 11556 | **11.88s** | 404 | POST | `/` | **System Issue** |
-| 11549 | **11.81s** | 404 | POST | `/` | **System Issue** |
-| 3683 | **11.44s** | 404 | POST | `/` | **System Issue** |
-| 9788 | **9.89s** | 404 | POST | `/` | **Optimization Needed** |
-| 9612 | **9.08s** | 404 | POST | `/` | **Optimization Needed** |
-| 2366 | **6.95s** | 404 | POST | `/sitecore/shell/ClientBin/Reporting/Report.ashx` | **Security Attack** |
+| ID | Timestamp | Response Time | Status | Method | Endpoint | Issue Type |
+|----|-----------|---------------|--------|--------|----------|------------|
+| 17 | `2025-05-26T07:35:01.972Z` | **11.94s** | 404 | POST | `/` | **System Issue** |
+| 11556 | `2025-05-26T07:43:17.624Z` | **11.88s** | 404 | POST | `/` | **System Issue** |
+| 11549 | `2025-05-26T07:42:48.512Z` | **11.81s** | 404 | POST | `/` | **System Issue** |
+| 3683 | `2025-05-26T18:26:44.555Z` | **11.44s** | 404 | POST | `/` | **System Issue** |
+| 9788 | `2025-05-28T03:20:45.129Z` | **9.89s** | 404 | POST | `/` | **Optimization Needed** |
+| 9612 | `2025-05-28T03:20:35.950Z` | **9.08s** | 404 | POST | `/` | **Optimization Needed** |
+| 2366 | `2025-04-17T06:09:21.576Z` | **6.95s** | 404 | POST | `/sitecore/shell/ClientBin/Reporting/Report.ashx` | **Security Attack** |
 
 
 
@@ -154,7 +154,7 @@ This report analyzes HTTP request/response pairs from a **54.9-day period** of p
 1. **Outstanding response times** - 82.2% under 10ms
 2. **High success rate** - 99.98% of requests have matching responses
 3. **Consistent logging** - Minimal gaps across 54.9-day period
-4. **Strong 99th percentile** - 130ms keeps most users satisfied
+4. **Strong 99th percentile** - 128ms keeps most users satisfied
 
 
 ### 🟡 Areas Requiring Attention
@@ -170,72 +170,72 @@ This report analyzes HTTP request/response pairs from a **54.9-day period** of p
 ### 🔍 Specific Orphaned Request IDs
 **Total: 8 orphaned requests**
 
-| ID | Method | Endpoint |
-|----|--------|----------|
-| `1210702` | POST | `/allocate_subscribe` |
-| `2486` | GET | `/apps?customer_id=bigsurAutomatedTesting` |
-| `1424472` | POST | `/sessions` |
-| `3267` | POST | `/apps` |
-| `5689` | POST | `/subscribe` |
-| `5688` | POST | `/allocate_subscribe` |
-| `1612` | POST | `/apps/app-559b1836-6f9c-4b3c-88f2-ce3fd7ad21d0/...` |
-| `10542567` | POST | `/allocate_publish` |
+| ID | Timestamp | Method | Endpoint |
+|----|-----------|--------|----------|
+| `1210702` | `2025-04-19T02:40:08.651Z` | POST | `/allocate_subscribe` |
+| `2486` | `2025-04-19T13:51:34.980Z` | GET | `/apps?customer_id=bigsurAutomatedTesting` |
+| `1424472` | `2025-04-20T00:51:10.985Z` | POST | `/sessions` |
+| `3267` | `2025-04-23T16:13:24.977Z` | POST | `/apps` |
+| `5689` | `2025-05-07T01:17:18.996Z` | POST | `/subscribe` |
+| `5688` | `2025-05-07T01:17:18.992Z` | POST | `/allocate_subscribe` |
+| `1612` | `2025-05-09T19:48:18.989Z` | POST | `/apps/app-559b1836-6f9c-4b3c-88f2-ce3fd7ad...` |
+| `10542567` | `2025-05-27T15:53:04.746Z` | POST | `/allocate_publish` |
 
 ### 🔍 Specific Orphaned Response IDs
 **Total: 50 orphaned responses**
 
-| ID | Status | Method | Endpoint |
-|----|--------|--------|----------|
-| `314711` | 201 | POST | `/sessions` |
-| `779703` | 201 | POST | `/subscribe` |
-| `29` | 201 | POST | `/session_access` |
-| `1130364` | 201 | POST | `/session_access` |
-| `1220402` | 201 | POST | `/sessions` |
-| `2396757` | 200 | POST | `/allocate_subscribe` |
-| `2396756` | 200 | POST | `/allocate_subscribe` |
-| `189439` | 200 | GET | `/health` |
-| `2706089` | 201 | POST | `/session_access` |
-| `294694` | 200 | GET | `/health` |
-| `3009495` | 200 | GET | `/health` |
-| `677328` | 200 | GET | `/health` |
-| `1072921` | 201 | POST | `/sessions` |
-| `1816539` | 201 | POST | `/subscribe` |
-| `3029912` | 201 | POST | `/sessions` |
-| `3144107` | 200 | GET | `/health` |
-| `3246710` | 201 | POST | `/sessions` |
-| `3369664` | 201 | POST | `/subscribe` |
-| `2224570` | 201 | POST | `/session_access` |
-| `4163934` | 200 | GET | `/health` |
-| `4294990` | 201 | POST | `/session_access` |
-| `2609573` | 200 | GET | `/health` |
-| `2579046` | 200 | GET | `/health` |
-| `5115774` | 200 | GET | `/health` |
-| `5342942` | 201 | POST | `/session_access` |
-| `5510449` | 201 | POST | `/session_access` |
-| `5510450` | 201 | POST | `/session_access` |
-| `5510446` | 201 | POST | `/session_access` |
-| `5510445` | 201 | POST | `/session_access` |
-| `5510439` | 201 | POST | `/session_access` |
-| `5510441` | 201 | POST | `/session_access` |
-| `5510437` | 201 | POST | `/session_access` |
-| `5510444` | 201 | POST | `/session_access` |
-| `5510443` | 201 | POST | `/session_access` |
-| `5510435` | 201 | POST | `/session_access` |
-| `5797185` | 201 | POST | `/subscribe` |
-| `3344056` | 200 | GET | `/health` |
-| `1494` | 201 | POST | `/apps` |
-| `6181530` | 201 | POST | `/session_access` |
-| `6304452` | 201 | POST | `/sessions` |
-| `3169230` | 404 | GET | `/login/login.do` |
-| `6545484` | 201 | POST | `/sessions` |
-| `6660084` | 201 | POST | `/session_access` |
-| `6977653` | 201 | POST | `/sessions` |
-| `7190240` | 200 | POST | `/allocate_subscribe` |
-| `7325794` | 201 | POST | `/session_access` |
-| `1155` | 200 | GET | `/apps?customer_id=bigsurAutomatedTesting` |
-| `9241284` | 201 | POST | `/subscribe` |
-| `9979091` | 201 | POST | `/sessions` |
-| `10540559` | 201 | POST | `/session_access` |
+| ID | Timestamp | Status | Method | Endpoint |
+|----|-----------|--------|--------|----------|
+| `314711` | `2025-04-03T20:20:44.994Z` | 201 | POST | `/sessions` |
+| `779703` | `2025-04-05T16:39:34.503Z` | 201 | POST | `/subscribe` |
+| `29` | `2025-04-06T03:53:39.953Z` | 201 | POST | `/session_access` |
+| `1130364` | `2025-04-07T01:59:53.899Z` | 201 | POST | `/session_access` |
+| `1220402` | `2025-04-07T13:02:09.935Z` | 201 | POST | `/sessions` |
+| `2396757` | `2025-04-12T03:49:35.306Z` | 200 | POST | `/allocate_subscribe` |
+| `2396756` | `2025-04-12T03:49:35.303Z` | 200 | POST | `/allocate_subscribe` |
+| `189439` | `2025-04-12T14:47:01.253Z` | 200 | GET | `/health` |
+| `2706089` | `2025-04-13T13:01:40.977Z` | 201 | POST | `/session_access` |
+| `294694` | `2025-04-13T13:01:41.449Z` | 200 | GET | `/health` |
+| `3009495` | `2025-04-14T10:57:08.065Z` | 200 | GET | `/health` |
+| `677328` | `2025-04-16T18:36:46.624Z` | 200 | GET | `/health` |
+| `1072921` | `2025-04-18T14:41:34.478Z` | 201 | POST | `/sessions` |
+| `1816539` | `2025-04-21T19:34:07.527Z` | 201 | POST | `/subscribe` |
+| `3029912` | `2025-04-26T21:17:30.023Z` | 201 | POST | `/sessions` |
+| `3144107` | `2025-04-27T07:58:59.970Z` | 200 | GET | `/health` |
+| `3246710` | `2025-04-27T19:08:21.850Z` | 201 | POST | `/sessions` |
+| `3369664` | `2025-04-28T06:25:04.691Z` | 201 | POST | `/subscribe` |
+| `2224570` | `2025-04-30T02:54:24.973Z` | 201 | POST | `/session_access` |
+| `4163934` | `2025-05-01T12:08:30.104Z` | 200 | GET | `/health` |
+| `4294990` | `2025-05-01T23:32:30.930Z` | 201 | POST | `/session_access` |
+| `2609573` | `2025-05-03T08:10:20.800Z` | 200 | GET | `/health` |
+| `2579046` | `2025-05-04T16:56:30.078Z` | 200 | GET | `/health` |
+| `5115774` | `2025-05-05T15:05:34.334Z` | 200 | GET | `/health` |
+| `5342942` | `2025-05-06T13:17:19.202Z` | 201 | POST | `/session_access` |
+| `5510449` | `2025-05-07T00:51:27.834Z` | 201 | POST | `/session_access` |
+| `5510450` | `2025-05-07T00:51:27.837Z` | 201 | POST | `/session_access` |
+| `5510446` | `2025-05-07T00:51:27.828Z` | 201 | POST | `/session_access` |
+| `5510445` | `2025-05-07T00:51:27.820Z` | 201 | POST | `/session_access` |
+| `5510439` | `2025-05-07T00:51:27.788Z` | 201 | POST | `/session_access` |
+| `5510441` | `2025-05-07T00:51:27.797Z` | 201 | POST | `/session_access` |
+| `5510437` | `2025-05-07T00:51:27.777Z` | 201 | POST | `/session_access` |
+| `5510444` | `2025-05-07T00:51:27.819Z` | 201 | POST | `/session_access` |
+| `5510443` | `2025-05-07T00:51:27.812Z` | 201 | POST | `/session_access` |
+| `5510435` | `2025-05-07T00:51:27.764Z` | 201 | POST | `/session_access` |
+| `5797185` | `2025-05-07T23:03:37.299Z` | 201 | POST | `/subscribe` |
+| `3344056` | `2025-05-08T21:07:17.861Z` | 200 | GET | `/health` |
+| `1494` | `2025-05-09T07:48:19.944Z` | 201 | POST | `/apps` |
+| `6181530` | `2025-05-09T07:48:19.280Z` | 201 | POST | `/session_access` |
+| `6304452` | `2025-05-09T19:26:33.995Z` | 201 | POST | `/sessions` |
+| `3169230` | `2025-05-10T06:15:39.328Z` | 404 | GET | `/login/login.do` |
+| `6545484` | `2025-05-10T17:10:03.328Z` | 201 | POST | `/sessions` |
+| `6660084` | `2025-05-11T04:13:10.238Z` | 201 | POST | `/session_access` |
+| `6977653` | `2025-05-12T13:20:02.253Z` | 201 | POST | `/sessions` |
+| `7190240` | `2025-05-13T11:19:58.217Z` | 200 | POST | `/allocate_subscribe` |
+| `7325794` | `2025-05-13T22:44:06.386Z` | 201 | POST | `/session_access` |
+| `1155` | `2025-05-21T06:24:44.359Z` | 200 | GET | `/apps?customer_id=bigsurAutomatedTesting` |
+| `9241284` | `2025-05-21T17:31:02.945Z` | 201 | POST | `/subscribe` |
+| `9979091` | `2025-05-24T22:24:42.207Z` | 201 | POST | `/sessions` |
+| `10540559` | `2025-05-27T15:44:24.208Z` | 201 | POST | `/session_access` |
 
 ---
 
@@ -301,4 +301,4 @@ The system demonstrates **exceptional** performance with 82.2% of responses unde
 
 ---
 
-*Report generated automatically by HTTP Response Analyzer v2.0 - 2025-05-29T15:25:34.058Z*
+*Report generated automatically by HTTP Response Analyzer v2.0 - 2025-05-29T20:02:49.482Z*

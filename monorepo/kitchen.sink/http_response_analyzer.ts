@@ -205,13 +205,13 @@ async function analyzeHttpResponses(inputPath: string) {
   const statusStats = new Map<number, { count: number; totalResponseTime: number }>();
   const orphanedEndpoints = new Map<string, number>();
   const orphanedResponseEndpoints = new Map<string, number>();
-  const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
-  const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
-  const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }> = [];
+  const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
+  const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
+  const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
   
   // Track specific orphaned record IDs
-  const orphanedRequestIds: Array<{ id: string; method: string; url: string }> = [];
-  const orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string }> = [];
+  const orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number }> = [];
+  const orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }> = [];
   
   // Performance distribution counters
   let sub10msCount = 0;
@@ -299,7 +299,8 @@ async function analyzeHttpResponses(inputPath: string) {
                 responseTimeMs: responseTime,
                 status: pair.response.statusCode,
                 method: pair.response.method,
-                url: pair.response.url
+                url: pair.response.url,
+                timestamp: pair.response.timestamp
               });
             }
           }
@@ -329,7 +330,8 @@ async function analyzeHttpResponses(inputPath: string) {
               responseTimeMs: responseTime,
               status: pair.response.statusCode,
               method: pair.response.method,
-              url: pair.response.url
+              url: pair.response.url,
+              timestamp: pair.response.timestamp
             });
           } else {
             // Only keep if it's slower than the current slowest
@@ -340,7 +342,8 @@ async function analyzeHttpResponses(inputPath: string) {
                 responseTimeMs: responseTime,
                 status: pair.response.statusCode,
                 method: pair.response.method,
-                url: pair.response.url
+                url: pair.response.url,
+                timestamp: pair.response.timestamp
               };
             }
           }
@@ -352,7 +355,8 @@ async function analyzeHttpResponses(inputPath: string) {
               responseTimeMs: responseTime,
               status: pair.response.statusCode,
               method: pair.response.method,
-              url: pair.response.url
+              url: pair.response.url,
+              timestamp: pair.response.timestamp
             });
           } else {
             // Only keep if it's faster than the current fastest
@@ -363,7 +367,8 @@ async function analyzeHttpResponses(inputPath: string) {
                 responseTimeMs: responseTime,
                 status: pair.response.statusCode,
                 method: pair.response.method,
-                url: pair.response.url
+                url: pair.response.url,
+                timestamp: pair.response.timestamp
               };
             }
           }
@@ -377,7 +382,8 @@ async function analyzeHttpResponses(inputPath: string) {
             orphanedRequestIds.push({
               id: orphan.id,
               method: orphan.method,
-              url: orphan.url
+              url: orphan.url,
+              timestamp: orphan.timestamp
             });
           }
         }
@@ -391,7 +397,8 @@ async function analyzeHttpResponses(inputPath: string) {
               id: orphan.id,
               status: orphan.statusCode,
               method: orphan.method,
-              url: orphan.url
+              url: orphan.url,
+              timestamp: orphan.timestamp
             });
           }
         }
@@ -464,7 +471,8 @@ async function analyzeHttpResponses(inputPath: string) {
             responseTimeMs: responseTime,
             status: pair.response.statusCode,
             method: pair.response.method,
-            url: pair.response.url
+            url: pair.response.url,
+            timestamp: pair.response.timestamp
           });
         }
         
@@ -490,7 +498,8 @@ async function analyzeHttpResponses(inputPath: string) {
           responseTimeMs: responseTime,
           status: pair.response.statusCode,
           method: pair.response.method,
-          url: pair.response.url
+          url: pair.response.url,
+          timestamp: pair.response.timestamp
         });
         
         fastestResponses.push({
@@ -498,7 +507,8 @@ async function analyzeHttpResponses(inputPath: string) {
           responseTimeMs: responseTime,
           status: pair.response.statusCode,
           method: pair.response.method,
-          url: pair.response.url
+          url: pair.response.url,
+          timestamp: pair.response.timestamp
         });
       }
       
@@ -509,7 +519,8 @@ async function analyzeHttpResponses(inputPath: string) {
           orphanedRequestIds.push({
             id: orphan.id,
             method: orphan.method,
-            url: orphan.url
+            url: orphan.url,
+            timestamp: orphan.timestamp
           });
         }
       }
@@ -522,7 +533,8 @@ async function analyzeHttpResponses(inputPath: string) {
             id: orphan.id,
             status: orphan.statusCode,
             method: orphan.method,
-            url: orphan.url
+            url: orphan.url,
+            timestamp: orphan.timestamp
           });
         }
       }
@@ -715,14 +727,15 @@ async function analyzeHttpResponses(inputPath: string) {
       console.log("\n" + "-".repeat(100));
       console.log("SPECIFIC ORPHANED REQUEST IDs:");
       console.log("-".repeat(100));
-      console.log("ID\t\tMethod\tEndpoint");
+      console.log("ID\t\tTimestamp\tMethod\tEndpoint");
       console.log("-".repeat(100));
       
       const displayCount = Math.min(orphanedRequestIds.length, 20);
       for (let i = 0; i < displayCount; i++) {
-        const { id, method, url } = orphanedRequestIds[i];
+        const { id, method, url, timestamp } = orphanedRequestIds[i];
         const shortUrl = url.length > 60 ? url.substring(0, 57) + '...' : url;
-        console.log(`${id}\t\t${method}\t${shortUrl}`);
+        const timestampStr = new Date(timestamp).toISOString();
+        console.log(`${id}\t\t${timestampStr}\t${method}\t${shortUrl}`);
       }
       
       if (orphanedRequestIds.length > 20) {
@@ -735,15 +748,16 @@ async function analyzeHttpResponses(inputPath: string) {
       console.log("\n" + "-".repeat(100));
       console.log("SPECIFIC ORPHANED RESPONSE IDs:");
       console.log("-".repeat(100));
-      console.log("ID\t\tStatus\tMethod\tEndpoint");
+      console.log("ID\t\tTimestamp\tStatus\tMethod\tEndpoint");
       console.log("-".repeat(100));
       
       const displayCount = Math.min(orphanedResponseIds.length, 20);
       for (let i = 0; i < displayCount; i++) {
-        const { id, status, method, url } = orphanedResponseIds[i];
+        const { id, status, method, url, timestamp } = orphanedResponseIds[i];
         const statusStr = status || 'N/A';
         const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
-        console.log(`${id}\t\t${statusStr}\t${method}\t${shortUrl}`);
+        const timestampStr = new Date(timestamp).toISOString();
+        console.log(`${id}\t\t${timestampStr}\t${statusStr}\t${method}\t${shortUrl}`);
       }
       
       if (orphanedResponseIds.length > 20) {
@@ -965,13 +979,13 @@ async function generateMarkdownReport(
   allResponseTimes: number[],
   methodStats: Map<string, { count: number; totalResponseTime: number }>,
   statusStats: Map<number, { count: number; totalResponseTime: number }>,
-  slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
-  fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
-  extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string }>,
+  slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
+  fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
+  extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
   orphanedEndpoints: Map<string, number>,
   orphanedResponseEndpoints: Map<string, number>,
-  orphanedRequestIds: Array<{ id: string; method: string; url: string }>,
-  orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string }>,
+  orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number }>,
+  orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }>,
   minTimestamp: number,
   maxTimestamp: number,
   sampleCount: number,
@@ -1100,15 +1114,16 @@ ${[...statusStats.entries()]
 ${extremelySlowCount > 0 ? `### 🚨 Extremely Slow Responses (>5 Seconds)
 **TOTAL: ${extremelySlowCount} response${extremelySlowCount > 1 ? 's' : ''}**
 
-| ID | Response Time | Status | Method | Endpoint | Issue Type |
-|----|--------------:|--------|--------|----------|------------|
+| ID | Timestamp | Response Time | Status | Method | Endpoint | Issue Type |
+|----|-----------|---------------|--------|--------|----------|------------|
 ${extremelySlowResponses.map(r => {
   const timeSeconds = (r.responseTimeMs / 1000).toFixed(2);
   const statusStr = r.status || 'N/A';
   const issueType = r.url.includes('sitecore') ? '**Security Attack**' :
                    r.url.includes('allocate') ? '**Performance Issue**' :
                    r.responseTimeMs > 10000 ? '**System Issue**' : '**Optimization Needed**';
-  return `| ${r.id} | **${timeSeconds}s** | ${statusStr} | ${r.method} | \`${r.url}\` | ${issueType} |`;
+  const timestampStr = new Date(r.timestamp).toISOString();
+  return `| ${r.id} | \`${timestampStr}\` | **${timeSeconds}s** | ${statusStr} | ${r.method} | \`${r.url}\` | ${issueType} |`;
 }).join('\n')}
 
 ` : '### ✅ No Critical >5s Responses Found\n\nExcellent! No responses exceeded 5 seconds during the analysis period.\n\n'}
@@ -1190,20 +1205,22 @@ ${extremelySlowResponses.slice(0, 3).map(r => {
 ${orphanedRequestIds.length > 0 ? `### 🔍 Specific Orphaned Request IDs
 **Total: ${orphanedRequestIds.length} orphaned requests**
 
-| ID | Method | Endpoint |
-|----|--------|----------|
-${orphanedRequestIds.map(r => 
-  `| \`${r.id}\` | ${r.method} | \`${r.url.length > 50 ? r.url.substring(0, 47) + '...' : r.url}\` |`
-).join('\n')}
+| ID | Timestamp | Method | Endpoint |
+|----|-----------|--------|----------|
+${orphanedRequestIds.map(r => {
+  const timestampStr = new Date(r.timestamp).toISOString();
+  return `| \`${r.id}\` | \`${timestampStr}\` | ${r.method} | \`${r.url.length > 45 ? r.url.substring(0, 42) + '...' : r.url}\` |`;
+}).join('\n')}
 
 ` : ''}${orphanedResponseIds.length > 0 ? `### 🔍 Specific Orphaned Response IDs
 **Total: ${orphanedResponseIds.length} orphaned responses**
 
-| ID | Status | Method | Endpoint |
-|----|--------|--------|----------|
-${orphanedResponseIds.map(r => 
-  `| \`${r.id}\` | ${r.status || 'N/A'} | ${r.method} | \`${r.url.length > 45 ? r.url.substring(0, 42) + '...' : r.url}\` |`
-).join('\n')}
+| ID | Timestamp | Status | Method | Endpoint |
+|----|-----------|--------|--------|----------|
+${orphanedResponseIds.map(r => {
+  const timestampStr = new Date(r.timestamp).toISOString();
+  return `| \`${r.id}\` | \`${timestampStr}\` | ${r.status || 'N/A'} | ${r.method} | \`${r.url.length > 40 ? r.url.substring(0, 37) + '...' : r.url}\` |`;
+}).join('\n')}
 
 ` : ''}---
 
