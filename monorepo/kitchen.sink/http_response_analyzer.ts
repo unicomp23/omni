@@ -1953,26 +1953,69 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export comprehensive CSV files to workspace
       console.log("\n📄 Exporting comprehensive CSV reports...");
       
+      // Deduplicate all records before CSV export using composite keys
+      console.log("  🔄 Deduplicating records...");
+      
+      // Deduplicate orphaned requests
+      const uniqueOrphanedRequests = Array.from(
+        new Map(aggregatedOrphanedDetails.orphanedRequestRecords.map(r => 
+          [`${r.id}:${r.timestamp}`, r]
+        )).values()
+      );
+      console.log(`    Orphaned requests: ${aggregatedOrphanedDetails.orphanedRequestRecords.length} → ${uniqueOrphanedRequests.length} (removed ${aggregatedOrphanedDetails.orphanedRequestRecords.length - uniqueOrphanedRequests.length} duplicates)`);
+      
+      // Deduplicate orphaned responses
+      const uniqueOrphanedResponses = Array.from(
+        new Map(aggregatedOrphanedDetails.orphanedResponseRecords.map(r => 
+          [`${r.id}:${r.timestamp}`, r]
+        )).values()
+      );
+      console.log(`    Orphaned responses: ${aggregatedOrphanedDetails.orphanedResponseRecords.length} → ${uniqueOrphanedResponses.length} (removed ${aggregatedOrphanedDetails.orphanedResponseRecords.length - uniqueOrphanedResponses.length} duplicates)`);
+      
+      // Deduplicate extremely slow responses
+      const uniqueExtremelySlowResponses = Array.from(
+        new Map(aggregatedOrphanedDetails.extremelySlowResponses.map(r => 
+          [`${r.id}:${r.timestamp}`, r]
+        )).values()
+      );
+      console.log(`    Extremely slow responses: ${aggregatedOrphanedDetails.extremelySlowResponses.length} → ${uniqueExtremelySlowResponses.length} (removed ${aggregatedOrphanedDetails.extremelySlowResponses.length - uniqueExtremelySlowResponses.length} duplicates)`);
+      
+      // Deduplicate slowest responses
+      const uniqueSlowestResponses = Array.from(
+        new Map(aggregatedOrphanedDetails.slowestResponses.map(r => 
+          [`${r.id}:${r.timestamp}`, r]
+        )).values()
+      );
+      console.log(`    Slowest responses: ${aggregatedOrphanedDetails.slowestResponses.length} → ${uniqueSlowestResponses.length} (removed ${aggregatedOrphanedDetails.slowestResponses.length - uniqueSlowestResponses.length} duplicates)`);
+      
+      // Deduplicate fastest responses
+      const uniqueFastestResponses = Array.from(
+        new Map(aggregatedOrphanedDetails.fastestResponses.map(r => 
+          [`${r.id}:${r.timestamp}`, r]
+        )).values()
+      );
+      console.log(`    Fastest responses: ${aggregatedOrphanedDetails.fastestResponses.length} → ${uniqueFastestResponses.length} (removed ${aggregatedOrphanedDetails.fastestResponses.length - uniqueFastestResponses.length} duplicates)`);
+      
       // Export all orphaned requests
-      if (aggregatedOrphanedDetails.orphanedRequestRecords.length > 0) {
+      if (uniqueOrphanedRequests.length > 0) {
         const orphanedRequestsCsv = [
           'ID,Epoch_ms,Timestamp,Method,Endpoint',
-          ...aggregatedOrphanedDetails.orphanedRequestRecords.map(r => 
+          ...uniqueOrphanedRequests.map(r => 
             `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_requests.csv`, orphanedRequestsCsv);
-        console.log(`  ✅ orphaned_requests.csv: ${aggregatedOrphanedDetails.orphanedRequestRecords.length} records`);
+        console.log(`  ✅ orphaned_requests.csv: ${uniqueOrphanedRequests.length} deduplicated records`);
       }
       
       // Export all orphaned responses  
-      if (aggregatedOrphanedDetails.orphanedResponseRecords.length > 0) {
+      if (uniqueOrphanedResponses.length > 0) {
         const orphanedResponsesCsv = [
           'ID,Epoch_ms,Timestamp,Status,Method,Endpoint',
-          ...aggregatedOrphanedDetails.orphanedResponseRecords.map(r => 
+          ...uniqueOrphanedResponses.map(r => 
             `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_responses.csv`, orphanedResponsesCsv);
-        console.log(`  ✅ orphaned_responses.csv: ${aggregatedOrphanedDetails.orphanedResponseRecords.length} records`);
+        console.log(`  ✅ orphaned_responses.csv: ${uniqueOrphanedResponses.length} deduplicated records`);
       }
       
       // Export orphaned request endpoints summary
@@ -2000,35 +2043,35 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       }
       
       // Export extremely slow responses
-      if (aggregatedOrphanedDetails.extremelySlowResponses.length > 0) {
+      if (uniqueExtremelySlowResponses.length > 0) {
         const extremelySlowCsv = [
           'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
-          ...aggregatedOrphanedDetails.extremelySlowResponses.map(r => 
+          ...uniqueExtremelySlowResponses.map(r => 
             `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/extremely_slow_responses.csv`, extremelySlowCsv);
-        console.log(`  ✅ extremely_slow_responses.csv: ${aggregatedOrphanedDetails.extremelySlowResponses.length} records`);
+        console.log(`  ✅ extremely_slow_responses.csv: ${uniqueExtremelySlowResponses.length} deduplicated records`);
       }
       
       // Export all slowest/fastest responses for analysis
-      if (aggregatedOrphanedDetails.slowestResponses.length > 0) {
+      if (uniqueSlowestResponses.length > 0) {
         const slowestCsv = [
           'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
-          ...aggregatedOrphanedDetails.slowestResponses.map(r => 
+          ...uniqueSlowestResponses.map(r => 
             `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/slowest_responses.csv`, slowestCsv);
-        console.log(`  ✅ slowest_responses.csv: ${aggregatedOrphanedDetails.slowestResponses.length} records`);
+        console.log(`  ✅ slowest_responses.csv: ${uniqueSlowestResponses.length} deduplicated records`);
       }
       
-      if (aggregatedOrphanedDetails.fastestResponses.length > 0) {
+      if (uniqueFastestResponses.length > 0) {
         const fastestCsv = [
           'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
-          ...aggregatedOrphanedDetails.fastestResponses.map(r => 
+          ...uniqueFastestResponses.map(r => 
             `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/fastest_responses.csv`, fastestCsv);
-        console.log(`  ✅ fastest_responses.csv: ${aggregatedOrphanedDetails.fastestResponses.length} records`);
+        console.log(`  ✅ fastest_responses.csv: ${uniqueFastestResponses.length} deduplicated records`);
       }
       
       // Phase 3: Generate final report
@@ -2233,7 +2276,7 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       console.log(`📁 Complete orphan data exported to CSV files in: ${config.workspaceDir}`);
       console.log(`📊 Markdown report and bucket data preserved for further analysis`);
       
-      // Generate markdown report
+      // Generate markdown report with deduplicated data
       await generateMarkdownReport(
         inputPath,
         totalRecordsProcessed,
@@ -2241,17 +2284,17 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
         totalOrphanedRequests,
         totalOrphanedResponses,
         totalMultipleOccurrences,
-        aggregatedOrphanedDetails.extremelySlowResponses.length,
+        uniqueExtremelySlowResponses.length,
         aggregatedStats.responseTimes,
         aggregatedStats.methodStats,
         aggregatedStats.statusStats,
-        aggregatedOrphanedDetails.slowestResponses,
-        aggregatedOrphanedDetails.fastestResponses,
-        aggregatedOrphanedDetails.extremelySlowResponses,
+        uniqueSlowestResponses,
+        uniqueFastestResponses,
+        uniqueExtremelySlowResponses,
         aggregatedOrphanedDetails.orphanedRequestEndpoints,
         aggregatedOrphanedDetails.orphanedResponseEndpoints,
-        aggregatedOrphanedDetails.orphanedRequestRecords,
-        aggregatedOrphanedDetails.orphanedResponseRecords,
+        uniqueOrphanedRequests,
+        uniqueOrphanedResponses,
         minTimestamp,
         maxTimestamp,
         aggregatedStats.responseTimes.length,

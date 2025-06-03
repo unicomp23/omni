@@ -6,6 +6,7 @@ declare const Deno: {
   writeTextFile(path: string, data: string, options?: { append?: boolean }): Promise<void>;
   args: string[];
   exit(code: number): never;
+  mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 };
 
 // Sumo Logic Query Generator for Orphaned Records
@@ -191,7 +192,7 @@ Examples:
   ./sumo_query_generator.ts orphaned_responses.csv "prod_logs" bulk
 
 Output:
-  Generates .sumo files with ready-to-use Sumo Logic queries
+  Generates .sumo files in the sumo_queries/ directory with ready-to-use Sumo Logic queries
 `);
     Deno.exit(0);
   }
@@ -209,6 +210,13 @@ Output:
     if (records.length === 0) {
       console.log("No records found in CSV file");
       Deno.exit(1);
+    }
+    
+    // Ensure sumo_queries directory exists
+    try {
+      await Deno.mkdir("sumo_queries", { recursive: true });
+    } catch (error) {
+      // Directory might already exist, ignore error
     }
     
     const isRequest = csvFile.includes('request');
@@ -233,7 +241,7 @@ Output:
       }
       
       const individualOutput = individualQueries.join('\n' + '='.repeat(100) + '\n');
-      const individualFile = `individual_${type}_queries_${timestamp}.sumo`;
+      const individualFile = `sumo_queries/individual_${type}_queries_${timestamp}.sumo`;
       await Deno.writeTextFile(individualFile, individualOutput);
       console.log(`✅ Individual queries: ${individualFile} (first 10 records)`);
     }
@@ -241,7 +249,7 @@ Output:
     // Generate bulk query
     if (outputType === 'bulk' || outputType === 'all') {
       const bulkQuery = generateBulkQuery(records, type, sourceCategory);
-      const bulkFile = `bulk_${type}_query_${timestamp}.sumo`;
+      const bulkFile = `sumo_queries/bulk_${type}_query_${timestamp}.sumo`;
       await Deno.writeTextFile(bulkFile, bulkQuery);
       console.log(`✅ Bulk query: ${bulkFile} (top 20 IDs)`);
     }
@@ -258,7 +266,7 @@ Output:
       }
       
       const timelineOutput = timelineQueries.join('\n' + '='.repeat(100) + '\n');
-      const timelineFile = `timeline_${type}_queries_${timestamp}.sumo`;
+      const timelineFile = `sumo_queries/timeline_${type}_queries_${timestamp}.sumo`;
       await Deno.writeTextFile(timelineFile, timelineOutput);
       console.log(`✅ Timeline queries: ${timelineFile} (first 5 records)`);
     }
@@ -274,7 +282,7 @@ Output:
       }
       
       const endpointOutput = endpointQueries.join('\n' + '='.repeat(100) + '\n');
-      const endpointFile = `endpoint_${type}_queries_${timestamp}.sumo`;
+      const endpointFile = `sumo_queries/endpoint_${type}_queries_${timestamp}.sumo`;
       await Deno.writeTextFile(endpointFile, endpointOutput);
       console.log(`✅ Endpoint queries: ${endpointFile} (top 10 endpoints)`);
     }
@@ -282,6 +290,7 @@ Output:
     console.log(`\n🎯 Query Generation Complete!`);
     console.log(`💡 Tip: Edit the source_category in the .sumo files to match your Sumo Logic setup`);
     console.log(`📋 Copy and paste queries into Sumo Logic search interface`);
+    console.log(`📁 All queries saved to: sumo_queries/ directory`);
     
   } catch (error) {
     console.error(`Error processing CSV file: ${error.message}`);
@@ -292,3 +301,6 @@ Output:
 if ((import.meta as any).main) {
   await main();
 } 
+
+// Export to make this file a module
+export {}; 
