@@ -6,7 +6,7 @@ vmType: "vz"
 
 # VM resources
 cpus: 4
-memory: "24GiB"
+memory: "16GiB"
 disk: "100GiB"
 
 # Use Ubuntu latest ARM64 image
@@ -40,4 +40,16 @@ provision:
       addgroup lima docker
       systemctl enable docker
       systemctl start docker
-      usermod -aG docker ubuntu 
+      usermod -aG docker ubuntu
+      
+      # Create 32GB swap file
+      fallocate -l 32G /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      
+      # Make swap permanent
+      echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      
+      # Configure swappiness (optional - reduces swap usage)
+      echo 'vm.swappiness=10' >> /etc/sysctl.conf 
