@@ -1,0 +1,258 @@
+
+// Query for orphaned request ID: 419828
+// Timestamp: 2025-04-01T22:07:17.755Z
+// Endpoint: /allocate_subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=419828"
+| where _raw contains "start=1743545237755"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=419828"  
+| where _messagetime >= 1743545237755
+| where _messagetime <= 1743545297755  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 3452438
+// Timestamp: 2025-04-28T15:53:10.910Z
+// Endpoint: /allocate_subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=3452438"
+| where _raw contains "start=1745855590910"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=3452438"  
+| where _messagetime >= 1745855590910
+| where _messagetime <= 1745855650910  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2382875
+// Timestamp: 2025-04-12T02:30:05.410Z
+// Endpoint: /allocate_subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2382875"
+| where _raw contains "start=1744425005410"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2382875"  
+| where _messagetime >= 1744425005410
+| where _messagetime <= 1744425065410  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 1288281
+// Timestamp: 2025-04-19T12:25:46.011Z
+// Endpoint: /allocate_subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=1288281"
+| where _raw contains "start=1745065546011"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=1288281"  
+| where _messagetime >= 1745065546011
+| where _messagetime <= 1745065606011  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 3357052
+// Timestamp: 2025-04-28T05:03:12.046Z
+// Endpoint: /sessions
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=3357052"
+| where _raw contains "start=1745816592046"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=3357052"  
+| where _messagetime >= 1745816592046
+| where _messagetime <= 1745816652046  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 7871847
+// Timestamp: 2025-05-15T18:13:24.134Z
+// Endpoint: /allocate_subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=7871847"
+| where _raw contains "start=1747332804134"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=7871847"  
+| where _messagetime >= 1747332804134
+| where _messagetime <= 1747332864134  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2478624
+// Timestamp: 2025-04-12T13:50:01.120Z
+// Endpoint: /allocate_publish
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2478624"
+| where _raw contains "start=1744465801120"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2478624"  
+| where _messagetime >= 1744465801120
+| where _messagetime <= 1744465861120  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2594943
+// Timestamp: 2025-04-13T00:30:15.399Z
+// Endpoint: /subscribe
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2594943"
+| where _raw contains "start=1744504215399"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2594943"  
+| where _messagetime >= 1744504215399
+| where _messagetime <= 1744504275399  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 4020
+// Timestamp: 2025-04-14T09:56:47.966Z
+// Endpoint: /apps/app-d6cb7f65-de7a-4655-ad40-05ad49468004
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=4020"
+| where _raw contains "start=1744624607966"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=4020"  
+| where _messagetime >= 1744624607966
+| where _messagetime <= 1744624667966  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 11445
+// Timestamp: 2025-04-27T18:36:35.231Z
+// Endpoint: /
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=11445"
+| where _raw contains "start=1745778995231"
+| fields _messagetime, _raw
+| sort _messagetime
+
+// Look for potential matching response:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=11445"  
+| where _messagetime >= 1745778995231
+| where _messagetime <= 1745779055231  // +60 seconds
+| fields _messagetime, _raw
+| sort _messagetime
+*/

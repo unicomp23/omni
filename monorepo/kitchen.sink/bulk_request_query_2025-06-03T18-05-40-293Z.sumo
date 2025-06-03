@@ -1,0 +1,11 @@
+
+// Bulk query for top 20 orphaned requests
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw matches "*id=(419828|3452438|2382875|1288281|3357052|7871847|2478624|2594943|4020|11445|10542567|2803651|3459894|419827|1062443|3358730|175240|4721465|10342176|422469)*"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| fields _messagetime, request_id, start_time, _raw
+| sort request_id, _messagetime
+| limit 1000

@@ -1,0 +1,148 @@
+
+// Analysis of endpoint: /allocate_subscribe
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/allocate_subscribe"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /sessions
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/sessions"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /allocate_publish
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/allocate_publish"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /subscribe
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/subscribe"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /apps/app-d6cb7f65-de7a-4655-ad40-05ad49468004
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/apps/app-d6cb7f65-de7a-4655-ad40-05ad49468004"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /session_access
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/session_access"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /apps/app-08a17474-47fb-4a88-98eb-05990c34800f
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/apps/app-08a17474-47fb-4a88-98eb-05990c34800f"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /health
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/health"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500
+
+====================================================================================================
+
+// Analysis of endpoint: /apps/app-ddedd196-aa0b-4d09-94d2-957faec648f8/publishable_tokens
+// Look for patterns in orphaned vs successful requests
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/apps/app-ddedd196-aa0b-4d09-94d2-957faec648f8/publishable_tokens"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| fields _messagetime, request_id, start_time, type, _raw
+| sort request_id, start_time, _messagetime
+| limit 500

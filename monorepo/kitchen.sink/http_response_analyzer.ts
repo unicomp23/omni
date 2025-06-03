@@ -777,15 +777,15 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
       console.log("\n" + "-".repeat(100));
       console.log("SPECIFIC ORPHANED REQUEST IDs:");
       console.log("-".repeat(100));
-      console.log("ID\t\tTimestamp\tMethod\tEndpoint");
+      console.log("ID\t\tEpoch (ms)\tTimestamp\tMethod\tEndpoint");
       console.log("-".repeat(100));
       
       const displayCount = Math.min(orphanedRequestIds.length, 20);
       for (let i = 0; i < displayCount; i++) {
         const { id, method, url, timestamp } = orphanedRequestIds[i];
-        const shortUrl = url.length > 60 ? url.substring(0, 57) + '...' : url;
+        const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
         const timestampStr = new Date(timestamp).toISOString();
-        console.log(`${id}\t\t${timestampStr}\t${method}\t${shortUrl}`);
+        console.log(`${id}\t\t${timestamp}\t${timestampStr}\t${method}\t${shortUrl}`);
       }
       
       if (orphanedRequestIds.length > 20) {
@@ -798,16 +798,16 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
       console.log("\n" + "-".repeat(100));
       console.log("SPECIFIC ORPHANED RESPONSE IDs:");
       console.log("-".repeat(100));
-      console.log("ID\t\tTimestamp\tStatus\tMethod\tEndpoint");
+      console.log("ID\t\tEpoch (ms)\tTimestamp\tStatus\tMethod\tEndpoint");
       console.log("-".repeat(100));
       
       const displayCount = Math.min(orphanedResponseIds.length, 20);
       for (let i = 0; i < displayCount; i++) {
         const { id, status, method, url, timestamp } = orphanedResponseIds[i];
         const statusStr = status || 'N/A';
-        const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
+        const shortUrl = url.length > 40 ? url.substring(0, 37) + '...' : url;
         const timestampStr = new Date(timestamp).toISOString();
-        console.log(`${id}\t\t${timestampStr}\t${statusStr}\t${method}\t${shortUrl}`);
+        console.log(`${id}\t\t${timestamp}\t${timestampStr}\t${statusStr}\t${method}\t${shortUrl}`);
       }
       
       if (orphanedResponseIds.length > 20) {
@@ -1120,8 +1120,8 @@ ${extremelySlowCount > 0 ? `- **🚨 Critical responses (>5s):** ${extremelySlow
 ## 1. Data Overview
 
 ### Timestamp Range (Filtered - 2024+ Only)
-- **Start:** ${new Date(minTimestamp).toISOString()}
-- **End:** ${new Date(maxTimestamp).toISOString()}
+- **Start:** ${minTimestamp} (${new Date(minTimestamp).toISOString()})
+- **End:** ${maxTimestamp} (${new Date(maxTimestamp).toISOString()})
 - **Duration:** ${timeRangeDays.toFixed(1)} days (${timeRangeMs.toLocaleString()}ms)
 - **Activity Rate:** ${(totalHttpRecords / timeRangeSeconds).toFixed(2)} HTTP operations/second
 
@@ -1190,8 +1190,8 @@ ${[...statusStats.entries()]
 ${extremelySlowCount > 0 ? `### 🚨 Extremely Slow Responses (>5 Seconds)
 **TOTAL: ${extremelySlowCount} response${extremelySlowCount > 1 ? 's' : ''}**
 
-| ID | Timestamp | Response Time | Status | Method | Endpoint | Issue Type |
-|----|-----------|---------------|--------|--------|----------|------------|
+| ID | Epoch (ms) | Timestamp | Response Time | Status | Method | Endpoint | Issue Type |
+|----|------------|-----------|---------------|--------|--------|----------|------------|
 ${extremelySlowResponses.map(r => {
   const timeSeconds = (r.responseTimeMs / 1000).toFixed(2);
   const statusStr = r.status || 'N/A';
@@ -1199,18 +1199,19 @@ ${extremelySlowResponses.map(r => {
                    r.url.includes('allocate') ? '**Performance Issue**' :
                    r.responseTimeMs > 10000 ? '**System Issue**' : '**Optimization Needed**';
   const timestampStr = new Date(r.timestamp).toISOString();
-  return `| ${r.id} | \`${timestampStr}\` | **${timeSeconds}s** | ${statusStr} | ${r.method} | \`${r.url}\` | ${issueType} |`;
+  return `| ${r.id} | \`${r.timestamp}\` | \`${timestampStr}\` | **${timeSeconds}s** | ${statusStr} | ${r.method} | \`${r.url}\` | ${issueType} |`;
 }).join('\n')}
 
 ` : '### ✅ No Critical >5s Responses Found\n\nExcellent! No responses exceeded 5 seconds during the analysis period.\n\n'}
 
 ### Top 10 Slowest Responses
-| Rank | ID | Response Time | Status | Method | Endpoint |
-|------|----|--------------:|--------|--------|----------|
+| Rank | ID | Epoch (ms) | Timestamp | Response Time | Status | Method | Endpoint |
+|------|----|-----------|-----------|--------------:|--------|--------|----------|
 ${slowestResponses.slice(0, 10).map((r, i) => {
   const statusStr = r.status || 'N/A';
   const shortUrl = r.url.length > 50 ? r.url.substring(0, 47) + '...' : r.url;
-  return `| ${i + 1} | ${r.id} | ${r.responseTimeMs.toLocaleString()}ms | ${statusStr} | ${r.method} | \`${shortUrl}\` |`;
+  const timestampStr = new Date(r.timestamp).toISOString();
+  return `| ${i + 1} | ${r.id} | \`${r.timestamp}\` | \`${timestampStr}\` | ${r.responseTimeMs.toLocaleString()}ms | ${statusStr} | ${r.method} | \`${shortUrl}\` |`;
 }).join('\n')}
 
 ---
@@ -1281,21 +1282,21 @@ ${extremelySlowResponses.slice(0, 3).map(r => {
 ${orphanedRequestIds.length > 0 ? `### 🔍 Specific Orphaned Request IDs
 **Total: ${orphanedRequestIds.length} orphaned requests**
 
-| ID | Timestamp | Method | Endpoint |
-|----|-----------|--------|----------|
+| ID | Epoch (ms) | Timestamp | Method | Endpoint |
+|----|------------|-----------|--------|----------|
 ${orphanedRequestIds.map(r => {
   const timestampStr = new Date(r.timestamp).toISOString();
-  return `| \`${r.id}\` | \`${timestampStr}\` | ${r.method} | \`${r.url.length > 45 ? r.url.substring(0, 42) + '...' : r.url}\` |`;
+  return `| \`${r.id}\` | \`${r.timestamp}\` | \`${timestampStr}\` | ${r.method} | \`${r.url.length > 45 ? r.url.substring(0, 42) + '...' : r.url}\` |`;
 }).join('\n')}
 
 ` : ''}${orphanedResponseIds.length > 0 ? `### 🔍 Specific Orphaned Response IDs
 **Total: ${orphanedResponseIds.length} orphaned responses**
 
-| ID | Timestamp | Status | Method | Endpoint |
-|----|-----------|--------|--------|----------|
+| ID | Epoch (ms) | Timestamp | Status | Method | Endpoint |
+|----|------------|-----------|--------|--------|----------|
 ${orphanedResponseIds.map(r => {
   const timestampStr = new Date(r.timestamp).toISOString();
-  return `| \`${r.id}\` | \`${timestampStr}\` | ${r.status || 'N/A'} | ${r.method} | \`${r.url.length > 40 ? r.url.substring(0, 37) + '...' : r.url}\` |`;
+  return `| \`${r.id}\` | \`${r.timestamp}\` | \`${timestampStr}\` | ${r.status || 'N/A'} | ${r.method} | \`${r.url.length > 40 ? r.url.substring(0, 37) + '...' : r.url}\` |`;
 }).join('\n')}
 
 ` : ''}---
@@ -1955,9 +1956,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all orphaned requests
       if (aggregatedOrphanedDetails.orphanedRequestRecords.length > 0) {
         const orphanedRequestsCsv = [
-          'ID,Timestamp,Method,Endpoint',
+          'ID,Epoch_ms,Timestamp,Method,Endpoint',
           ...aggregatedOrphanedDetails.orphanedRequestRecords.map(r => 
-            `${r.id},${new Date(r.timestamp).toISOString()},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_requests.csv`, orphanedRequestsCsv);
         console.log(`  ✅ orphaned_requests.csv: ${aggregatedOrphanedDetails.orphanedRequestRecords.length} records`);
@@ -1966,9 +1967,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all orphaned responses  
       if (aggregatedOrphanedDetails.orphanedResponseRecords.length > 0) {
         const orphanedResponsesCsv = [
-          'ID,Timestamp,Status,Method,Endpoint',
+          'ID,Epoch_ms,Timestamp,Status,Method,Endpoint',
           ...aggregatedOrphanedDetails.orphanedResponseRecords.map(r => 
-            `${r.id},${new Date(r.timestamp).toISOString()},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_responses.csv`, orphanedResponsesCsv);
         console.log(`  ✅ orphaned_responses.csv: ${aggregatedOrphanedDetails.orphanedResponseRecords.length} records`);
@@ -2001,9 +2002,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export extremely slow responses
       if (aggregatedOrphanedDetails.extremelySlowResponses.length > 0) {
         const extremelySlowCsv = [
-          'ID,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...aggregatedOrphanedDetails.extremelySlowResponses.map(r => 
-            `${r.id},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/extremely_slow_responses.csv`, extremelySlowCsv);
         console.log(`  ✅ extremely_slow_responses.csv: ${aggregatedOrphanedDetails.extremelySlowResponses.length} records`);
@@ -2012,9 +2013,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all slowest/fastest responses for analysis
       if (aggregatedOrphanedDetails.slowestResponses.length > 0) {
         const slowestCsv = [
-          'ID,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...aggregatedOrphanedDetails.slowestResponses.map(r => 
-            `${r.id},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/slowest_responses.csv`, slowestCsv);
         console.log(`  ✅ slowest_responses.csv: ${aggregatedOrphanedDetails.slowestResponses.length} records`);
@@ -2022,9 +2023,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       
       if (aggregatedOrphanedDetails.fastestResponses.length > 0) {
         const fastestCsv = [
-          'ID,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...aggregatedOrphanedDetails.fastestResponses.map(r => 
-            `${r.id},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/fastest_responses.csv`, fastestCsv);
         console.log(`  ✅ fastest_responses.csv: ${aggregatedOrphanedDetails.fastestResponses.length} records`);
@@ -2186,15 +2187,15 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
         console.log("\n" + "-".repeat(100));
         console.log("SPECIFIC ORPHANED REQUEST IDs (SAMPLE - Complete data in CSV files):");
         console.log("-".repeat(100));
-        console.log("ID\t\tTimestamp\tMethod\tEndpoint");
+        console.log("ID\t\tEpoch (ms)\tTimestamp\tMethod\tEndpoint");
         console.log("-".repeat(100));
         
         const displayCount = Math.min(aggregatedOrphanedDetails.orphanedRequestRecords.length, 20);
         for (let i = 0; i < displayCount; i++) {
           const { id, method, url, timestamp } = aggregatedOrphanedDetails.orphanedRequestRecords[i];
-          const shortUrl = url.length > 60 ? url.substring(0, 57) + '...' : url;
+          const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
           const timestampStr = new Date(timestamp).toISOString();
-          console.log(`${id}\t\t${timestampStr}\t${method}\t${shortUrl}`);
+          console.log(`${id}\t\t${timestamp}\t${timestampStr}\t${method}\t${shortUrl}`);
         }
         
         if (aggregatedOrphanedDetails.orphanedRequestRecords.length > 20) {
@@ -2208,16 +2209,16 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
         console.log("\n" + "-".repeat(100));
         console.log("SPECIFIC ORPHANED RESPONSE IDs (SAMPLE - Complete data in CSV files):");
         console.log("-".repeat(100));
-        console.log("ID\t\tTimestamp\tStatus\tMethod\tEndpoint");
+        console.log("ID\t\tEpoch (ms)\tTimestamp\tStatus\tMethod\tEndpoint");
         console.log("-".repeat(100));
         
         const displayCount = Math.min(aggregatedOrphanedDetails.orphanedResponseRecords.length, 20);
         for (let i = 0; i < displayCount; i++) {
           const { id, status, method, url, timestamp } = aggregatedOrphanedDetails.orphanedResponseRecords[i];
           const statusStr = status || 'N/A';
-          const shortUrl = url.length > 50 ? url.substring(0, 47) + '...' : url;
+          const shortUrl = url.length > 40 ? url.substring(0, 37) + '...' : url;
           const timestampStr = new Date(timestamp).toISOString();
-          console.log(`${id}\t\t${timestampStr}\t${statusStr}\t${method}\t${shortUrl}`);
+          console.log(`${id}\t\t${timestamp}\t${timestampStr}\t${statusStr}\t${method}\t${shortUrl}`);
         }
         
         if (aggregatedOrphanedDetails.orphanedResponseRecords.length > 20) {
