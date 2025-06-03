@@ -24,6 +24,7 @@ interface HttpRecord {
   type: 'REQUEST' | 'WRITEHEAD';
   method: string;
   url: string;
+  host: string; // Added host field
   statusCode?: number;
   responseTimeMs?: number; // For WRITEHEAD records, this will be the actual response time
   lineNumber: number;
@@ -36,6 +37,7 @@ interface BucketRecord {
   type: 'REQUEST' | 'WRITEHEAD';
   method: string;
   url: string;
+  host: string; // Added host field
   statusCode?: number;
   responseTimeMs?: number;
   lineNumber: number;
@@ -47,6 +49,39 @@ interface WorkspaceConfig {
   bucketsDir: string;
   resultsDir: string;
   numBuckets: number;
+}
+
+// Helper function to extract host from URL
+function extractHost(url: string): string {
+  try {
+    // Handle different URL formats
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      // Full URL with protocol
+      const urlObj = new URL(url);
+      return urlObj.hostname;
+    } else if (url.includes('://')) {
+      // URL with custom protocol
+      const parts = url.split('://');
+      if (parts.length > 1) {
+        const hostPart = parts[1].split('/')[0];
+        return hostPart.split(':')[0]; // Remove port if present
+      }
+    } else if (url.startsWith('//')) {
+      // Protocol-relative URL
+      const hostPart = url.substring(2).split('/')[0];
+      return hostPart.split(':')[0]; // Remove port if present
+    } else if (url.includes('.') && !url.startsWith('/')) {
+      // Likely a domain without protocol
+      const hostPart = url.split('/')[0];
+      return hostPart.split(':')[0]; // Remove port if present
+    }
+    
+    // Fallback for paths or unrecognized formats
+    return 'localhost';
+  } catch (error) {
+    // Fallback for any parsing errors
+    return 'unknown';
+  }
 }
 
 async function decompressGzFile(filePath: string): Promise<string> {
@@ -142,8 +177,19 @@ async function processChunkFile(filePath: string, chunkNumber: number): Promise<
         (line.includes('[HttpResponseTimeLogger] REQUEST:') || 
          line.includes('[HttpResponseTimeLogger] WRITEHEAD:'))) {
       
-      // Extract the log message part
-      const logMatch = line.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
+      // Parse CSV to extract sourcehost field
+      // CSV format: "messagetime","receipttime","raw","sourcehost","sourcecategory",...
+      const csvFields = line.split('","');
+      let sourcehost = 'unknown';
+      
+      if (csvFields.length >= 4) {
+        // sourcehost is the 4th field (index 3)
+        sourcehost = csvFields[3].replace(/^"/, '').replace(/"$/, ''); // Remove quotes
+      }
+      
+      // Extract the log message part from the raw field (3rd field, index 2)
+      const rawField = csvFields.length >= 3 ? csvFields[2] : line;
+      const logMatch = rawField.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
       if (!logMatch) continue;
       
       const type = logMatch[1] as 'REQUEST' | 'WRITEHEAD';
@@ -193,6 +239,7 @@ async function processChunkFile(filePath: string, chunkNumber: number): Promise<
         type,
         method,
         url,
+        host: sourcehost, // Use sourcehost from CSV instead of extracting from URL
         statusCode,
         responseTimeMs,
         lineNumber: i + 2, // +2 because we skipped header and arrays are 0-indexed
@@ -867,7 +914,7 @@ function processChunkRecords(httpRecords: HttpRecord[]): {
   orphanedResponses: HttpRecord[];
   multipleOccurrences: Array<{ id: string; records: HttpRecord[] }>;
 } {
-  // Group records by composite key (id:start)
+  // Group records by composite key (id:host)
   const recordsByCompositeKey = new Map<string, HttpRecord[]>();
   
   const completePairs: Array<{
@@ -882,7 +929,7 @@ function processChunkRecords(httpRecords: HttpRecord[]): {
   const multipleOccurrences: Array<{ id: string; records: HttpRecord[] }> = [];
   
   for (const record of httpRecords) {
-    const compositeKey = `${record.id}:${record.timestamp}`;
+    const compositeKey = `${record.id}:${record.host}`;
     
     if (!recordsByCompositeKey.has(compositeKey)) {
       recordsByCompositeKey.set(compositeKey, []);
@@ -982,7 +1029,19 @@ async function processSingleFile(inputPath: string): Promise<HttpRecord[]> {
         (line.includes('[HttpResponseTimeLogger] REQUEST:') || 
          line.includes('[HttpResponseTimeLogger] WRITEHEAD:'))) {
       
-      const logMatch = line.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
+      // Parse CSV to extract sourcehost field
+      // CSV format: "messagetime","receipttime","raw","sourcehost","sourcecategory",...
+      const csvFields = line.split('","');
+      let sourcehost = 'unknown';
+      
+      if (csvFields.length >= 4) {
+        // sourcehost is the 4th field (index 3)
+        sourcehost = csvFields[3].replace(/^"/, '').replace(/"$/, ''); // Remove quotes
+      }
+      
+      // Extract the log message part from the raw field (3rd field, index 2)
+      const rawField = csvFields.length >= 3 ? csvFields[2] : line;
+      const logMatch = rawField.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
       if (!logMatch) continue;
       
       const type = logMatch[1] as 'REQUEST' | 'WRITEHEAD';
@@ -1029,6 +1088,7 @@ async function processSingleFile(inputPath: string): Promise<HttpRecord[]> {
         type,
         method,
         url,
+        host: sourcehost, // Use sourcehost from CSV instead of extracting from URL
         statusCode,
         responseTimeMs,
         lineNumber: i + 2,
@@ -1094,18 +1154,18 @@ async function generateMarkdownReport(
   // Calculate success rate for reporting
   const successRate = ((totalCompletePairs / (totalCompletePairs + totalOrphanedRequests + totalOrphanedResponses)) * 100).toFixed(2);
   
-  const report = `# HTTP Request/Response Analysis Report - Production Scale
+  const report = `# HTTP Request/Response Analysis Report - Production Scale (using sourcehost)
 
 **Data Source:** ${inputPath === '/data' ? '70+ compressed chunks from adaptive bulk download' : inputPath}  
 **Analysis Date:** ${new Date().toLocaleDateString()}  
-**Report Generated By:** HTTP Response Analyzer v2.0 - Multi-Chunk Gzip Support  
+**Report Generated By:** HTTP Response Analyzer v2.1 - Using CSV sourcehost field for pairing  
 **Data Volume:** ${totalHttpRecords.toLocaleString()} HTTP records processed
 
 ---
 
 ## Executive Summary
 
-This report analyzes HTTP request/response pairs from a **${timeRangeDays.toFixed(1)}-day period** of production system activity. The analysis reveals **${totalCompletePairs.toLocaleString()} complete request/response pairs** with an average response time of **${avgResponseTime.toFixed(2)}ms**${extremelySlowCount > 0 ? `, with ${extremelySlowCount} critical >5s response${extremelySlowCount > 1 ? 's' : ''} requiring immediate attention` : ', demonstrating excellent system performance'}.
+This report analyzes HTTP request/response pairs from a **${timeRangeDays.toFixed(1)}-day period** of production system activity using **sourcehost-based pairing**. The analysis reveals **${totalCompletePairs.toLocaleString()} complete request/response pairs** with an average response time of **${avgResponseTime.toFixed(2)}ms**${extremelySlowCount > 0 ? `, with ${extremelySlowCount} critical >5s response${extremelySlowCount > 1 ? 's' : ''} requiring immediate attention` : ', demonstrating excellent system performance'}.
 
 ### Key Metrics
 - **Total HTTP records:** ${totalHttpRecords.toLocaleString()}
@@ -1113,6 +1173,7 @@ This report analyzes HTTP request/response pairs from a **${timeRangeDays.toFixe
 - **Average response time:** ${avgResponseTime.toFixed(2)}ms
 - **99th percentile:** ${p99}ms
 - **System load:** ~${(totalHttpRecords / timeRangeSeconds).toFixed(2)} requests/second
+- **Pairing method:** ID + sourcehost (from CSV column)
 ${extremelySlowCount > 0 ? `- **🚨 Critical responses (>5s):** ${extremelySlowCount}` : '- **🚨 Critical responses (>5s):** 0 ✅'}
 
 ---
@@ -1375,7 +1436,7 @@ ${extremelySlowCount > 0 ?
 
 ---
 
-*Report generated automatically by HTTP Response Analyzer v2.0 - ${new Date().toISOString()}*
+*Report generated automatically by HTTP Response Analyzer v2.1 - ${new Date().toISOString()}*
 `;
 
   await Deno.writeTextFile(reportPath, report);
@@ -1449,7 +1510,7 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
   for (let i = 0; i < lines.length; i++) {
     try {
       const record: BucketRecord = JSON.parse(lines[i]);
-      const compositeKey = `${record.id}:${record.timestamp}`;
+      const compositeKey = `${record.id}:${record.host}`;
       
       if (!recordsByKey.has(compositeKey)) {
         recordsByKey.set(compositeKey, []);
@@ -1756,7 +1817,19 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
               (line.includes('[HttpResponseTimeLogger] REQUEST:') || 
                line.includes('[HttpResponseTimeLogger] WRITEHEAD:'))) {
             
-            const logMatch = line.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
+            // Parse CSV to extract sourcehost field
+            // CSV format: "messagetime","receipttime","raw","sourcehost","sourcecategory",...
+            const csvFields = line.split('","');
+            let sourcehost = 'unknown';
+            
+            if (csvFields.length >= 4) {
+              // sourcehost is the 4th field (index 3)
+              sourcehost = csvFields[3].replace(/^"/, '').replace(/"$/, ''); // Remove quotes
+            }
+            
+            // Extract the log message part from the raw field (3rd field, index 2)
+            const rawField = csvFields.length >= 3 ? csvFields[2] : line;
+            const logMatch = rawField.match(/\[HttpResponseTimeLogger\] (REQUEST|WRITEHEAD): (.+)/);
             if (!logMatch) continue;
             
             const type = logMatch[1] as 'REQUEST' | 'WRITEHEAD';
@@ -1799,6 +1872,7 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
               type,
               method,
               url,
+              host: sourcehost, // Use sourcehost from CSV instead of extracting from URL
               statusCode,
               responseTimeMs,
               lineNumber: lineIndex + 2,
@@ -2351,7 +2425,7 @@ async function hashCompositeKey(compositeKey: string): Promise<number> {
 }
 
 async function writeToBucket(record: BucketRecord, config: WorkspaceConfig): Promise<void> {
-  const compositeKey = `${record.id}:${record.timestamp}`;
+  const compositeKey = `${record.id}:${record.host}`;
   const hash = await hashCompositeKey(compositeKey);
   const bucketIndex = hash % config.numBuckets;
   const bucketFile = `${config.bucketsDir}/bucket_${bucketIndex.toString().padStart(3, '0')}.jsonl`;
