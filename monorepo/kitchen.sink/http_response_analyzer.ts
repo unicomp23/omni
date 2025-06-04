@@ -279,13 +279,13 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
   const statusStats = new Map<number, { count: number; totalResponseTime: number }>();
   const orphanedEndpoints = new Map<string, number>();
   const orphanedResponseEndpoints = new Map<string, number>();
-  const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
-  const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
-  const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }> = [];
+  const slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }> = [];
+  const fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }> = [];
+  const extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }> = [];
   
   // Track specific orphaned record IDs with smaller limits
-  const orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number }> = [];
-  const orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }> = [];
+  const orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number; host: string }> = [];
+  const orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number; host: string }> = [];
   
   // Performance distribution counters
   let sub10msCount = 0;
@@ -385,7 +385,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
                 status: pair.response.statusCode,
                 method: pair.response.method,
                 url: pair.response.url,
-                timestamp: pair.response.timestamp
+                timestamp: pair.response.timestamp,
+                host: pair.response.host
               });
             }
           }
@@ -416,7 +417,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
               status: pair.response.statusCode,
               method: pair.response.method,
               url: pair.response.url,
-              timestamp: pair.response.timestamp
+              timestamp: pair.response.timestamp,
+              host: pair.response.host
             });
           } else {
             // Only keep if it's slower than the current slowest
@@ -428,7 +430,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
                 status: pair.response.statusCode,
                 method: pair.response.method,
                 url: pair.response.url,
-                timestamp: pair.response.timestamp
+                timestamp: pair.response.timestamp,
+                host: pair.response.host
               };
             }
           }
@@ -441,7 +444,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
               status: pair.response.statusCode,
               method: pair.response.method,
               url: pair.response.url,
-              timestamp: pair.response.timestamp
+              timestamp: pair.response.timestamp,
+              host: pair.response.host
             });
           } else {
             // Only keep if it's faster than the current fastest
@@ -453,7 +457,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
                 status: pair.response.statusCode,
                 method: pair.response.method,
                 url: pair.response.url,
-                timestamp: pair.response.timestamp
+                timestamp: pair.response.timestamp,
+                host: pair.response.host
               };
             }
           }
@@ -468,7 +473,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
               id: orphan.id,
               method: orphan.method,
               url: orphan.url,
-              timestamp: orphan.timestamp
+              timestamp: orphan.timestamp,
+              host: orphan.host
             });
           }
         }
@@ -483,7 +489,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
               status: orphan.statusCode,
               method: orphan.method,
               url: orphan.url,
-              timestamp: orphan.timestamp
+              timestamp: orphan.timestamp,
+              host: orphan.host
             });
           }
         }
@@ -568,7 +575,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
               status: pair.response.statusCode,
               method: pair.response.method,
               url: pair.response.url,
-              timestamp: pair.response.timestamp
+              timestamp: pair.response.timestamp,
+              host: pair.response.host
             });
           }
         }
@@ -596,7 +604,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
           status: pair.response.statusCode,
           method: pair.response.method,
           url: pair.response.url,
-          timestamp: pair.response.timestamp
+          timestamp: pair.response.timestamp,
+          host: pair.response.host
         });
         
         fastestResponses.push({
@@ -605,7 +614,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
           status: pair.response.statusCode,
           method: pair.response.method,
           url: pair.response.url,
-          timestamp: pair.response.timestamp
+          timestamp: pair.response.timestamp,
+          host: pair.response.host
         });
       }
       
@@ -617,7 +627,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
             id: orphan.id,
             method: orphan.method,
             url: orphan.url,
-            timestamp: orphan.timestamp
+            timestamp: orphan.timestamp,
+            host: orphan.host
           });
         }
       }
@@ -631,7 +642,8 @@ async function analyzeHttpResponses(inputPath: string, startChunk?: number, endC
             status: orphan.statusCode,
             method: orphan.method,
             url: orphan.url,
-            timestamp: orphan.timestamp
+            timestamp: orphan.timestamp,
+            host: orphan.host
           });
         }
       }
@@ -1115,13 +1127,13 @@ async function generateMarkdownReport(
   allResponseTimes: number[],
   methodStats: Map<string, { count: number; totalResponseTime: number }>,
   statusStats: Map<number, { count: number; totalResponseTime: number }>,
-  slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-  fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-  extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
+  slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+  fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+  extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
   orphanedEndpoints: Map<string, number>,
   orphanedResponseEndpoints: Map<string, number>,
-  orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number }>,
-  orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }>,
+  orphanedRequestIds: Array<{ id: string; method: string; url: string; timestamp: number; host: string }>,
+  orphanedResponseIds: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
   minTimestamp: number,
   maxTimestamp: number,
   sampleCount: number,
@@ -1458,13 +1470,13 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
     performanceBuckets: { sub10ms: number; ms10to100: number; ms100to5s: number; over5s: number };
   };
   orphanedDetails: {
-    orphanedRequestRecords: Array<{ id: string; method: string; url: string; timestamp: number }>;
-    orphanedResponseRecords: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }>;
+    orphanedRequestRecords: Array<{ id: string; method: string; url: string; timestamp: number; host: string }>;
+    orphanedResponseRecords: Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number; host: string }>;
     orphanedRequestEndpoints: Map<string, number>;
     orphanedResponseEndpoints: Map<string, number>;
-    slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>;
-    fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>;
-    extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>;
+    slowestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>;
+    fastestResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>;
+    extremelySlowResponses: Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>;
   };
 }> {
   console.log(`  Processing bucket ${bucketIndex}...`);
@@ -1543,13 +1555,13 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
   };
   
   const orphanedDetails = {
-    orphanedRequestRecords: [] as Array<{ id: string; method: string; url: string; timestamp: number }>,
-    orphanedResponseRecords: [] as Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }>,
+    orphanedRequestRecords: [] as Array<{ id: string; method: string; url: string; timestamp: number; host: string }>,
+    orphanedResponseRecords: [] as Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
     orphanedRequestEndpoints: new Map<string, number>(),
     orphanedResponseEndpoints: new Map<string, number>(),
-    slowestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-    fastestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-    extremelySlowResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>
+    slowestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+    fastestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+    extremelySlowResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>
   };
   
   // Process each composite key
@@ -1573,7 +1585,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
             id: request.id,
             method: request.method,
             url: request.url,
-            timestamp: request.timestamp
+            timestamp: request.timestamp,
+            host: request.host
           });
           
           // Track orphaned response details
@@ -1582,7 +1595,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
             status: response.statusCode,
             method: response.method,
             url: response.url,
-            timestamp: response.timestamp
+            timestamp: response.timestamp,
+            host: response.host
           });
           
           // Update endpoint counters
@@ -1617,7 +1631,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
               status: response.statusCode,
               method: response.method,
               url: response.url,
-              timestamp: response.timestamp
+              timestamp: response.timestamp,
+              host: response.host
             });
           }
           
@@ -1629,7 +1644,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
               status: response.statusCode,
               method: response.method,
               url: response.url,
-              timestamp: response.timestamp
+              timestamp: response.timestamp,
+              host: response.host
             });
           } else {
             orphanedDetails.slowestResponses.sort((a, b) => b.responseTimeMs - a.responseTimeMs);
@@ -1640,7 +1656,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
                 status: response.statusCode,
                 method: response.method,
                 url: response.url,
-                timestamp: response.timestamp
+                timestamp: response.timestamp,
+                host: response.host
               };
             }
           }
@@ -1653,7 +1670,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
               status: response.statusCode,
               method: response.method,
               url: response.url,
-              timestamp: response.timestamp
+              timestamp: response.timestamp,
+              host: response.host
             });
           } else {
             orphanedDetails.fastestResponses.sort((a, b) => a.responseTimeMs - b.responseTimeMs);
@@ -1664,7 +1682,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
                 status: response.statusCode,
                 method: response.method,
                 url: response.url,
-                timestamp: response.timestamp
+                timestamp: response.timestamp,
+                host: response.host
               };
             }
           }
@@ -1698,7 +1717,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
               id: record.id,
               method: record.method,
               url: record.url,
-              timestamp: record.timestamp
+              timestamp: record.timestamp,
+              host: record.host
             });
             orphanedDetails.orphanedRequestEndpoints.set(record.url, (orphanedDetails.orphanedRequestEndpoints.get(record.url) || 0) + 1);
           } else {
@@ -1707,7 +1727,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
               status: record.statusCode,
               method: record.method,
               url: record.url,
-              timestamp: record.timestamp
+              timestamp: record.timestamp,
+              host: record.host
             });
             orphanedDetails.orphanedResponseEndpoints.set(record.url, (orphanedDetails.orphanedResponseEndpoints.get(record.url) || 0) + 1);
           }
@@ -1721,7 +1742,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
           id: record.id,
           method: record.method,
           url: record.url,
-          timestamp: record.timestamp
+          timestamp: record.timestamp,
+          host: record.host
         });
         orphanedDetails.orphanedRequestEndpoints.set(record.url, (orphanedDetails.orphanedRequestEndpoints.get(record.url) || 0) + 1);
       } else {
@@ -1731,7 +1753,8 @@ async function processBucketFile(bucketFile: string, bucketIndex: number): Promi
           status: record.statusCode,
           method: record.method,
           url: record.url,
-          timestamp: record.timestamp
+          timestamp: record.timestamp,
+          host: record.host
         });
         orphanedDetails.orphanedResponseEndpoints.set(record.url, (orphanedDetails.orphanedResponseEndpoints.get(record.url) || 0) + 1);
       }
@@ -1914,13 +1937,13 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       };
       
       const aggregatedOrphanedDetails = {
-        orphanedRequestRecords: [] as Array<{ id: string; method: string; url: string; timestamp: number }>,
-        orphanedResponseRecords: [] as Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number }>,
+        orphanedRequestRecords: [] as Array<{ id: string; method: string; url: string; timestamp: number; host: string }>,
+        orphanedResponseRecords: [] as Array<{ id: string; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
         orphanedRequestEndpoints: new Map<string, number>(),
         orphanedResponseEndpoints: new Map<string, number>(),
-        slowestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-        fastestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>,
-        extremelySlowResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number }>
+        slowestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+        fastestResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>,
+        extremelySlowResponses: [] as Array<{ id: string; responseTimeMs: number; status: number | undefined; method: string; url: string; timestamp: number; host: string }>
       };
       
       for (let bucketIndex = 0; bucketIndex < config.numBuckets; bucketIndex++) {
@@ -2073,9 +2096,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all orphaned requests
       if (uniqueOrphanedRequests.length > 0) {
         const orphanedRequestsCsv = [
-          'ID,Epoch_ms,Timestamp,Method,Endpoint',
+          'ID,Srchost,Epoch_ms,Timestamp,Method,Endpoint',
           ...uniqueOrphanedRequests.map(r => 
-            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.host},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_requests.csv`, orphanedRequestsCsv);
         console.log(`  ✅ orphaned_requests.csv: ${uniqueOrphanedRequests.length} deduplicated records`);
@@ -2084,9 +2107,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all orphaned responses  
       if (uniqueOrphanedResponses.length > 0) {
         const orphanedResponsesCsv = [
-          'ID,Epoch_ms,Timestamp,Status,Method,Endpoint',
+          'ID,Srchost,Epoch_ms,Timestamp,Status,Method,Endpoint',
           ...uniqueOrphanedResponses.map(r => 
-            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.host},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/orphaned_responses.csv`, orphanedResponsesCsv);
         console.log(`  ✅ orphaned_responses.csv: ${uniqueOrphanedResponses.length} deduplicated records`);
@@ -2119,9 +2142,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export extremely slow responses
       if (uniqueExtremelySlowResponses.length > 0) {
         const extremelySlowCsv = [
-          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Srchost,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...uniqueExtremelySlowResponses.map(r => 
-            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.host},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/extremely_slow_responses.csv`, extremelySlowCsv);
         console.log(`  ✅ extremely_slow_responses.csv: ${uniqueExtremelySlowResponses.length} deduplicated records`);
@@ -2130,9 +2153,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       // Export all slowest/fastest responses for analysis
       if (uniqueSlowestResponses.length > 0) {
         const slowestCsv = [
-          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Srchost,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...uniqueSlowestResponses.map(r => 
-            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.host},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/slowest_responses.csv`, slowestCsv);
         console.log(`  ✅ slowest_responses.csv: ${uniqueSlowestResponses.length} deduplicated records`);
@@ -2140,9 +2163,9 @@ async function analyzeHttpResponsesWithBucketing(inputPath: string, startChunk?:
       
       if (uniqueFastestResponses.length > 0) {
         const fastestCsv = [
-          'ID,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
+          'ID,Srchost,Epoch_ms,Timestamp,ResponseTimeMs,Status,Method,Endpoint',
           ...uniqueFastestResponses.map(r => 
-            `${r.id},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
+            `${r.id},${r.host},${r.timestamp},${new Date(r.timestamp).toISOString()},${r.responseTimeMs},${r.status || 'N/A'},${r.method},"${r.url.replace(/"/g, '""')}"`)
         ].join('\n');
         await Deno.writeTextFile(`${config.workspaceDir}/fastest_responses.csv`, fastestCsv);
         console.log(`  ✅ fastest_responses.csv: ${uniqueFastestResponses.length} deduplicated records`);

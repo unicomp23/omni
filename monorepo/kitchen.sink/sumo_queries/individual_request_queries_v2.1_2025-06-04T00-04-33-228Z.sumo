@@ -1,0 +1,388 @@
+
+// Query for orphaned request ID: 766737
+// Timestamp: 2025-04-05T15:23:53.803Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=766737"
+| where _raw contains "start=1743866633803"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=766737"  
+| where _messagetime >= 1743866633803
+| where _messagetime <= 1743866693803  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=766737"
+| where _messagetime >= 1743866628803
+| where _messagetime <= 1743866693803
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 1586442
+// Timestamp: 2025-04-08T20:37:29.952Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=1586442"
+| where _raw contains "start=1744144649952"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=1586442"  
+| where _messagetime >= 1744144649952
+| where _messagetime <= 1744144709952  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=1586442"
+| where _messagetime >= 1744144644952
+| where _messagetime <= 1744144709952
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2803651
+// Timestamp: 2025-04-25T22:13:06.019Z
+// Endpoint: /sessions
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2803651"
+| where _raw contains "start=1745619186019"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2803651"  
+| where _messagetime >= 1745619186019
+| where _messagetime <= 1745619246019  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=2803651"
+| where _messagetime >= 1745619181019
+| where _messagetime <= 1745619246019
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2164898
+// Timestamp: 2025-04-11T04:07:50.587Z
+// Endpoint: /sessions
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2164898"
+| where _raw contains "start=1744344470587"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2164898"  
+| where _messagetime >= 1744344470587
+| where _messagetime <= 1744344530587  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=2164898"
+| where _messagetime >= 1744344465587
+| where _messagetime <= 1744344530587
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 2371993
+// Timestamp: 2025-04-24T02:28:35.404Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=2371993"
+| where _raw contains "start=1745461715404"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=2371993"  
+| where _messagetime >= 1745461715404
+| where _messagetime <= 1745461775404  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=2371993"
+| where _messagetime >= 1745461710404
+| where _messagetime <= 1745461775404
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 6778019
+// Timestamp: 2025-05-11T15:01:35.900Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=6778019"
+| where _raw contains "start=1746975695900"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=6778019"  
+| where _messagetime >= 1746975695900
+| where _messagetime <= 1746975755900  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=6778019"
+| where _messagetime >= 1746975690900
+| where _messagetime <= 1746975755900
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 766780
+// Timestamp: 2025-04-05T15:23:53.626Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=766780"
+| where _raw contains "start=1743866633626"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=766780"  
+| where _messagetime >= 1743866633626
+| where _messagetime <= 1743866693626  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=766780"
+| where _messagetime >= 1743866628626
+| where _messagetime <= 1743866693626
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 282976
+// Timestamp: 2025-04-03T18:23:45.701Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=282976"
+| where _raw contains "start=1743704625701"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=282976"  
+| where _messagetime >= 1743704625701
+| where _messagetime <= 1743704685701  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=282976"
+| where _messagetime >= 1743704620701
+| where _messagetime <= 1743704685701
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 1586381
+// Timestamp: 2025-04-08T20:37:29.949Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=1586381"
+| where _raw contains "start=1744144649949"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=1586381"  
+| where _messagetime >= 1744144649949
+| where _messagetime <= 1744144709949  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=1586381"
+| where _messagetime >= 1744144644949
+| where _messagetime <= 1744144709949
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+====================================================================================================
+
+// Query for orphaned request ID: 1709898
+// Timestamp: 2025-04-09T08:10:30.226Z
+// Endpoint: /allocate_subscribe
+// Sourcehost: N/A
+// Pairing method: ID + sourcehost (v2.1)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "REQUEST:"
+| where _raw contains "id=1709898"
+| where _raw contains "start=1744186230226"
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+
+// Look for potential matching response on SAME sourcehost:
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| where _raw contains "id=1709898"  
+| where _messagetime >= 1744186230226
+| where _messagetime <= 1744186290226  // +60 seconds
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/
+
+// Check for cross-host issues (if sourcehost mismatch):
+/*
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "id=1709898"
+| where _messagetime >= 1744186225226
+| where _messagetime <= 1744186290226
+| fields _messagetime, _sourceHost, _raw
+| sort _messagetime
+*/

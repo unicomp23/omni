@@ -1,0 +1,38 @@
+
+// Host-based orphan analysis (v2.1)
+// Analyze orphaned records by sourcehost to identify problematic hosts
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, type, request_id
+| where count = 1  // Only orphaned records (single REQUEST or WRITEHEAD)
+| stats count as orphan_count by _sourceHost, type
+| sort orphan_count desc
+| limit 50
+
+// This shows which hosts have the most orphaned records
+
+====================================================================================================
+
+// Host performance comparison (v2.1)
+// Compare response times and orphan rates across sourcehosts
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "WRITEHEAD:"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "(?<response_time>\d+)msec"
+| stats 
+    count as total_responses,
+    avg(response_time) as avg_response_time,
+    max(response_time) as max_response_time,
+    percentile(response_time, 95) as p95_response_time
+    by _sourceHost
+| sort avg_response_time desc
+| limit 50
+
+// Helps identify problematic hosts with poor performance

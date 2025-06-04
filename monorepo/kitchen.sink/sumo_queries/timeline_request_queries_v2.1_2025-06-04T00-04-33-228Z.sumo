@@ -1,0 +1,98 @@
+
+// Timeline analysis for ID: 766737 (v2.1 - sourcehost pairing)
+// 10-minute window around timestamp: 2025-04-05T15:23:53.803Z
+// Sourcehost: N/A
+
+_sourceCategory=your_category
+| where _messagetime >= 1743866333803
+| where _messagetime <= 1743866933803
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| where request_id = "766737"
+| fields _messagetime, _sourceHost, request_id, start_time, type, _raw
+| sort _messagetime
+
+// Should show both REQUEST and WRITEHEAD for complete pairs
+// Orphaned = only one type appears
+
+====================================================================================================
+
+// Timeline analysis for ID: 1586442 (v2.1 - sourcehost pairing)
+// 10-minute window around timestamp: 2025-04-08T20:37:29.952Z
+// Sourcehost: N/A
+
+_sourceCategory=your_category
+| where _messagetime >= 1744144349952
+| where _messagetime <= 1744144949952
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| where request_id = "1586442"
+| fields _messagetime, _sourceHost, request_id, start_time, type, _raw
+| sort _messagetime
+
+// Should show both REQUEST and WRITEHEAD for complete pairs
+// Orphaned = only one type appears
+
+====================================================================================================
+
+// Timeline analysis for ID: 2803651 (v2.1 - sourcehost pairing)
+// 10-minute window around timestamp: 2025-04-25T22:13:06.019Z
+// Sourcehost: N/A
+
+_sourceCategory=your_category
+| where _messagetime >= 1745618886019
+| where _messagetime <= 1745619486019
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| where request_id = "2803651"
+| fields _messagetime, _sourceHost, request_id, start_time, type, _raw
+| sort _messagetime
+
+// Should show both REQUEST and WRITEHEAD for complete pairs
+// Orphaned = only one type appears
+
+====================================================================================================
+
+// Timeline analysis for ID: 2164898 (v2.1 - sourcehost pairing)
+// 10-minute window around timestamp: 2025-04-11T04:07:50.587Z
+// Sourcehost: N/A
+
+_sourceCategory=your_category
+| where _messagetime >= 1744344170587
+| where _messagetime <= 1744344770587
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| where request_id = "2164898"
+| fields _messagetime, _sourceHost, request_id, start_time, type, _raw
+| sort _messagetime
+
+// Should show both REQUEST and WRITEHEAD for complete pairs
+// Orphaned = only one type appears
+
+====================================================================================================
+
+// Timeline analysis for ID: 2371993 (v2.1 - sourcehost pairing)
+// 10-minute window around timestamp: 2025-04-24T02:28:35.404Z
+// Sourcehost: N/A
+
+_sourceCategory=your_category
+| where _messagetime >= 1745461415404
+| where _messagetime <= 1745462015404
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| where request_id = "2371993"
+| fields _messagetime, _sourceHost, request_id, start_time, type, _raw
+| sort _messagetime
+
+// Should show both REQUEST and WRITEHEAD for complete pairs
+// Orphaned = only one type appears

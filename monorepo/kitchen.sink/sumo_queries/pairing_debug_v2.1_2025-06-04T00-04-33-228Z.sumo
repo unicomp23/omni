@@ -1,0 +1,15 @@
+
+// Debug ID+sourcehost pairing issues (v2.1)
+// Find IDs that appear on multiple sourcehosts (potential pairing issues)
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats values(_sourceHost) as hosts, count as total_records by request_id
+| where total_records > 2 OR array_length(hosts) > 1
+| sort total_records desc
+| limit 100
+
+// IDs with records on multiple hosts suggest cross-host request/response issues

@@ -1,0 +1,131 @@
+
+// Analysis of endpoint: /allocate_subscribe (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/allocate_subscribe"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: /sessions (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/sessions"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: /subscribe (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/subscribe"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: /allocate_publish (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/allocate_publish"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: /session_access (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/session_access"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: /health (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/health"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
+
+====================================================================================================
+
+// Analysis of endpoint: / (v2.1 - sourcehost aware)
+// Look for patterns in orphaned vs successful requests by host
+
+_sourceCategory=your_category
+| where _raw contains "HttpResponseTimeLogger"
+| where _raw contains "/"
+| parse regex "id=(?<request_id>\d+)"
+| parse regex "start=(?<start_time>\d+)"
+| parse regex "\[HttpResponseTimeLogger\] (?<type>REQUEST|WRITEHEAD):"
+| stats count by _sourceHost, request_id, type
+| eval is_orphan = if(count = 1, "orphaned", "paired")
+| stats count as record_count by _sourceHost, is_orphan
+| sort _sourceHost, is_orphan
+| limit 500
+
+// Shows orphaned vs paired ratios by sourcehost for this endpoint
