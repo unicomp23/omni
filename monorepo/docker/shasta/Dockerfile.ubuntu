@@ -244,7 +244,7 @@ ENV CMAKE_COMMAND=/usr/bin/cmake \
 
 # Install Apache Kafka
 WORKDIR /opt
-RUN wget https://downloads.apache.org/kafka/2.13-3.6.0/kafka_2.13-3.6.0.tgz && \
+RUN wget https://archive.apache.org/dist/kafka/3.6.0/kafka_2.13-3.6.0.tgz && \
     tar -xzf kafka_2.13-3.6.0.tgz && \
     ln -s kafka_2.13-3.6.0 kafka && \
     rm kafka_2.13-3.6.0.tgz && \
