@@ -115,7 +115,7 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
   }));
   
   // Find max value for scaling (use log scale)
-  const maxValue = Math.max(...dataPoints.map(d => Math.max(d.p99_999, d.p99_99, d.p99_9, d.p99, d.p95, d.p90, d.p75, d.p50)));
+  const maxValue = Math.max(...dataPoints.map(d => Math.max(d.p99_99, d.p99_9, d.p99, d.p95, d.p90, d.p75, d.p50)));
   const minValue = 1;
   
   // Log scale functions
@@ -138,8 +138,7 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
     { key: 'p95', color: '#fd7e14', width: 3, label: 'P95' },
     { key: 'p99', color: '#dc3545', width: 3, label: 'P99' },
     { key: 'p99_9', color: '#e83e8c', width: 3, label: 'P99.9' },
-    { key: 'p99_99', color: '#6f42c1', width: 4, label: 'P99.99' },
-    { key: 'p99_999', color: '#343a40', width: 3, label: 'P99.999' }
+    { key: 'p99_99', color: '#6f42c1', width: 4, label: 'P99.99' }
   ];
   
   // Generate Y-axis ticks (logarithmic)
@@ -291,8 +290,7 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
       <text x="0" y="25" class="legend-text">${timeUnit.charAt(0).toUpperCase() + timeUnit.slice(1)}: ${sortedData.length}</text>
       <text x="0" y="45" class="legend-text">Violations: ${sortedData.filter(d => d.stats.exceeds_threshold).length}</text>
       <text x="0" y="65" class="legend-text">Max P99.99: ${Math.max(...sortedData.map(d => d.stats.p99_99))}ms</text>
-      <text x="0" y="85" class="legend-text">Max P99.999: ${Math.max(...sortedData.map(d => d.stats.p99_999))}ms</text>
-      ${isMinuteData ? `<text x="0" y="105" class="legend-text">Chart Width: ${width}px</text>` : ''}
+      ${isMinuteData ? `<text x="0" y="85" class="legend-text">Chart Width: ${width}px</text>` : ''}
     </g>
   </g>
   
@@ -376,14 +374,12 @@ async function main() {
     // Print some quick stats
     const violations = data.filter(d => d.stats.exceeds_threshold).length;
     const maxP99_99 = Math.max(...data.map(d => d.stats.p99_99));
-    const maxP99_999 = Math.max(...data.map(d => d.stats.p99_999));
     
     console.log(`\n📈 SVG Chart Generated:`);
     console.log(`   📄 File: ${outputFile}`);
     console.log(`   📏 Size: ${width}x${height}px${dataType === 'minute' ? ' (Extra Wide!)' : ''}`);
     console.log(`   📊 Data: ${data.length} ${timeUnit}, ${violations} violations`);
     console.log(`   🔺 Max P99.99: ${maxP99_99}ms`);
-    console.log(`   🎯 Max P99.999: ${maxP99_999}ms`);
     console.log(`   ⏱️  Resolution: ${dataType}-level`);
     
     if (dataType === 'minute') {
