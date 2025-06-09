@@ -2,6 +2,13 @@
 //usr/bin/true; exec deno run --allow-all "$0" "$@"
 
 // Deno types (assume available in runtime)
+declare const Deno: {
+  readTextFile(path: string): Promise<string>;
+  writeTextFile(path: string, content: string): Promise<void>;
+  exit(code: number): void;
+  args: string[];
+  readDir(path: string): AsyncIterableIterator<{ name: string; isFile: boolean }>;
+};
 
 interface LatencyStats {
   count: number;
@@ -19,21 +26,62 @@ interface LatencyStats {
   exceeds_threshold: boolean;
 }
 
-interface HourlyReport {
+// Generic interface that can handle both minute and hourly reports
+interface LatencyReport {
   timestamp: string;
-  hour: string;
+  minute?: string;  // For minute-level data
+  hour?: string;    // For hourly data
   stats: LatencyStats;
 }
 
-async function readJsonlFile(filename: string): Promise<HourlyReport[]> {
+// Legacy interface for backward compatibility
+interface HourlyReport extends LatencyReport {
+  hour: string;
+}
+
+async function readJsonlFile(filename: string): Promise<LatencyReport[]> {
   const text = await Deno.readTextFile(filename);
   const lines = text.trim().split('\n');
   return lines.map(line => JSON.parse(line));
 }
 
-function generateSvgChart(data: HourlyReport[]): string {
-  // Sort data by hour for proper chronological order
-  const sortedData = data.sort((a, b) => a.hour.localeCompare(b.hour));
+function detectDataType(data: LatencyReport[]): 'minute' | 'hour' {
+  if (data.length === 0) return 'hour';
+  
+  // Check if the first record has minute or hour field
+  if (data[0].minute) return 'minute';
+  if (data[0].hour) return 'hour';
+  
+  // Fallback - shouldn't happen with proper data
+  return 'hour';
+}
+
+function getTimeLabel(report: LatencyReport, dataType: 'minute' | 'hour'): string {
+  if (dataType === 'minute' && report.minute) {
+    return report.minute;
+  } else if (dataType === 'hour' && report.hour) {
+    return report.hour;
+  }
+  
+  // Fallback
+  return report.minute || report.hour || 'unknown';
+}
+
+function generateSvgChart(data: LatencyReport[]): string {
+  if (data.length === 0) {
+    throw new Error('No data provided to generate chart');
+  }
+  
+  const dataType = detectDataType(data);
+  const timeUnit = dataType === 'minute' ? 'minutes' : 'hours';
+  const timeAxisLabel = dataType === 'minute' ? 'Time (Date_Hour:Minute)' : 'Time (Date)';
+  
+  // Sort data by time for proper chronological order
+  const sortedData = data.sort((a, b) => {
+    const timeA = getTimeLabel(a, dataType);
+    const timeB = getTimeLabel(b, dataType);
+    return timeA.localeCompare(timeB);
+  });
   
   // FIXED: Increased chart dimensions and margins to prevent overdraw
   const width = 2000;  // Increased from 1600
@@ -45,7 +93,7 @@ function generateSvgChart(data: HourlyReport[]): string {
   // Prepare data
   const dataPoints = sortedData.map((d, i) => ({
     x: i,
-    hour: d.hour,
+    timeLabel: getTimeLabel(d, dataType),
     p50: d.stats.p50,
     p75: d.stats.p75,
     p90: d.stats.p90,
@@ -91,7 +139,7 @@ function generateSvgChart(data: HourlyReport[]): string {
   );
   
   // FIXED: Better X-axis tick spacing to prevent overlap
-  const maxLabels = 15; // Limit number of labels
+  const maxLabels = dataType === 'minute' ? 20 : 15; // More labels for minute data
   const xTickInterval = Math.max(1, Math.floor(dataPoints.length / maxLabels));
   const xTicks = dataPoints.filter((_, i) => 
     i % xTickInterval === 0 || i === dataPoints.length - 1
@@ -99,6 +147,19 @@ function generateSvgChart(data: HourlyReport[]): string {
   
   // 100ms threshold line
   const thresholdY = yScale(100);
+  
+  // Format time label for display
+  const formatTimeLabel = (timeLabel: string) => {
+    if (dataType === 'minute') {
+      // For minute data: "2025-06-04_15:38" -> "15:38" or show date occasionally
+      const parts = timeLabel.split('_');
+      if (parts.length === 2) {
+        return parts[1]; // Just the time part
+      }
+    }
+    // For hourly data: show just the date part
+    return timeLabel.split('_')[0];
+  };
   
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="background: white;">
@@ -117,7 +178,7 @@ function generateSvgChart(data: HourlyReport[]): string {
   </defs>
   
   <!-- Title -->
-  <text x="${width/2}" y="50" class="chart-title">Kafka Latency Percentiles Over Time</text>
+  <text x="${width/2}" y="50" class="chart-title">Kafka Latency Percentiles Over Time (${timeUnit.charAt(0).toUpperCase() + timeUnit.slice(1)} Resolution)</text>
   
   <!-- Chart area background -->
   <rect x="${margin.left}" y="${margin.top}" width="${chartWidth}" height="${chartHeight}" 
@@ -174,11 +235,11 @@ function generateSvgChart(data: HourlyReport[]): string {
   ${xTicks.map((d, i) => `
     <text x="${margin.left + xScale(d.x)}" y="${margin.top + chartHeight + 40}" 
           class="axis-label" text-anchor="middle" font-size="12"
-          transform="rotate(-45, ${margin.left + xScale(d.x)}, ${margin.top + chartHeight + 40})">${d.hour.split('_')[0]}</text>
+          transform="rotate(-45, ${margin.left + xScale(d.x)}, ${margin.top + chartHeight + 40})">${formatTimeLabel(d.timeLabel)}</text>
   `).join('')}
   
   <!-- Axis titles -->
-  <text x="${margin.left + chartWidth/2}" y="${height - 30}" class="axis-title">Time (Date)</text>
+  <text x="${margin.left + chartWidth/2}" y="${height - 30}" class="axis-title">${timeAxisLabel}</text>
   <text x="35" y="${margin.top + chartHeight/2}" class="axis-title" 
         transform="rotate(-90, 35, ${margin.top + chartHeight/2})">Latency (ms)</text>
   
@@ -189,64 +250,112 @@ function generateSvgChart(data: HourlyReport[]): string {
       <g transform="translate(0, ${(i + 1) * 30})">
         <line x1="0" y1="0" x2="25" y2="0" stroke="${p.color}" class="legend-line"/>
         <text x="30" y="5" class="legend-text" font-size="16">${p.label}</text>
-        ${p.key === 'p75' ? `<text x="70" y="5" class="overlap-note">*overlaps P90</text>` : ''}
       </g>
     `).join('')}
     
     <!-- Stats -->
     <g transform="translate(0, ${(percentiles.length + 2) * 30})">
       <text x="0" y="0" class="legend-text" font-weight="bold" font-size="18">Statistics</text>
-      <text x="0" y="25" class="legend-text">Hours: ${sortedData.length}</text>
+      <text x="0" y="25" class="legend-text">${timeUnit.charAt(0).toUpperCase() + timeUnit.slice(1)}: ${sortedData.length}</text>
       <text x="0" y="45" class="legend-text">Violations: ${sortedData.filter(d => d.stats.exceeds_threshold).length}</text>
       <text x="0" y="65" class="legend-text">Max P99.99: ${Math.max(...sortedData.map(d => d.stats.p99_99))}ms</text>
       <text x="0" y="85" class="legend-text">Max P99.999: ${Math.max(...sortedData.map(d => d.stats.p99_999))}ms</text>
     </g>
   </g>
   
-  <!-- Note about overlapping lines -->
+  <!-- Note about data resolution -->
   <text x="${margin.left + 20}" y="${margin.top + 30}" class="overlap-note">
-    Note: P75 and P90 lines overlap (both ~3ms) - excellent performance!
+    Resolution: ${dataType} data (${sortedData.length} data points)
   </text>
 </svg>`;
 }
 
+async function findReportFiles(): Promise<string[]> {
+  const files: string[] = [];
+  try {
+    for await (const entry of Deno.readDir('.')) {
+      if (entry.isFile && entry.name.endsWith('.jsonl') && 
+          (entry.name.includes('hourly_reports') || entry.name.includes('minute_reports'))) {
+        files.push(entry.name);
+      }
+    }
+  } catch (error) {
+    console.warn('Could not read directory:', error.message);
+  }
+  return files.sort();
+}
+
 async function main() {
   try {
-    const filename = 'hourly_reports_1749083276892.jsonl';
+    let filename = '';
     
-    console.log('📖 Reading JSONL file...');
+    // Check command line arguments
+    if (Deno.args.length > 0) {
+      filename = Deno.args[0];
+    } else {
+      // Auto-detect available report files
+      console.log('🔍 No filename provided, searching for report files...');
+      const availableFiles = await findReportFiles();
+      
+      if (availableFiles.length === 0) {
+        console.error('❌ No report files found. Please provide a filename or ensure .jsonl files are in the current directory.');
+        console.log('Usage: deno run --allow-all latency_svg_fixed.ts [filename.jsonl]');
+        Deno.exit(1);
+      }
+      
+      console.log(`📁 Found ${availableFiles.length} report file(s):`);
+      availableFiles.forEach((file, i) => {
+        console.log(`   ${i + 1}. ${file}`);
+      });
+      
+      // Use the most recent file (last in sorted order)
+      filename = availableFiles[availableFiles.length - 1];
+      console.log(`📄 Using most recent file: ${filename}`);
+    }
+    
+    console.log(`📖 Reading JSONL file: ${filename}`);
     const data = await readJsonlFile(filename);
-    console.log(`✅ Loaded ${data.length} hourly reports`);
+    console.log(`✅ Loaded ${data.length} reports`);
     
-    console.log('🎨 Generating FIXED SVG chart...');
+    // Detect data type
+    const dataType = detectDataType(data);
+    const timeUnit = dataType === 'minute' ? 'minutes' : 'hours';
+    console.log(`📊 Data type: ${dataType}-level data (${data.length} ${timeUnit})`);
+    
+    console.log(`🎨 Generating SVG chart for ${dataType} data...`);
     const svgContent = generateSvgChart(data);
     
-    const outputFile = 'latency_chart_fixed.svg';
+    // Generate output filename based on input and data type
+    const baseName = filename.replace('.jsonl', '');
+    const outputFile = `${baseName}_${dataType}_chart.svg`;
     await Deno.writeTextFile(outputFile, svgContent);
-    console.log(`✅ Fixed SVG chart saved to ${outputFile}`);
+    console.log(`✅ SVG chart saved to ${outputFile}`);
     
     // Print some quick stats
     const violations = data.filter(d => d.stats.exceeds_threshold).length;
     const maxP99_99 = Math.max(...data.map(d => d.stats.p99_99));
     const maxP99_999 = Math.max(...data.map(d => d.stats.p99_999));
     
-    console.log('\n📈 Fixed SVG Chart Generated:');
+    console.log(`\n📈 SVG Chart Generated:`);
     console.log(`   📄 File: ${outputFile}`);
-    console.log(`   📏 Size: 2000x1000px (larger for better spacing)`);
-    console.log(`   🎯 Fixes: No x-axis overdraw, rotated labels, P75 note`);
-    console.log(`   📊 Data: ${data.length} hours, ${violations} violations`);
+    console.log(`   📏 Size: 2000x1000px`);
+    console.log(`   📊 Data: ${data.length} ${timeUnit}, ${violations} violations`);
     console.log(`   🔺 Max P99.99: ${maxP99_99}ms`);
+    console.log(`   🎯 Max P99.999: ${maxP99_999}ms`);
+    console.log(`   ⏱️  Resolution: ${dataType}-level`);
     
-    console.log('\n✅ Fixes Applied:');
-    console.log('   • Increased chart size (2000x1000)');
-    console.log('   • Larger margins to prevent overdraw');
-    console.log('   • Rotated x-axis labels (-45°)');
-    console.log('   • Limited max labels to prevent crowding');
-    console.log('   • Added note about P75/P90 overlap');
-    console.log('   • Increased line thickness for better visibility');
+    if (dataType === 'minute') {
+      console.log('\n⚡ Minute-level data provides high-resolution latency tracking');
+    } else {
+      console.log('\n📅 Hourly data provides good overview of latency trends');
+    }
     
   } catch (error) {
     console.error('❌ Error:', error.message);
+    console.log('\nUsage: deno run --allow-all latency_svg_fixed.ts [filename.jsonl]');
+    console.log('Examples:');
+    console.log('  deno run --allow-all latency_svg_fixed.ts minute_reports_1749251676646.jsonl');
+    console.log('  deno run --allow-all latency_svg_fixed.ts hourly_reports_1749083276892.jsonl');
     Deno.exit(1);
   }
 }
