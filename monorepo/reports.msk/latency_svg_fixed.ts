@@ -67,7 +67,7 @@ function getTimeLabel(report: LatencyReport, dataType: 'minute' | 'hour'): strin
   return report.minute || report.hour || 'unknown';
 }
 
-function generateSvgChart(data: LatencyReport[]): string {
+function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; height: number; } {
   if (data.length === 0) {
     throw new Error('No data provided to generate chart');
   }
@@ -83,12 +83,21 @@ function generateSvgChart(data: LatencyReport[]): string {
     return timeA.localeCompare(timeB);
   });
   
-  // FIXED: Increased chart dimensions and margins to prevent overdraw
-  const width = 2000;  // Increased from 1600
-  const height = 1000; // Increased from 900
-  const margin = { top: 80, right: 200, bottom: 120, left: 100 }; // Increased margins
+  // DYNAMIC SIZING: Make chart much wider for minute data to show every minute
+  const isMinuteData = dataType === 'minute';
+  const baseWidth = isMinuteData ? Math.max(4000, sortedData.length * 2) : 2000; // 2px per minute minimum
+  const width = Math.min(baseWidth, 50000); // Cap at 50k pixels for sanity
+  const height = 1000;
+  const margin = { 
+    top: 80, 
+    right: 200, 
+    bottom: isMinuteData ? 180 : 120, // More space for minute labels
+    left: 100 
+  };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
+  
+  console.log(`📏 Chart dimensions: ${width}x${height} (${isMinuteData ? 'wide for minutes' : 'standard'})`);
   
   // Prepare data
   const dataPoints = sortedData.map((d, i) => ({
@@ -112,7 +121,7 @@ function generateSvgChart(data: LatencyReport[]): string {
   // Log scale functions
   const logScale = (value: number) => Math.log10(Math.max(value, 0.1));
   const yScale = (value: number) => chartHeight - ((logScale(value) - logScale(minValue)) / (logScale(maxValue) - logScale(minValue))) * chartHeight;
-  const xScale = (index: number) => (index / (dataPoints.length - 1)) * chartWidth;
+  const xScale = (index: number) => (index / Math.max(dataPoints.length - 1, 1)) * chartWidth;
   
   // Generate path data for each percentile
   const generatePath = (getValue: (d: any) => number) => {
@@ -138,12 +147,22 @@ function generateSvgChart(data: LatencyReport[]): string {
     tick => tick >= minValue && tick <= maxValue
   );
   
-  // FIXED: Better X-axis tick spacing to prevent overlap
-  const maxLabels = dataType === 'minute' ? 20 : 15; // More labels for minute data
-  const xTickInterval = Math.max(1, Math.floor(dataPoints.length / maxLabels));
-  const xTicks = dataPoints.filter((_, i) => 
-    i % xTickInterval === 0 || i === dataPoints.length - 1
-  ).slice(0, maxLabels); // Ensure we don't exceed max labels
+  // X-AXIS LABELS: Show every minute for minute data, limited labels for hourly
+  let xTicks: typeof dataPoints;
+  if (isMinuteData) {
+    // For minute data: show every Nth minute to prevent complete overlap
+    // But show many more labels than before
+    const labelInterval = Math.max(1, Math.floor(dataPoints.length / 500)); // Up to 500 labels
+    xTicks = dataPoints.filter((_, i) => i % labelInterval === 0);
+    console.log(`📏 Showing ${xTicks.length} minute labels (every ${labelInterval} minutes)`);
+  } else {
+    // For hourly data: use the existing logic
+    const maxLabels = 15;
+    const xTickInterval = Math.max(1, Math.floor(dataPoints.length / maxLabels));
+    xTicks = dataPoints.filter((_, i) => 
+      i % xTickInterval === 0 || i === dataPoints.length - 1
+    ).slice(0, maxLabels);
+  }
   
   // 100ms threshold line
   const thresholdY = yScale(100);
@@ -151,23 +170,24 @@ function generateSvgChart(data: LatencyReport[]): string {
   // Format time label for display
   const formatTimeLabel = (timeLabel: string) => {
     if (dataType === 'minute') {
-      // For minute data: "2025-06-04_15:38" -> "15:38" or show date occasionally
+      // For minute data: "2025-06-04_15:38" -> "15:38" 
       const parts = timeLabel.split('_');
       if (parts.length === 2) {
-        return parts[1]; // Just the time part
+        return parts[1]; // Just the time part HH:MM
       }
     }
     // For hourly data: show just the date part
     return timeLabel.split('_')[0];
   };
   
-  return `<?xml version="1.0" encoding="UTF-8"?>
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="background: white;">
   <defs>
     <style>
       .chart-title { font: bold 28px Arial, sans-serif; text-anchor: middle; fill: #333; }
       .axis-title { font: bold 18px Arial, sans-serif; text-anchor: middle; fill: #666; }
       .axis-label { font: 14px Arial, sans-serif; fill: #666; }
+      .axis-label-minute { font: 10px Arial, sans-serif; fill: #666; } /* Smaller for minute labels */
       .grid-line { stroke: #e0e0e0; stroke-width: 1; }
       .axis-line { stroke: #333; stroke-width: 2; }
       .threshold-line { stroke: #ff0000; stroke-width: 4; stroke-dasharray: 15,8; }
@@ -191,8 +211,8 @@ function generateSvgChart(data: LatencyReport[]): string {
           class="grid-line"/>
   `).join('')}
   
-  <!-- Grid lines (X-axis) - fewer lines to reduce clutter -->
-  ${xTicks.filter((_, i) => i % 2 === 0).map(d => `
+  <!-- Grid lines (X-axis) - Show more for minute data -->
+  ${(isMinuteData ? xTicks.filter((_, i) => i % 5 === 0) : xTicks.filter((_, i) => i % 2 === 0)).map(d => `
     <line x1="${margin.left + xScale(d.x)}" y1="${margin.top}" 
           x2="${margin.left + xScale(d.x)}" y2="${margin.top + chartHeight}" 
           class="grid-line"/>
@@ -231,11 +251,11 @@ function generateSvgChart(data: LatencyReport[]): string {
           class="axis-label" text-anchor="end" font-size="14">${tick}ms</text>
   `).join('')}
   
-  <!-- X-axis labels - FIXED: Better spacing and rotation -->
+  <!-- X-axis labels - Different styling for minute vs hour data -->
   ${xTicks.map((d, i) => `
-    <text x="${margin.left + xScale(d.x)}" y="${margin.top + chartHeight + 40}" 
-          class="axis-label" text-anchor="middle" font-size="12"
-          transform="rotate(-45, ${margin.left + xScale(d.x)}, ${margin.top + chartHeight + 40})">${formatTimeLabel(d.timeLabel)}</text>
+    <text x="${margin.left + xScale(d.x)}" y="${margin.top + chartHeight + (isMinuteData ? 50 : 40)}" 
+          class="${isMinuteData ? 'axis-label-minute' : 'axis-label'}" text-anchor="middle"
+          transform="rotate(-90, ${margin.left + xScale(d.x)}, ${margin.top + chartHeight + (isMinuteData ? 50 : 40)})">${formatTimeLabel(d.timeLabel)}</text>
   `).join('')}
   
   <!-- Axis titles -->
@@ -260,14 +280,24 @@ function generateSvgChart(data: LatencyReport[]): string {
       <text x="0" y="45" class="legend-text">Violations: ${sortedData.filter(d => d.stats.exceeds_threshold).length}</text>
       <text x="0" y="65" class="legend-text">Max P99.99: ${Math.max(...sortedData.map(d => d.stats.p99_99))}ms</text>
       <text x="0" y="85" class="legend-text">Max P99.999: ${Math.max(...sortedData.map(d => d.stats.p99_999))}ms</text>
+      ${isMinuteData ? `<text x="0" y="105" class="legend-text">Chart Width: ${width}px</text>` : ''}
     </g>
   </g>
   
   <!-- Note about data resolution -->
   <text x="${margin.left + 20}" y="${margin.top + 30}" class="overlap-note">
-    Resolution: ${dataType} data (${sortedData.length} data points)
+    Resolution: ${dataType} data (${sortedData.length} data points)${isMinuteData ? ` - Wide chart for minute detail` : ''}
   </text>
+  
+  ${isMinuteData ? `
+  <!-- Scroll hint for minute data -->
+  <text x="${margin.left + 20}" y="${margin.top + 50}" class="overlap-note">
+    💡 Tip: This chart is ${width}px wide - use horizontal scroll to see all minutes
+  </text>
+  ` : ''}
 </svg>`;
+
+  return { svg, width, height };
 }
 
 async function findReportFiles(): Promise<string[]> {
@@ -323,12 +353,12 @@ async function main() {
     console.log(`📊 Data type: ${dataType}-level data (${data.length} ${timeUnit})`);
     
     console.log(`🎨 Generating SVG chart for ${dataType} data...`);
-    const svgContent = generateSvgChart(data);
+    const { svg, width, height } = generateSvgChart(data);
     
     // Generate output filename based on input and data type
     const baseName = filename.replace('.jsonl', '');
     const outputFile = `${baseName}_${dataType}_chart.svg`;
-    await Deno.writeTextFile(outputFile, svgContent);
+    await Deno.writeTextFile(outputFile, svg);
     console.log(`✅ SVG chart saved to ${outputFile}`);
     
     // Print some quick stats
@@ -338,7 +368,7 @@ async function main() {
     
     console.log(`\n📈 SVG Chart Generated:`);
     console.log(`   📄 File: ${outputFile}`);
-    console.log(`   📏 Size: 2000x1000px`);
+    console.log(`   📏 Size: ${width}x${height}px${dataType === 'minute' ? ' (Extra Wide!)' : ''}`);
     console.log(`   📊 Data: ${data.length} ${timeUnit}, ${violations} violations`);
     console.log(`   🔺 Max P99.99: ${maxP99_99}ms`);
     console.log(`   🎯 Max P99.999: ${maxP99_999}ms`);
@@ -346,6 +376,8 @@ async function main() {
     
     if (dataType === 'minute') {
       console.log('\n⚡ Minute-level data provides high-resolution latency tracking');
+      console.log(`🔍 Chart spans ${Math.floor(data.length / 60)} hours of minute-by-minute data`);
+      console.log(`📏 Use horizontal scroll to explore the ${width}px wide timeline`);
     } else {
       console.log('\n📅 Hourly data provides good overview of latency trends');
     }
