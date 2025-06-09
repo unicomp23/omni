@@ -170,10 +170,22 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
   // Format time label for display
   const formatTimeLabel = (timeLabel: string) => {
     if (dataType === 'minute') {
-      // For minute data: "2025-06-04_15:38" -> "15:38" 
+      // For minute data: "2025-06-04_15:38" -> "060425 15:38" 
       const parts = timeLabel.split('_');
       if (parts.length === 2) {
-        return parts[1]; // Just the time part HH:MM
+        const datePart = parts[0]; // "2025-06-04"
+        const timePart = parts[1]; // "15:38"
+        
+        // Convert date to mmddyy format
+        const dateComponents = datePart.split('-');
+        if (dateComponents.length === 3) {
+          const year = dateComponents[0].slice(-2); // Last 2 digits of year
+          const month = dateComponents[1];
+          const day = dateComponents[2];
+          return `${month}${day}${year} ${timePart}`;
+        }
+        
+        return timePart; // Fallback to just time if date parsing fails
       }
     }
     // For hourly data: show just the date part
