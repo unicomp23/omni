@@ -196,9 +196,6 @@ RUN BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases
     curl -L "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-arm64" -o /root/.docker/cli-plugins/docker-buildx && \
     chmod +x /root/.docker/cli-plugins/docker-buildx
 
-# Start SSH server
-CMD ["/usr/sbin/sshd", "-D"]
-
 # Remove the old golang-go package installation and add the official Go installation
 RUN rm -rf /usr/local/go && \
     curl -fsSL https://go.dev/dl/go1.22.1.linux-arm64.tar.gz | tar -C /usr/local -xzf - && \
@@ -244,3 +241,20 @@ RUN chmod +x /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake && \
 # Set environment variables
 ENV CMAKE_COMMAND=/usr/bin/cmake \
     PATH="/usr/bin:${PATH}"
+
+# Install Apache Kafka
+WORKDIR /opt
+RUN wget https://downloads.apache.org/kafka/2.13-3.6.0/kafka_2.13-3.6.0.tgz && \
+    tar -xzf kafka_2.13-3.6.0.tgz && \
+    ln -s kafka_2.13-3.6.0 kafka && \
+    rm kafka_2.13-3.6.0.tgz && \
+    echo 'export PATH="/opt/kafka/bin:$PATH"' >> /root/.bashrc
+
+# Update PATH to include Kafka
+ENV PATH="/opt/kafka/bin:${PATH}"
+
+# Change back to working directory
+WORKDIR /root/repo/dev
+
+# Start SSH server
+CMD ["/usr/sbin/sshd", "-D"]
