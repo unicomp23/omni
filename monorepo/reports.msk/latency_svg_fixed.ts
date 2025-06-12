@@ -103,6 +103,9 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
   const dataPoints = sortedData.map((d, i) => ({
     x: i,
     timeLabel: getTimeLabel(d, dataType),
+    min: d.stats.min,
+    max: d.stats.max,
+    avg: d.stats.avg,
     p50: d.stats.p50,
     p75: d.stats.p75,
     p90: d.stats.p90,
@@ -115,8 +118,8 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
   }));
   
   // Find max value for scaling (use log scale)
-  const maxValue = Math.max(...dataPoints.map(d => Math.max(d.p99_99, d.p99_9, d.p99, d.p95, d.p90, d.p75, d.p50)));
-  const minValue = 1;
+  const maxValue = Math.max(...dataPoints.map(d => Math.max(d.max, d.p99_99, d.p99_9, d.p99, d.p95, d.p90, d.p75, d.p50, d.avg)));
+  const minValue = Math.min(...dataPoints.map(d => Math.min(d.min, 0.1)));
   
   // Log scale functions
   const logScale = (value: number) => Math.log10(Math.max(value, 0.1));
@@ -130,15 +133,18 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
     ).join(' ');
   };
   
-  // Percentile configurations
+  // Percentile configurations - now including min, max, avg
   const percentiles = [
-    { key: 'p50', color: '#28a745', width: 3, label: 'P50' },
-    { key: 'p75', color: '#17a2b8', width: 3, label: 'P75' },
-    { key: 'p90', color: '#ffc107', width: 3, label: 'P90' },
-    { key: 'p95', color: '#fd7e14', width: 3, label: 'P95' },
-    { key: 'p99', color: '#dc3545', width: 3, label: 'P99' },
-    { key: 'p99_9', color: '#e83e8c', width: 3, label: 'P99.9' },
-    { key: 'p99_99', color: '#6f42c1', width: 4, label: 'P99.99' }
+    { key: 'min', color: '#20c997', width: 2, label: 'Min', opacity: '0.8' },
+    { key: 'avg', color: '#6c757d', width: 3, label: 'Avg', opacity: '1.0' },
+    { key: 'p50', color: '#28a745', width: 3, label: 'P50', opacity: '1.0' },
+    { key: 'p75', color: '#17a2b8', width: 3, label: 'P75', opacity: '0.9' },
+    { key: 'p90', color: '#ffc107', width: 3, label: 'P90', opacity: '1.0' },
+    { key: 'p95', color: '#fd7e14', width: 3, label: 'P95', opacity: '1.0' },
+    { key: 'p99', color: '#dc3545', width: 3, label: 'P99', opacity: '1.0' },
+    { key: 'p99_9', color: '#e83e8c', width: 3, label: 'P99.9', opacity: '1.0' },
+    { key: 'p99_99', color: '#6f42c1', width: 4, label: 'P99.99', opacity: '1.0' },
+    { key: 'max', color: '#343a40', width: 2, label: 'Max', opacity: '0.7' }
   ];
   
   // Generate Y-axis ticks (logarithmic)
@@ -243,7 +249,7 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
     <path d="${generatePath((d: any) => d[p.key])}" 
           fill="none" stroke="${p.color}" stroke-width="${p.width}" 
           transform="translate(${margin.left}, ${margin.top})"
-          opacity="${p.key === 'p75' ? '0.9' : '1.0'}"/>
+          opacity="${p.opacity}"/>
   `).join('')}
   
   <!-- X-axis -->
@@ -289,8 +295,11 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
       <text x="0" y="0" class="legend-text" font-weight="bold" font-size="18">Statistics</text>
       <text x="0" y="25" class="legend-text">${timeUnit.charAt(0).toUpperCase() + timeUnit.slice(1)}: ${sortedData.length}</text>
       <text x="0" y="45" class="legend-text">Violations: ${sortedData.filter(d => d.stats.exceeds_threshold).length}</text>
-      <text x="0" y="65" class="legend-text">Max P99.99: ${Math.max(...sortedData.map(d => d.stats.p99_99))}ms</text>
-      ${isMinuteData ? `<text x="0" y="85" class="legend-text">Chart Width: ${width}px</text>` : ''}
+      <text x="0" y="65" class="legend-text">Overall Min: ${Math.min(...sortedData.map(d => d.stats.min))}ms</text>
+      <text x="0" y="85" class="legend-text">Overall Max: ${Math.max(...sortedData.map(d => d.stats.max))}ms</text>
+      <text x="0" y="105" class="legend-text">Overall Avg: ${Math.round(sortedData.reduce((sum, d) => sum + d.stats.avg, 0) / sortedData.length)}ms</text>
+      <text x="0" y="125" class="legend-text">Max P99.99: ${Math.max(...sortedData.map(d => d.stats.p99_99))}ms</text>
+      ${isMinuteData ? `<text x="0" y="145" class="legend-text">Chart Width: ${width}px</text>` : ''}
     </g>
   </g>
   
@@ -325,12 +334,54 @@ async function findReportFiles(): Promise<string[]> {
   return files.sort();
 }
 
+function showHelp() {
+  console.log(`
+🎨 Kafka Latency SVG Chart Generator
+
+USAGE:
+  deno run --allow-all latency_svg_fixed.ts [OPTIONS] [FILENAME]
+
+ARGUMENTS:
+  FILENAME           JSONL file containing latency reports (optional)
+                     If not provided, will auto-detect report files
+
+OPTIONS:
+  --help, -h         Show this help message
+
+EXAMPLES:
+  # Auto-detect and use most recent report file
+  deno run --allow-all latency_svg_fixed.ts
+
+  # Use specific minute-level report file  
+  deno run --allow-all latency_svg_fixed.ts minute_reports_1749251676646.jsonl
+
+  # Use specific hourly report file
+  deno run --allow-all latency_svg_fixed.ts hourly_reports_1749083276892.jsonl
+
+FEATURES:
+  ✨ Auto-detects minute vs hourly data resolution
+  📊 Displays Min, Max, Avg + all percentiles (P50-P99.99)
+  📏 Dynamic chart sizing (extra wide for minute data)
+  🎯 100ms threshold line with violation tracking
+  📈 Logarithmic Y-axis for better visualization
+  🔍 Detailed statistics in legend
+
+OUTPUT:
+  Generates an SVG file with the same base name + "_[minute|hour]_chart.svg"
+`);
+}
+
 async function main() {
   try {
     let filename = '';
     
     // Check command line arguments
     if (Deno.args.length > 0) {
+      // Check for help flag
+      if (Deno.args[0] === '--help' || Deno.args[0] === '-h') {
+        showHelp();
+        Deno.exit(0);
+      }
       filename = Deno.args[0];
     } else {
       // Auto-detect available report files
@@ -373,12 +424,16 @@ async function main() {
     
     // Print some quick stats
     const violations = data.filter(d => d.stats.exceeds_threshold).length;
+    const overallMin = Math.min(...data.map(d => d.stats.min));
+    const overallMax = Math.max(...data.map(d => d.stats.max));
+    const overallAvg = Math.round(data.reduce((sum, d) => sum + d.stats.avg, 0) / data.length);
     const maxP99_99 = Math.max(...data.map(d => d.stats.p99_99));
     
     console.log(`\n📈 SVG Chart Generated:`);
     console.log(`   📄 File: ${outputFile}`);
     console.log(`   📏 Size: ${width}x${height}px${dataType === 'minute' ? ' (Extra Wide!)' : ''}`);
     console.log(`   📊 Data: ${data.length} ${timeUnit}, ${violations} violations`);
+    console.log(`   📉 Min: ${overallMin}ms, Max: ${overallMax}ms, Avg: ${overallAvg}ms`);
     console.log(`   🔺 Max P99.99: ${maxP99_99}ms`);
     console.log(`   ⏱️  Resolution: ${dataType}-level`);
     
@@ -392,10 +447,8 @@ async function main() {
     
   } catch (error) {
     console.error('❌ Error:', error.message);
-    console.log('\nUsage: deno run --allow-all latency_svg_fixed.ts [filename.jsonl]');
-    console.log('Examples:');
-    console.log('  deno run --allow-all latency_svg_fixed.ts minute_reports_1749251676646.jsonl');
-    console.log('  deno run --allow-all latency_svg_fixed.ts hourly_reports_1749083276892.jsonl');
+    console.log('\n💡 Use --help for usage information:');
+    console.log('   deno run --allow-all latency_svg_fixed.ts --help');
     Deno.exit(1);
   }
 }
