@@ -18,6 +18,7 @@ interface LatencyStats {
   min: number;
   max: number;
   avg: number;
+  p25: number;
   p50: number;
   p75: number;
   p90: number;
@@ -97,6 +98,7 @@ function calculateStats(latencies: number[]): LatencyStats {
       min: 0,
       max: 0,
       avg: 0,
+      p25: 0,
       p50: 0,
       p75: 0,
       p90: 0,
@@ -122,6 +124,7 @@ function calculateStats(latencies: number[]): LatencyStats {
     min: latencies[0],
     max: latencies[latencies.length - 1],
     avg: latencies.reduce((a, b) => a + b, 0) / latencies.length,
+    p25: calculatePercentile(latencies, 25),
     p50: calculatePercentile(latencies, 50),
     p75: calculatePercentile(latencies, 75),
     p90: calculatePercentile(latencies, 90),
