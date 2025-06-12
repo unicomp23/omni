@@ -83,10 +83,10 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
     return timeA.localeCompare(timeB);
   });
   
-  // DYNAMIC SIZING: Make chart much wider for minute data to show every minute
+  // DYNAMIC SIZING: Make chart much wider for minute data to show every minute (6x spacing)
   const isMinuteData = dataType === 'minute';
-  const baseWidth = isMinuteData ? Math.max(4000, sortedData.length * 2) : 2000; // 2px per minute minimum
-  const width = Math.min(baseWidth, 50000); // Cap at 50k pixels for sanity
+  const baseWidth = isMinuteData ? Math.max(24000, sortedData.length * 12) : 12000; // 12px per minute minimum (6x spacing)
+  const width = Math.min(baseWidth, 300000); // Cap at 300k pixels for sanity (6x increase)
   const height = 1000;
   const margin = { 
     top: 80, 
@@ -97,7 +97,7 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
   
-  console.log(`📏 Chart dimensions: ${width}x${height} (${isMinuteData ? 'wide for minutes' : 'standard'})`);
+  console.log(`📏 Chart dimensions: ${width}x${height} (${isMinuteData ? 'extra wide with 6x spacing for minutes' : 'standard with 6x spacing'})`);
   
   // Prepare data
   const dataPoints = sortedData.map((d, i) => ({
@@ -211,6 +211,56 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
       .legend-text { font: 16px Arial, sans-serif; fill: #333; }
       .legend-line { stroke-width: 4; }
       .overlap-note { font: 12px Arial, sans-serif; fill: #666; font-style: italic; }
+      .tooltip { 
+        pointer-events: none; 
+        opacity: 0; 
+        transition: opacity 0.2s ease-in-out;
+        font-family: monospace;
+      }
+      .tooltip-bg { 
+        fill: rgba(255, 255, 255, 0.95); 
+        stroke: #333; 
+        stroke-width: 2; 
+        rx: 8; 
+        ry: 8;
+        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+      }
+      .tooltip-text { 
+        font: 12px monospace; 
+        fill: #333; 
+        text-anchor: start;
+      }
+      .tooltip-title { 
+        font: bold 14px monospace; 
+        fill: #000; 
+        text-anchor: start;
+      }
+      .tooltip-threshold { 
+        font: bold 12px monospace; 
+        fill: #ff0000; 
+        text-anchor: start;
+      }
+      .color-hint { 
+        stroke-width: 3; 
+        rx: 2; 
+        ry: 2;
+      }
+      .chart-overlay { 
+        fill: transparent; 
+        cursor: crosshair; 
+      }
+      .data-point { 
+        fill: rgba(0,0,0,0.6); 
+        stroke: white; 
+        stroke-width: 1; 
+        r: 3;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+      }
+      .data-point.active { 
+        opacity: 1; 
+        r: 5;
+      }
     </style>
   </defs>
   
@@ -314,6 +364,216 @@ function generateSvgChart(data: LatencyReport[]): { svg: string; width: number; 
     💡 Tip: This chart is ${width}px wide - use horizontal scroll to see all minutes
   </text>
   ` : ''}
+  
+  <!-- Interactive data points (invisible, for hover detection) -->
+  ${dataPoints.map(d => `
+    <circle cx="${margin.left + xScale(d.x)}" cy="${margin.top + yScale(d.p99)}" 
+            class="data-point" data-index="${d.x}"/>
+  `).join('')}
+  
+  <!-- Chart overlay for mouse tracking -->
+  <rect x="${margin.left}" y="${margin.top}" width="${chartWidth}" height="${chartHeight}" 
+        class="chart-overlay" id="chartOverlay"/>
+  
+  <!-- Floating tooltip -->
+  <g class="tooltip" id="tooltip">
+    <rect class="tooltip-bg" x="0" y="0" width="280" height="320"/>
+    <text class="tooltip-title" x="10" y="20" id="tooltipTitle">Data Point</text>
+    <text class="tooltip-text" x="10" y="40" id="tooltipTime">Time: --</text>
+    
+    <!-- Min with color hint -->
+    <rect class="color-hint" x="10" y="50" width="12" height="12" fill="#20c997"/>
+    <text class="tooltip-text" x="27" y="60" id="tooltipMin">Min: --</text>
+    
+    <!-- Avg with color hint -->
+    <rect class="color-hint" x="10" y="70" width="12" height="12" fill="#6c757d"/>
+    <text class="tooltip-text" x="27" y="80" id="tooltipAvg">Avg: --</text>
+    
+    <!-- P50 with color hint -->
+    <rect class="color-hint" x="10" y="90" width="12" height="12" fill="#28a745"/>
+    <text class="tooltip-text" x="27" y="100" id="tooltipP50">P50: --</text>
+    
+    <!-- P75 with color hint -->
+    <rect class="color-hint" x="10" y="110" width="12" height="12" fill="#17a2b8"/>
+    <text class="tooltip-text" x="27" y="120" id="tooltipP75">P75: --</text>
+    
+    <!-- P90 with color hint -->
+    <rect class="color-hint" x="10" y="130" width="12" height="12" fill="#ffc107"/>
+    <text class="tooltip-text" x="27" y="140" id="tooltipP90">P90: --</text>
+    
+    <!-- P95 with color hint -->
+    <rect class="color-hint" x="10" y="150" width="12" height="12" fill="#fd7e14"/>
+    <text class="tooltip-text" x="27" y="160" id="tooltipP95">P95: --</text>
+    
+    <!-- P99 with color hint -->
+    <rect class="color-hint" x="10" y="170" width="12" height="12" fill="#dc3545"/>
+    <text class="tooltip-text" x="27" y="180" id="tooltipP99">P99: --</text>
+    
+    <!-- P99.9 with color hint -->
+    <rect class="color-hint" x="10" y="190" width="12" height="12" fill="#e83e8c"/>
+    <text class="tooltip-text" x="27" y="200" id="tooltipP99_9">P99.9: --</text>
+    
+    <!-- P99.99 with color hint -->
+    <rect class="color-hint" x="10" y="210" width="12" height="12" fill="#6f42c1"/>
+    <text class="tooltip-text" x="27" y="220" id="tooltipP99_99">P99.99: --</text>
+    
+    <!-- Max with color hint -->
+    <rect class="color-hint" x="10" y="230" width="12" height="12" fill="#343a40"/>
+    <text class="tooltip-text" x="27" y="240" id="tooltipMax">Max: --</text>
+    
+    <text class="tooltip-threshold" x="10" y="270" id="tooltipThreshold">Threshold: --</text>
+    <text class="tooltip-text" x="10" y="300" id="tooltipPosition">Position: --</text>
+  </g>
+  
+  <script type="text/javascript">
+    <![CDATA[
+    // Chart configuration
+    const chartConfig = {
+      margin: { top: ${margin.top}, right: ${margin.right}, bottom: ${margin.bottom}, left: ${margin.left} },
+      chartWidth: ${chartWidth},
+      chartHeight: ${chartHeight},
+      dataType: "${dataType}",
+      minValue: ${minValue},
+      maxValue: ${maxValue}
+    };
+    
+    // Data points for tooltip
+    const dataPoints = ${JSON.stringify(dataPoints)};
+    
+    // Scaling functions
+    function logScale(value) {
+      return Math.log10(Math.max(value, 0.1));
+    }
+    
+    function yScale(value) {
+      return chartConfig.chartHeight - ((logScale(value) - logScale(chartConfig.minValue)) / (logScale(chartConfig.maxValue) - logScale(chartConfig.minValue))) * chartConfig.chartHeight;
+    }
+    
+    function xScale(index) {
+      return (index / Math.max(dataPoints.length - 1, 1)) * chartConfig.chartWidth;
+    }
+    
+    // Format time label for display
+    function formatTimeLabel(timeLabel) {
+      if (chartConfig.dataType === 'minute') {
+        const parts = timeLabel.split('_');
+        if (parts.length === 2) {
+          const datePart = parts[0];
+          const timePart = parts[1];
+          const dateComponents = datePart.split('-');
+          if (dateComponents.length === 3) {
+            const year = dateComponents[0].slice(-2);
+            const month = dateComponents[1];
+            const day = dateComponents[2];
+            return month + '/' + day + '/' + year + ' ' + timePart;
+          }
+          return timePart;
+        }
+      }
+      return timeLabel.split('_')[0];
+    }
+    
+    // Find closest data point to mouse position
+    function findClosestDataPoint(mouseX) {
+      const chartMouseX = mouseX - chartConfig.margin.left;
+      const relativeX = chartMouseX / chartConfig.chartWidth;
+      const index = Math.round(relativeX * (dataPoints.length - 1));
+      return Math.max(0, Math.min(index, dataPoints.length - 1));
+    }
+    
+    // Update tooltip content
+    function updateTooltip(dataIndex) {
+      const data = dataPoints[dataIndex];
+      
+      document.getElementById('tooltipTitle').textContent = \`Data Point \${dataIndex + 1}/\${dataPoints.length}\`;
+      document.getElementById('tooltipTime').textContent = \`Time: \${formatTimeLabel(data.timeLabel)}\`;
+      document.getElementById('tooltipMin').textContent = \`Min:    \${data.min.toFixed(2)}ms\`;
+      document.getElementById('tooltipAvg').textContent = \`Avg:    \${data.avg.toFixed(2)}ms\`;
+      document.getElementById('tooltipP50').textContent = \`P50:    \${data.p50.toFixed(2)}ms\`;
+      document.getElementById('tooltipP75').textContent = \`P75:    \${data.p75.toFixed(2)}ms\`;
+      document.getElementById('tooltipP90').textContent = \`P90:    \${data.p90.toFixed(2)}ms\`;
+      document.getElementById('tooltipP95').textContent = \`P95:    \${data.p95.toFixed(2)}ms\`;
+      document.getElementById('tooltipP99').textContent = \`P99:    \${data.p99.toFixed(2)}ms\`;
+      document.getElementById('tooltipP99_9').textContent = \`P99.9:  \${data.p99_9.toFixed(2)}ms\`;
+      document.getElementById('tooltipP99_99').textContent = \`P99.99: \${data.p99_99.toFixed(2)}ms\`;
+      document.getElementById('tooltipMax').textContent = \`Max:    \${data.max.toFixed(2)}ms\`;
+      document.getElementById('tooltipThreshold').textContent = data.exceeds ? 'EXCEEDS 100ms THRESHOLD!' : 'Within 100ms threshold';
+      document.getElementById('tooltipPosition').textContent = \`Chart: \${((dataIndex / (dataPoints.length - 1)) * 100).toFixed(1)}%\`;
+    }
+    
+    // Position tooltip to avoid going off-screen
+    function positionTooltip(mouseX, mouseY) {
+      const tooltip = document.getElementById('tooltip');
+      const tooltipWidth = 280;
+      const tooltipHeight = 320;
+      const svgWidth = ${width};
+      const svgHeight = ${height};
+      
+      let x = mouseX + 15;
+      let y = mouseY - 160;
+      
+      // Prevent tooltip from going off right edge
+      if (x + tooltipWidth > svgWidth) {
+        x = mouseX - tooltipWidth - 15;
+      }
+      
+      // Prevent tooltip from going off top edge
+      if (y < 0) {
+        y = mouseY + 15;
+      }
+      
+      // Prevent tooltip from going off bottom edge
+      if (y + tooltipHeight > svgHeight) {
+        y = svgHeight - tooltipHeight - 15;
+      }
+      
+      tooltip.setAttribute('transform', \`translate(\${x}, \${y})\`);
+    }
+    
+    // Event handlers
+    const overlay = document.getElementById('chartOverlay');
+    const tooltip = document.getElementById('tooltip');
+    let currentDataIndex = -1;
+    
+    overlay.addEventListener('mousemove', function(e) {
+      const rect = e.target.getBoundingClientRect();
+      const svgRect = e.target.ownerSVGElement.getBoundingClientRect();
+      const mouseX = e.clientX - svgRect.left;
+      const mouseY = e.clientY - svgRect.top;
+      
+      const dataIndex = findClosestDataPoint(mouseX);
+      
+      if (dataIndex !== currentDataIndex) {
+        // Remove active class from all data points
+        document.querySelectorAll('.data-point').forEach(point => {
+          point.classList.remove('active');
+        });
+        
+        // Add active class to current data point
+        const currentPoint = document.querySelector(\`[data-index="\${dataIndex}"]\`);
+        if (currentPoint) {
+          currentPoint.classList.add('active');
+        }
+        
+        updateTooltip(dataIndex);
+        currentDataIndex = dataIndex;
+      }
+      
+      positionTooltip(mouseX, mouseY);
+      tooltip.style.opacity = '1';
+    });
+    
+    overlay.addEventListener('mouseleave', function() {
+      tooltip.style.opacity = '0';
+      currentDataIndex = -1;
+      
+      // Remove active class from all data points
+      document.querySelectorAll('.data-point').forEach(point => {
+        point.classList.remove('active');
+      });
+    });
+    ]]>
+  </script>
 </svg>`;
 
   return { svg, width, height };
