@@ -1,0 +1,59 @@
+Add parent
+
+SHASTA-47
+
+
+Investigate Amazon suggestions to reduce MSK latency at P99.99
+
+Add
+
+Apps
+
+Open
+
+Actions
+
+Improve Task
+Description
+
+Try suggestions provided by AWS regarding ways to improve performance of MSK at the extremes.
+
+Acceptance Conditions
+Formulate a strategy for testing the various options that AWS suggested.
+
+See if there is a way to simulate or trigger disruptive events to measure the impact on performance.
+
+Try different configurations in short tests to see how they perform.
+
+If we have a candidate configuration we think might work, repeat the long (21 day) test.
+
+Notes from AWS
+num.replica.fetchers (2 -> 4 -> 8)
+
+provisioned throughput
+
+num.io.threads (try 8 and 16)
+
+num.network.threads (try 8 and 16)
+
+m7g.4xlarge instance
+
+Best practices for Standard brokers - Amazon Managed Streaming for Apache Kafka 
+
+Double threads beyond recommendations in the doc if CPU usage looks OK
+
+Fewer consumers -> rebalances are less impactful 
+
+Kafka 4 has server-side rebalance
+
+Consumer rebalance protocol
+
+ 
+
+Avoid cross-AZ blips
+
+Best practices for Standard brokers - Amazon Managed Streaming for Apache Kafka 
+
+ 
+
+Then - shard the topic - last ditch
