@@ -103,9 +103,18 @@ func main() {
 			break
 		}
 
-		fetches := client.PollFetches(ctx)
+		// Create a context with timeout to prevent blocking indefinitely
+		timeoutCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		fetches := client.PollFetches(timeoutCtx)
+		cancel()
+
 		if errs := fetches.Errors(); len(errs) > 0 {
-			log.Printf("Fetch errors: %v", errs)
+			// Ignore context timeout errors, only log other errors
+			for _, err := range errs {
+				if err.Err != context.DeadlineExceeded {
+					log.Printf("Fetch error: %v", err)
+				}
+			}
 			continue
 		}
 
