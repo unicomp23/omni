@@ -2,4 +2,4 @@
 
 # Run the Go consumer
 echo "Running Go Kafka consumer..."
-docker compose exec dev-golang sh -c "cd /golang-project/consumer && go run ." 
+docker compose exec dev-golang sh -c "cd /golang-project && go run test-consumer.go" 

@@ -1,6 +1,6 @@
 services:
   kafka4:
-    image: confluentinc/cp-kafka:7.4.0
+    image: confluentinc/cp-kafka:8.0.0
     hostname: kafka4
     container_name: kafka4
     user: root
@@ -43,7 +43,7 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace
-      - ../kafka.latency/golang.latency:/golang-project
+      - ./golang-project:/golang-project
       - go_modules:/go/pkg/mod
     environment:
       - GO111MODULE=on
@@ -58,10 +58,31 @@ services:
     stdin_open: true
     tty: true
 
+  dev-java:
+    image: openjdk:17-jdk-slim
+    container_name: dev-java
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+      - ./java-project:/java-project
+      - maven_cache:/root/.m2
+    environment:
+      - MAVEN_OPTS=-Xmx1024m
+    command: tail -f /dev/null  # Keep container running
+    depends_on:
+      kafka4:
+        condition: service_healthy
+    networks:
+      - kafka-network
+    stdin_open: true
+    tty: true
+
 volumes:
   kafka_data:
     driver: local
   go_modules:
+    driver: local
+  maven_cache:
     driver: local
 
 networks:
