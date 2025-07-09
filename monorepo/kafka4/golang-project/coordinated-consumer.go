@@ -123,7 +123,14 @@ func main() {
 			continue
 		}
 
+		var shouldExit bool
 		fetches.EachRecord(func(record *kgo.Record) {
+			// Check timer before processing each record
+			if time.Since(startTime) >= waitDuration {
+				shouldExit = true
+				return
+			}
+
 			receivedAt := time.Now().UTC()
 			messageCount++
 
@@ -176,6 +183,13 @@ func main() {
 			fmt.Fprintf(os.Stderr, "Processed: %s, Latency: %.3f ms [%d total]\n", 
 				payload.ID, latencyMs, messageCount)
 		})
+
+		// Check if we should exit due to timer expiry during record processing
+		if shouldExit {
+			fmt.Fprintf(os.Stderr, "Wait time completed after %v. Processed %d messages from %d producers.\n", 
+				time.Since(startTime), messageCount, len(seenProducers))
+			break
+		}
 	}
 
 	fmt.Fprintf(os.Stderr, "Coordinated Consumer %d completed! Processed %d messages from %d producers.\n", 
