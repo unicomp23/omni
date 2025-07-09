@@ -7,6 +7,11 @@
 *latency*.log
 *latency*.debug
 
+# Realtime and fresh log files
+realtime-*.jsonl
+fresh-*.jsonl
+*-percentile-logs.jsonl
+
 # Temporary files
 *.tmp
 *.temp
@@ -52,4 +57,8 @@ vendor/
 # Environment files
 .env
 .env.local
-.env.*.local 
+.env.*.local
+
+# Docker volumes and cache
+.docker/
+docker-compose.override.yml 
