@@ -71,18 +71,18 @@ run_go_latency_test() {
     local debug_file="go-latency-$(date +%Y%m%d-%H%M%S).debug"
     
     print_status "Starting Go consumer in background..."
-    timeout 30s docker compose exec -T dev-golang sh -c "
-        cd /workspace/golang-project && 
-        GO_LATENCY_TOPIC='$GO_LATENCY_TOPIC' go run latency-consumer.go
+    timeout 30s docker compose exec -T -e GO_LATENCY_TOPIC="$GO_LATENCY_TOPIC" dev-golang sh -c "
+        cd /workspace && 
+        go run golang-project/latency-consumer.go
     " > "$output_file" 2> "$debug_file" &
     
     local consumer_pid=$!
     sleep 2
     
     print_status "Starting Go producer..."
-    docker compose exec -T dev-golang sh -c "
-        cd /workspace/golang-project && 
-        GO_LATENCY_TOPIC='$GO_LATENCY_TOPIC' go run latency-producer.go
+    docker compose exec -T -e GO_LATENCY_TOPIC="$GO_LATENCY_TOPIC" dev-golang sh -c "
+        cd /workspace && 
+        go run golang-project/latency-producer.go
     "
     
     # Wait for consumer to finish
@@ -108,18 +108,18 @@ run_java_latency_test() {
     docker compose exec -T dev-java sh -c "cd /workspace/java-project && mvn clean compile dependency:copy-dependencies -q"
     
     print_status "Starting Java consumer in background..."
-    timeout 30s docker compose exec -T dev-java sh -c "
+    timeout 30s docker compose exec -T -e JAVA_LATENCY_TOPIC="$JAVA_LATENCY_TOPIC" dev-java sh -c "
         cd /workspace/java-project && 
-        JAVA_LATENCY_TOPIC='$JAVA_LATENCY_TOPIC' java -cp 'target/classes:target/dependency/*' com.example.kafka.LatencyConsumer
+        java -cp 'target/classes:target/dependency/*' com.example.kafka.LatencyConsumer
     " > "$output_file" 2> "$debug_file" &
     
     local consumer_pid=$!
     sleep 2
     
     print_status "Starting Java producer..."
-    docker compose exec -T dev-java sh -c "
+    docker compose exec -T -e JAVA_LATENCY_TOPIC="$JAVA_LATENCY_TOPIC" dev-java sh -c "
         cd /workspace/java-project && 
-        JAVA_LATENCY_TOPIC='$JAVA_LATENCY_TOPIC' java -cp 'target/classes:target/dependency/*' com.example.kafka.LatencyProducer
+        java -cp 'target/classes:target/dependency/*' com.example.kafka.LatencyProducer
     "
     
     # Wait for consumer to finish

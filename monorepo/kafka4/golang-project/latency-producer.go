@@ -31,13 +31,15 @@ func main() {
 
 	ctx := context.Background()
 	topic := os.Getenv("GO_LATENCY_TOPIC")
+	fmt.Fprintf(os.Stderr, "DEBUG: GO_LATENCY_TOPIC env var = '%s'\n", topic)
 	if topic == "" {
 		topic = "latency-topic" // fallback
+		fmt.Fprintf(os.Stderr, "DEBUG: Using fallback topic\n")
 	}
 
-	fmt.Println("Starting Go Latency Producer...")
-	fmt.Printf("Producer: %s\n", "go-latency-producer")
-	fmt.Printf("Topic: %s\n", topic)
+	fmt.Fprintf(os.Stderr, "Starting Go Latency Producer...\n")
+	fmt.Fprintf(os.Stderr, "Producer: %s\n", "go-latency-producer")
+	fmt.Fprintf(os.Stderr, "Topic: %s\n", topic)
 
 	// Send messages with timestamps
 	for i := 1; i <= 10; i++ {
@@ -66,11 +68,11 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("Sent: %s at %s\n", payload.ID, payload.SentAt.Format(time.RFC3339Nano))
+		fmt.Fprintf(os.Stderr, "Sent: %s at %s\n", payload.ID, payload.SentAt.Format(time.RFC3339Nano))
 		
 		// Small delay between messages
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	fmt.Println("Go Latency Producer completed!")
+	fmt.Fprintf(os.Stderr, "Go Latency Producer completed!\n")
 } 
