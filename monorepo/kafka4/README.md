@@ -37,6 +37,7 @@ kafka4/
 │   ├── java-consumer.sh   # Run Java consumer
 │   ├── test-connection.sh # Test Kafka connection
 │   ├── run-coordinated-test.sh # Timer-based coordinated testing
+│   ├── compare-go-java-perf.sh # Go vs Java performance comparison tool
 │   ├── topic-manager.sh   # Manage Kafka topics
 │   ├── kafka-topics.sh    # Kafka topic utilities
 │   ├── logs.sh            # View container logs
@@ -150,6 +151,28 @@ The project uses a sophisticated **timer-based coordination** approach for testi
 - ✅ Predictable timing and clean shutdown
 - ✅ Scales with any number of partitions/consumers
 - ✅ No coordination overhead between processes
+
+### Go vs Java Performance Comparison
+Compare latency performance between Go (franz-go) and Java (Kafka client) implementations:
+
+```bash
+# Run performance comparison with visual progress
+./scripts/compare-go-java-perf.sh
+
+# Examples with different configurations:
+./scripts/compare-go-java-perf.sh 1000 5 60          # 1000 messages, 5ms spacing, 60s timeout
+./scripts/compare-go-java-perf.sh 100 10 30         # 100 messages, 10ms spacing, 30s timeout
+
+# Show help
+./scripts/compare-go-java-perf.sh --help
+```
+
+**Performance comparison features:**
+- 📊 **Visual progress monitoring** - Real-time progress bars and counters
+- 🏆 **Automatic winner analysis** - Percentage improvements across all metrics
+- 📋 **Detailed percentile reports** - P50, P75, P90, P95, P99 analysis
+- 📈 **Side-by-side comparison** - Min, Max, Average latency comparison
+- 🎯 **Command line flexibility** - Configurable message count and spacing
 
 ### Topic Management
 
