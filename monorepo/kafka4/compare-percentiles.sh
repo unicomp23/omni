@@ -1,30 +1,24 @@
 #!/bin/bash
 
 # Compare Latency Percentiles Script
-# This script compares percentiles between Go and Java implementations
+# This script compares percentiles between different Go test configurations
 
-echo "🔄 Generating Fresh Latency Data for Real-Time Comparison..."
-echo "==========================================================="
+if [ $# -lt 2 ]; then
+    echo "Usage: $0 <latency-file1.jsonl> <latency-file2.jsonl> [label1] [label2]"
+    echo "Example: $0 test1-latency.jsonl test2-latency.jsonl \"High Frequency\" \"Low Frequency\""
+    exit 1
+fi
 
-# Generate fresh data with consumers running in background
-echo "🚀 Starting consumers..."
-timeout 30s docker compose exec -d dev-golang sh -c "cd /workspace/golang-project && go run latency-consumer.go" > fresh-go.jsonl 2>/dev/null &
-timeout 30s docker compose exec -d dev-java sh -c "cd /workspace/java-project && java -cp 'target/classes:target/dependency/*' com.example.kafka.SimpleLatencyConsumer" > fresh-java.jsonl 2>/dev/null &
+FILE1=$1
+FILE2=$2
+LABEL1=${3:-"Configuration 1"}
+LABEL2=${4:-"Configuration 2"}
 
-sleep 2
-
-echo "📤 Sending messages from both producers..."
-docker compose exec dev-golang sh -c "cd /workspace/golang-project && go run latency-producer.go" &
-docker compose exec dev-java sh -c "cd /workspace/java-project && java -cp 'target/classes:target/dependency/*' com.example.kafka.SimpleLatencyProducer" &
-
-wait
-
-echo "⏱️  Waiting for consumers to process messages..."
-sleep 10
-
-echo
-echo "📊 LATENCY PERCENTILES COMPARISON"
+echo "🔄 LATENCY PERCENTILES COMPARISON"
 echo "=================================="
+echo "Comparing: $LABEL1 vs $LABEL2"
+echo "Files: $FILE1 vs $FILE2"
+echo
 
 # Function to extract percentiles from a file
 extract_percentiles() {
@@ -79,81 +73,115 @@ extract_percentiles() {
            "$min" "$p50" "$p90" "$p95" "$p99" "$max"
     
     # Store values for comparison
-    if [ "$label" = "Go" ]; then
-        GO_P95=$p95
-        GO_P99=$p99
-        GO_AVG=$avg
+    if [ "$label" = "$LABEL1" ]; then
+        CONFIG1_P95=$p95
+        CONFIG1_P99=$p99
+        CONFIG1_AVG=$avg
+        CONFIG1_P50=$p50
     else
-        JAVA_P95=$p95  
-        JAVA_P99=$p99
-        JAVA_AVG=$avg
+        CONFIG2_P95=$p95  
+        CONFIG2_P99=$p99
+        CONFIG2_AVG=$avg
+        CONFIG2_P50=$p50
     fi
 }
 
 echo
-# Analyze fresh data
-extract_percentiles "fresh-go.jsonl" "Go"
-extract_percentiles "fresh-java.jsonl" "Java"
+# Analyze both configurations
+extract_percentiles "$FILE1" "$LABEL1"
+extract_percentiles "$FILE2" "$LABEL2"
 
 echo
 echo "📊 SIDE-BY-SIDE PERCENTILE COMPARISON"
 echo "====================================="
 
-printf "| %-12s | %-15s | %-15s | %-15s |\n" "Metric" "Go (ms)" "Java (ms)" "Winner"
+printf "| %-12s | %-15s | %-15s | %-15s |\n" "Metric" "$LABEL1 (ms)" "$LABEL2 (ms)" "Winner"
 printf "|%-12s-|%-15s-|%-15s-|%-15s-|\n" "------------" "---------------" "---------------" "---------------"
 
 # Compare if both have data
-if [ -n "${GO_P95:-}" ] && [ -n "${JAVA_P95:-}" ]; then
-    # P95 comparison
-    if (( $(echo "$GO_P95 < $JAVA_P95" | bc -l) )); then
-        winner="🟢 Go"
-    elif (( $(echo "$JAVA_P95 < $GO_P95" | bc -l) )); then
-        winner="🟢 Java"
+if [ -n "${CONFIG1_P95:-}" ] && [ -n "${CONFIG2_P95:-}" ]; then
+    # P50 comparison
+    if (( $(echo "$CONFIG1_P50 < $CONFIG2_P50" | bc -l) )); then
+        winner="🟢 $LABEL1"
+    elif (( $(echo "$CONFIG2_P50 < $CONFIG1_P50" | bc -l) )); then
+        winner="🟢 $LABEL2"
     else
         winner="🤝 Tie"
     fi
-    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "P95" "$GO_P95" "$JAVA_P95" "$winner"
+    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "P50" "$CONFIG1_P50" "$CONFIG2_P50" "$winner"
+    
+    # P95 comparison
+    if (( $(echo "$CONFIG1_P95 < $CONFIG2_P95" | bc -l) )); then
+        winner="🟢 $LABEL1"
+    elif (( $(echo "$CONFIG2_P95 < $CONFIG1_P95" | bc -l) )); then
+        winner="🟢 $LABEL2"
+    else
+        winner="🤝 Tie"
+    fi
+    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "P95" "$CONFIG1_P95" "$CONFIG2_P95" "$winner"
     
     # P99 comparison
-    if (( $(echo "$GO_P99 < $JAVA_P99" | bc -l) )); then
-        winner="🟢 Go"
-    elif (( $(echo "$JAVA_P99 < $GO_P99" | bc -l) )); then
-        winner="🟢 Java"
+    if (( $(echo "$CONFIG1_P99 < $CONFIG2_P99" | bc -l) )); then
+        winner="🟢 $LABEL1"
+    elif (( $(echo "$CONFIG2_P99 < $CONFIG1_P99" | bc -l) )); then
+        winner="🟢 $LABEL2"
     else
         winner="🤝 Tie"
     fi
-    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "P99" "$GO_P99" "$JAVA_P99" "$winner"
+    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "P99" "$CONFIG1_P99" "$CONFIG2_P99" "$winner"
     
     # Average comparison
-    if (( $(echo "$GO_AVG < $JAVA_AVG" | bc -l) )); then
-        winner="🟢 Go"
-    elif (( $(echo "$JAVA_AVG < $GO_AVG" | bc -l) )); then
-        winner="🟢 Java"
+    if (( $(echo "$CONFIG1_AVG < $CONFIG2_AVG" | bc -l) )); then
+        winner="🟢 $LABEL1"
+    elif (( $(echo "$CONFIG2_AVG < $CONFIG1_AVG" | bc -l) )); then
+        winner="🟢 $LABEL2"
     else
         winner="🤝 Tie"
     fi
-    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "Average" "$GO_AVG" "$JAVA_AVG" "$winner"
+    printf "| %-12s | %-15.2f | %-15.2f | %-15s |\n" "Average" "$CONFIG1_AVG" "$CONFIG2_AVG" "$winner"
 fi
 
 echo
 echo "📋 Analysis Summary:"
 echo "==================="
 
-if [ -s "fresh-go.jsonl" ]; then
-    go_count=$(wc -l < "fresh-go.jsonl")
-    echo "✅ Go:   $go_count latency measurements collected"
+if [ -s "$FILE1" ]; then
+    config1_count=$(wc -l < "$FILE1")
+    echo "✅ $LABEL1: $config1_count latency measurements"
 else
-    echo "❌ Go:   No data collected"
+    echo "❌ $LABEL1: No data collected"
 fi
 
-if [ -s "fresh-java.jsonl" ]; then
-    java_count=$(wc -l < "fresh-java.jsonl")  
-    echo "✅ Java: $java_count latency measurements collected"
+if [ -s "$FILE2" ]; then
+    config2_count=$(wc -l < "$FILE2")  
+    echo "✅ $LABEL2: $config2_count latency measurements"
 else
-    echo "❌ Java: No data collected"
+    echo "❌ $LABEL2: No data collected"
 fi
 
 echo
 echo "💡 For detailed analysis, run:"
-echo "   ./calculate-percentiles.sh fresh-go.jsonl \"Fresh Go\""
-echo "   ./calculate-percentiles.sh fresh-java.jsonl \"Fresh Java\"" 
+echo "   ./calculate-percentiles.sh $FILE1 \"$LABEL1\""
+echo "   ./calculate-percentiles.sh $FILE2 \"$LABEL2\""
+
+# Performance insights
+echo
+echo "🎯 Performance Insights:"
+echo "======================="
+if [ -n "${CONFIG1_P95:-}" ] && [ -n "${CONFIG2_P95:-}" ]; then
+    echo "• Both configurations show latency characteristics"
+    if (( $(echo "$CONFIG1_P95 < 100" | bc -l) )) && (( $(echo "$CONFIG2_P95 < 100" | bc -l) )); then
+        echo "• Both have excellent P95 performance (<100ms)"
+    elif (( $(echo "$CONFIG1_P95 < 500" | bc -l) )) && (( $(echo "$CONFIG2_P95 < 500" | bc -l) )); then
+        echo "• Both have good P95 performance (<500ms)"
+    fi
+    
+    # Calculate improvement percentage
+    improvement=$(echo "scale=2; (($CONFIG2_P95 - $CONFIG1_P95) / $CONFIG2_P95) * 100" | bc -l)
+    if (( $(echo "$improvement > 0" | bc -l) )); then
+        echo "• $LABEL1 shows ${improvement}% better P95 than $LABEL2"
+    else
+        improvement=$(echo "scale=2; (($CONFIG1_P95 - $CONFIG2_P95) / $CONFIG1_P95) * 100" | bc -l)
+        echo "• $LABEL2 shows ${improvement}% better P95 than $LABEL1"
+    fi
+fi 

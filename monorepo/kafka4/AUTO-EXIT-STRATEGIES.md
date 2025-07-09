@@ -1,177 +1,225 @@
-# Auto-Exit Strategies for Kafka Producers and Consumers
+# Auto-Exit Strategies for Kafka Consumers
 
-This document explains how to make Kafka producers and consumers exit automatically during test runs, eliminating the need for timeout-based killing.
+This document describes the **timer-based coordination** approach for Kafka consumers that ensures predictable, graceful exits without timeouts or hanging processes.
 
-## 🎯 **The Problem**
+## Overview
 
-Traditional testing approaches:
-- **Producers**: ✅ Exit after sending messages (already working)
-- **Consumers**: ❌ Run forever, killed by `timeout` command
-- **Issues**: Messy process cleanup, unclear exit reasons, race conditions
+The timer-based coordination strategy allows consumers to exit gracefully after a predetermined time period, making it ideal for:
+- ✅ **Performance testing** with predictable timing
+- ✅ **Automated testing** without manual intervention
+- ✅ **Batch processing** with known time windows
+- ✅ **Load testing** with consistent behavior
 
-## 🚀 **The Solution: Smart Auto-Exit**
+## Implementation
 
-### **Strategy 1: Expected Message Count (Recommended)**
+### Go Consumer: `coordinated-consumer.go`
 
-Consumers exit automatically after receiving a known number of messages.
+**Key Features:**
+- Timer-based exit after calculated duration
+- Timeout protection for PollFetches to prevent blocking
+- Latency tracking with JSONL output
+- Clean shutdown with completion messages
 
-**Environment Variables:**
-- `EXPECTED_MESSAGE_COUNT`: Number of messages to expect (default: 10)
-- `CONSUMER_TIMEOUT_SECONDS`: Overall timeout (default: 30)
+**How it works:**
+1. **Timer Setup**: Consumer calculates exit time: `(messages × spacing) + buffer`
+2. **Timeout Loop**: Uses 200ms timeout on PollFetches to prevent blocking
+3. **Exit Check**: Checks timer on each loop iteration
+4. **Graceful Exit**: Completes processing and logs final statistics
 
-**Go Consumer:** `auto-exit-consumer.go`
-**Java Consumer:** `AutoExitLatencyConsumer.java`
+### Example Usage
 
-### **Strategy 2: Multiple Exit Conditions**
-
-Consumers use intelligent exit logic:
-1. **Message Count**: Exit after N expected messages
-2. **Idle Timeout**: Exit if no messages for 5 seconds after first message
-3. **Overall Timeout**: Exit after total timeout period
-4. **Error Conditions**: Exit on persistent errors
-
-### **Strategy 3: Producer Signals** (Future Enhancement)
-
-Producers can send special "END" messages to signal completion.
-
-## 📋 **Usage Examples**
-
-### **Quick Test (5 messages, 10s timeout):**
 ```bash
-./scripts/auto-exit-test.sh --go-test 5 10
+# Basic coordinated test
+./scripts/run-coordinated-test.sh
+
+# Custom configuration: 3 producers, 2 consumers, 10 messages, 500ms spacing
+./scripts/run-coordinated-test.sh 3 2 10 500 1000
+
+# Quick test: 1 producer, 1 consumer, 5 messages, 200ms spacing
+./scripts/run-coordinated-test.sh 1 1 5 200
 ```
 
-### **Standard Test (10 messages, 15s timeout):**
+## Timer-Based Coordination Benefits
+
+### ✅ **Predictable Exit Timing**
+- Consumers exit after calculated time period
+- No dependency on message count per consumer
+- Works with any partition distribution
+
+### ✅ **No Hanging Processes**
+- PollFetches uses 200ms timeout to prevent blocking
+- Timer check runs regularly in main loop
+- Clean shutdown with completion messages
+
+### ✅ **Scalable Design**
+- Works with multiple producers and consumers
+- No coordination overhead between processes
+- Scales with any number of partitions
+
+### ✅ **Testing Reliability**
+- Consistent behavior across test runs
+- Automated exit without manual intervention
+- Generates complete latency data for analysis
+
+## Configuration Options
+
+The coordinated test script supports flexible configuration:
+
 ```bash
-./scripts/auto-exit-test.sh --java-test
+./scripts/run-coordinated-test.sh [NUM_PRODUCERS] [NUM_CONSUMERS] [MESSAGE_COUNT] [SPACING_MS] [BUFFER_MS]
 ```
 
-### **Demo All Strategies:**
+**Parameters:**
+- `NUM_PRODUCERS`: Number of producer processes (default: 2)
+- `NUM_CONSUMERS`: Number of consumer processes (default: 3)
+- `MESSAGE_COUNT`: Messages per producer (default: 4)
+- `SPACING_MS`: Milliseconds between messages (default: 800)
+- `BUFFER_MS`: Consumer buffer time in ms (default: 2000)
+
+## Test Workflow
+
+### 1. **Setup Phase**
 ```bash
-./scripts/auto-exit-test.sh --demo
+# Clean and create fresh topics
+./scripts/topic-manager.sh fresh
 ```
 
-## 🔧 **Available Scripts**
-
-| Script | Purpose | Auto-Exit Method |
-|--------|---------|------------------|
-| `auto-exit-test.sh` | ⭐ **RECOMMENDED** | Environment variable control |
-| `copy-and-test.sh` | Copy-based testing | Timeout-based (legacy) |
-| `run-latency-test.sh` | Volume mount testing | Timeout-based (legacy) |
-
-## 📊 **Comparison: Before vs After**
-
-### **❌ Before (Timeout-Based)**
+### 2. **Execution Phase**
 ```bash
-# Messy approach
-timeout 30s docker compose exec dev-golang go run consumer.go &
-consumer_pid=$!
-# ... run producer ...
-wait $consumer_pid 2>/dev/null || true  # Killed by timeout
+# Start consumers first (calculate exit time)
+# Start producers (emit messages with timing metadata)
+# Wait for completion (all processes exit gracefully)
 ```
 
-**Issues:**
-- Process killed forcefully
-- Unclear why it stopped
-- Race conditions
-- No clean shutdown
-
-### **✅ After (Auto-Exit)**
+### 3. **Analysis Phase**
 ```bash
-# Clean approach
-docker compose exec \
-    -e EXPECTED_MESSAGE_COUNT=10 \
-    -e CONSUMER_TIMEOUT_SECONDS=15 \
-    dev-golang go run auto-exit-consumer.go &
-consumer_pid=$!
-# ... run producer ...
-wait $consumer_pid  # Exits naturally when work is done
+# Calculate percentiles
+./calculate-percentiles.sh <latency-file>.jsonl
+
+# Compare configurations  
+./compare-percentiles.sh file1.jsonl file2.jsonl "Config 1" "Config 2"
+
+# Basic analysis
+./analyze-latency-logs.sh <latency-file>.jsonl
 ```
 
-**Benefits:**
-- Clean exit with reason
-- No process killing
-- Predictable behavior
-- Clear logging
+## Example Test Results
 
-## 🎯 **Exit Reasons Explained**
+### Test Configuration
+- **Producers**: 2
+- **Consumers**: 3  
+- **Messages**: 10 per producer
+- **Spacing**: 200ms
+- **Buffer**: 1000ms
 
-### **✅ Success Cases:**
-1. **"Received expected 10 messages. Exiting successfully."**
-   - Perfect! Got exactly what we expected
+### Results
+```
+📊 Latency Percentiles Analysis
+===============================
+📈 Total Records: 168
 
-2. **"Overall timeout reached after 15 seconds. Processed 8/10 messages."**
-   - Producer might be slow or some messages lost
+📊 Basic Statistics:
+  • Min:        0.518797 ms
+  • Max:        108.57873 ms  
+  • Average:    23.252443 ms
+  • Median:     0.8583 ms
 
-3. **"Idle timeout reached. No messages for 5 seconds. Processed 10/10 messages."**
-   - All messages received, then idle period detected
+📈 Percentile Distribution:
+  • P50:         0.8583 ms
+  • P75:      28.108255 ms
+  • P90:     108.385102 ms
+  • P95:      108.57873 ms
+  • P99:      108.57873 ms
 
-### **⚠️ Issue Cases:**
-1. **"Overall timeout reached after 30 seconds. Processed 0/10 messages."**
-   - No messages received - check producer or topics
-
-2. **"Idle timeout reached. No messages for 5 seconds. Processed 3/10 messages."**
-   - Producer stopped early or messages lost
-
-## 🔍 **Debugging Tips**
-
-### **Check Environment Variables:**
-```bash
-# In container
-echo "Topic: $GO_LATENCY_TOPIC"
-echo "Expected: $EXPECTED_MESSAGE_COUNT"
-echo "Timeout: $CONSUMER_TIMEOUT_SECONDS"
+🎯 Performance Classification:
+🟡 Good: P95 < 500ms
 ```
 
-### **Monitor Progress:**
-```bash
-# Watch debug output
-tail -f go-auto-exit-*.debug
+## Best Practices
+
+### **1. Buffer Time Selection**
+- **Short tests**: Buffer = 1000-2000ms
+- **Long tests**: Buffer = 2000-5000ms
+- **Rule of thumb**: Buffer ≥ message processing time
+
+### **2. Timeout Configuration**
+- **PollFetches timeout**: 200ms (prevents blocking)
+- **Sleep on empty**: 100ms (reduces CPU usage)
+- **Balance**: Fast exit vs CPU efficiency
+
+### **3. Test Configuration**
+- **Start small**: 1-2 producers, 1-2 consumers
+- **Scale up**: Increase producers/consumers gradually
+- **Monitor**: Check logs for timing accuracy
+
+### **4. Analysis Workflow**
+1. **Run test**: `./scripts/run-coordinated-test.sh`
+2. **Check completion**: Verify all processes exited cleanly
+3. **Calculate percentiles**: Use analysis scripts
+4. **Compare configurations**: Test different parameters
+
+## Troubleshooting
+
+### **Consumer Doesn't Exit**
+- **Check timeout**: Ensure PollFetches has timeout
+- **Verify timer**: Check timer calculation logic
+- **Review logs**: Look for blocking operations
+
+### **Incomplete Data**
+- **Increase buffer**: Give consumers more time
+- **Check timing**: Verify producer emission timing
+- **Monitor partitions**: Ensure even distribution
+
+### **Performance Issues**
+- **Reduce spacing**: Increase message frequency
+- **Optimize consumers**: Check processing efficiency
+- **Scale horizontally**: Add more consumers
+
+## Technical Details
+
+### **Timer Calculation**
+```go
+// Consumer calculates exit time based on producer pattern
+waitDuration := time.Duration(waitTimeMs) * time.Millisecond
+startTime := time.Now()
+
+// Exit when timer expires
+if time.Since(startTime) >= waitDuration {
+    // Graceful exit
+    break
+}
 ```
 
-### **Verify Topics:**
-```bash
-# List topics
-./scripts/topic-manager.sh list
+### **Timeout Protection**
+```go
+// Prevent blocking on PollFetches
+timeoutCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+fetches := client.PollFetches(timeoutCtx)
+cancel()
 ```
 
-## 🚀 **Best Practices**
+### **Latency Tracking**
+```go
+// Calculate and record latency
+latency := receivedAt.Sub(payload.SentAt)
+latencyMs := float64(latency.Nanoseconds()) / 1e6
 
-1. **Use Expected Count**: Set `EXPECTED_MESSAGE_COUNT` to match producer output
-2. **Reasonable Timeouts**: 15-30 seconds usually sufficient
-3. **Check Exit Reasons**: Always read debug logs for exit explanations
-4. **Fresh Topics**: Use UUID topics to avoid old message interference
-5. **Copy Code**: Use copy-based approach for consistent results
-
-## 🎊 **Results**
-
-With auto-exit consumers:
-- ✅ **No timeout kills needed**
-- ✅ **Clean exit messages**
-- ✅ **Real latency measurements** (1-7ms vs 800+ seconds)
-- ✅ **Predictable test duration**
-- ✅ **Clear success/failure indication**
-- ✅ **Production-like behavior**
-
-## 📝 **Implementation Files**
-
-```
-golang-project/
-├── auto-exit-consumer.go          # Smart Go consumer
-├── latency-producer.go             # Standard producer
-└── latency-consumer.go             # Legacy timeout-based
-
-java-project/src/main/java/com/example/kafka/
-├── AutoExitLatencyConsumer.java    # Smart Java consumer
-├── LatencyProducer.java            # Standard producer
-└── LatencyConsumer.java            # Legacy timeout-based
-
-scripts/
-├── auto-exit-test.sh              # ⭐ Auto-exit testing
-├── copy-and-test.sh               # Copy-based testing
-└── topic-manager.sh               # UUID topic management
+// Output JSONL record
+latencyRecord := LatencyRecord{
+    MessageID:    payload.ID,
+    Producer:     payload.Producer,
+    Consumer:     consumerName,
+    LatencyMs:    latencyMs,
+    // ... other fields
+}
 ```
 
----
+## Conclusion
 
-**🎯 Recommendation**: Use `./scripts/auto-exit-test.sh` for all new testing. It provides clean, predictable, and production-like behavior without messy process management. 
+The timer-based coordination approach provides:
+- **Predictable exit behavior** for automated testing
+- **Clean shutdown** without hanging processes  
+- **Scalable design** for performance testing
+- **Comprehensive latency data** for analysis
+
+This strategy eliminates the common issues with timeout-based approaches and provides a robust foundation for Kafka performance testing and analysis. 

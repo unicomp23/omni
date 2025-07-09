@@ -107,8 +107,7 @@ create_topic() {
 # Function to create topic configuration file
 create_topic_config() {
     local go_topic=$1
-    local java_topic=$2
-    local general_topic=$3
+    local general_topic=$2
     
     cat > topic-config.env << EOF
 # Generated topic configuration - $(date)
@@ -117,14 +116,11 @@ create_topic_config() {
 # Go latency testing topic
 GO_LATENCY_TOPIC=$go_topic
 
-# Java latency testing topic  
-JAVA_LATENCY_TOPIC=$java_topic
-
 # General testing topic
 GENERAL_TEST_TOPIC=$general_topic
 
 # Export for shell scripts
-export GO_LATENCY_TOPIC JAVA_LATENCY_TOPIC GENERAL_TEST_TOPIC
+export GO_LATENCY_TOPIC GENERAL_TEST_TOPIC
 EOF
     
     print_status "Created topic-config.env with new topic names"
@@ -136,15 +132,13 @@ setup_fresh_topics() {
     
     # Create topics for different purposes
     go_topic=$(create_topic "go-latency" 2>/dev/null)
-    java_topic=$(create_topic "java-latency" 2>/dev/null)
     general_topic=$(create_topic "general" 2>/dev/null)
     
     # Create configuration file
-    create_topic_config "$go_topic" "$java_topic" "$general_topic"
+    create_topic_config "$go_topic" "$general_topic"
     
     print_status "Fresh topics created:"
     echo "  - Go Latency:  $go_topic"
-    echo "  - Java Latency: $java_topic"
     echo "  - General:     $general_topic"
 }
 
