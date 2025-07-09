@@ -1,0 +1,24 @@
+config: {}
+networks:
+- name: lxdbr0
+  type: bridge
+  config:
+    ipv4.address: 192.168.100.1/24
+    ipv4.nat: "true"
+    ipv6.address: none
+storage_pools:
+- name: default
+  driver: zfs
+  config:
+    source: lxd-zfs
+profiles:
+- name: default
+  devices:
+    eth0:
+      name: eth0
+      network: lxdbr0
+      type: nic
+    root:
+      path: /
+      pool: default
+      type: disk
