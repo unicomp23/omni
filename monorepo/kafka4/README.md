@@ -8,19 +8,44 @@ This Docker Compose setup provides a complete development environment with Apach
 kafka4/
 ├── docker-compose.yml
 ├── README.md
-├── golang-project/          # Go development files
+├── AUTO-EXIT-STRATEGIES.md  # Documentation for auto-exit patterns
+├── topic-config.env        # Topic configuration (generated)
+├── golang-project/         # Go development files
 │   ├── go.mod
 │   ├── test-producer.go
 │   ├── test-consumer.go
-│   └── producer.go         # Franz-go producer example
+│   ├── latency-producer.go
+│   ├── latency-consumer.go
+│   └── auto-exit-consumer.go
 ├── java-project/           # Java development files
 │   ├── pom.xml
-│   └── src/
-└── scripts/               # Helper scripts
-    ├── start.sh
-    ├── shell.sh
-    ├── producer.sh
-    └── ...
+│   └── src/main/java/com/example/kafka/
+│       ├── KafkaProducer.java
+│       ├── KafkaConsumer.java
+│       ├── LatencyProducer.java
+│       ├── LatencyConsumer.java
+│       └── AutoExitLatencyConsumer.java
+├── scripts/               # Helper scripts
+│   ├── start.sh           # Start containers
+│   ├── stop.sh            # Stop containers
+│   ├── shell.sh           # Access Go container
+│   ├── producer.sh        # Run Go producer
+│   ├── consumer.sh        # Run Go consumer
+│   ├── java-shell.sh      # Access Java container
+│   ├── java-build.sh      # Build Java project
+│   ├── java-producer.sh   # Run Java producer
+│   ├── java-consumer.sh   # Run Java consumer
+│   ├── test-connection.sh # Test Kafka connection
+│   ├── run-coordinated-test.sh # Timer-based coordinated testing
+│   ├── topic-manager.sh   # Manage Kafka topics
+│   ├── kafka-topics.sh    # Kafka topic utilities
+│   ├── logs.sh            # View container logs
+│   └── help.sh            # Show all available commands
+└── analysis/              # Analysis scripts (generated)
+    ├── analyze-latency-logs.sh
+    ├── collect-latency-logs.sh
+    ├── calculate-percentiles.sh
+    └── compare-percentiles.sh
 ```
 
 ## Services
@@ -105,6 +130,40 @@ For convenience, use the provided helper scripts:
 ./scripts/stop.sh
 ```
 
+### Latency Testing
+The project uses a sophisticated **timer-based coordination** approach for testing:
+
+```bash
+# Run coordinated producer-consumer latency test
+./scripts/run-coordinated-test.sh
+
+# Examples with different configurations:
+./scripts/run-coordinated-test.sh 3 2 5 1000        # 3 producers, 2 consumers, 5 messages, 1000ms spacing
+./scripts/run-coordinated-test.sh 1 1 10 500 3000   # 1 producer, 1 consumer, 10 messages, 500ms spacing, 3s buffer
+
+# Show help
+./scripts/run-coordinated-test.sh --help
+```
+
+**Timer-based coordination benefits:**
+- ✅ Consumers exit gracefully (no timeout kills)
+- ✅ Predictable timing and clean shutdown
+- ✅ Scales with any number of partitions/consumers
+- ✅ No coordination overhead between processes
+
+### Topic Management
+
+```bash
+# Create fresh topics for testing
+./scripts/topic-manager.sh fresh
+
+# List all topics
+./scripts/topic-manager.sh list
+
+# Delete test topics
+./scripts/topic-manager.sh clean
+```
+
 ### Manual Docker Commands
 ```bash
 # Start the environment
@@ -185,6 +244,43 @@ func main() {
 4. **Test from containers**: Run your applications inside the containers
 5. **Create topics**: Use Kafka tools to create topics as needed
 6. **Monitor**: Check logs with `docker compose logs kafka4`
+
+## Testing Workflow
+
+### Timer-Based Coordinated Testing
+```bash
+# Default test: 2 producers, 3 consumers, 4 messages each, 800ms spacing
+./scripts/run-coordinated-test.sh
+
+# Scale test: 5 producers, 3 consumers, 10 messages each, 500ms spacing
+./scripts/run-coordinated-test.sh 5 3 10 500 1000
+
+# Simple test: 1 producer, 1 consumer
+./scripts/run-coordinated-test.sh 1 1 10 500 3000
+```
+
+### How Timer-Based Coordination Works
+1. **Producers embed timing metadata** in each message
+2. **Consumers learn emission pattern** from first coordinated message  
+3. **Consumers calculate exit time**: `(messages × spacing) + buffer`
+4. **All consumers exit gracefully** after calculated time period
+
+### Test Results Analysis
+The coordinated test generates timestamped JSON log files containing latency measurements:
+
+```bash
+# Generated files include:
+# - coordinated-latency-YYYYMMDD-HHMMSS.jsonl
+# - consumer-N-YYYYMMDD-HHMMSS.log
+# - producer-N-YYYYMMDD-HHMMSS.log
+
+# Use analysis scripts to process results:
+./calculate-percentiles.sh
+./compare-percentiles.sh
+```
+
+### Test Integration
+The coordinated test automatically runs **both Java and Go** implementations with the timer-based approach for clean, predictable exits.
 
 ## Working with Topics
 

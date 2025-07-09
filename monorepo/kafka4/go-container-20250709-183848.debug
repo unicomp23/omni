@@ -1,3 +1,0 @@
-latency-consumer.go:11:2: missing go.sum entry for module providing package github.com/twmb/franz-go/pkg/kgo; to add:
-	go mod download github.com/twmb/franz-go
-

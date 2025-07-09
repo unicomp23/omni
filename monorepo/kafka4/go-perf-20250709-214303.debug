@@ -1,0 +1,15 @@
+Starting Go Latency Consumer...
+Consumer: go-latency-consumer
+Writing latency logs to stdout in JSONL format
+---
+Processed: go-msg-1, Latency: 355.881 ms
+Processed: go-msg-2, Latency: 4.606 ms
+Processed: go-msg-3, Latency: 0.597 ms
+Processed: go-msg-4, Latency: 0.702 ms
+Processed: go-msg-5, Latency: 0.658 ms
+Processed: go-msg-6, Latency: 0.768 ms
+Processed: go-msg-7, Latency: 2.288 ms
+Processed: go-msg-8, Latency: 0.619 ms
+Processed: go-msg-9, Latency: 0.627 ms
+Processed: go-msg-10, Latency: 0.657 ms
+

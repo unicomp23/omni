@@ -38,18 +38,15 @@ services:
       - kafka-network
 
   dev-golang:
-    image: golang:1.21-alpine
+    build:
+      context: ./golang-project
+      dockerfile: Dockerfile
     container_name: dev-golang
     working_dir: /workspace
-    volumes:
-      - .:/workspace
-      - ./golang-project:/golang-project
-      - go_modules:/go/pkg/mod
     environment:
       - GO111MODULE=on
       - GOPROXY=https://proxy.golang.org,direct
       - GOSUMDB=sum.golang.org
-    command: tail -f /dev/null  # Keep container running
     depends_on:
       kafka4:
         condition: service_healthy
@@ -59,16 +56,13 @@ services:
     tty: true
 
   dev-java:
-    image: openjdk:17-jdk-slim
+    build:
+      context: ./java-project
+      dockerfile: Dockerfile
     container_name: dev-java
     working_dir: /workspace
-    volumes:
-      - .:/workspace
-      - ./java-project:/java-project
-      - maven_cache:/root/.m2
     environment:
       - MAVEN_OPTS=-Xmx1024m
-    command: tail -f /dev/null  # Keep container running
     depends_on:
       kafka4:
         condition: service_healthy
@@ -79,10 +73,6 @@ services:
 
 volumes:
   kafka_data:
-    driver: local
-  go_modules:
-    driver: local
-  maven_cache:
     driver: local
 
 networks:

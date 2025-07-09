@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -41,8 +42,25 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Producer: %s\n", "go-latency-producer")
 	fmt.Fprintf(os.Stderr, "Topic: %s\n", topic)
 
+	// Parse command line arguments: message_count spacing_ms
+	messageCount := 10 // default
+	spacingMs := 500   // default
+	
+	if len(os.Args) >= 2 {
+		if count, err := strconv.Atoi(os.Args[1]); err == nil {
+			messageCount = count
+		}
+	}
+	if len(os.Args) >= 3 {
+		if spacing, err := strconv.Atoi(os.Args[2]); err == nil {
+			spacingMs = spacing
+		}
+	}
+
+	fmt.Fprintf(os.Stderr, "Sending %d messages with %dms spacing...\n", messageCount, spacingMs)
+
 	// Send messages with timestamps
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= messageCount; i++ {
 		payload := MessagePayload{
 			ID:       fmt.Sprintf("go-msg-%d", i),
 			Content:  fmt.Sprintf("Go latency test message %d", i),
@@ -70,8 +88,8 @@ func main() {
 
 		fmt.Fprintf(os.Stderr, "Sent: %s at %s\n", payload.ID, payload.SentAt.Format(time.RFC3339Nano))
 		
-		// Small delay between messages
-		time.Sleep(500 * time.Millisecond)
+		// Delay between messages based on spacing parameter
+		time.Sleep(time.Duration(spacingMs) * time.Millisecond)
 	}
 
 	fmt.Fprintf(os.Stderr, "Go Latency Producer completed!\n")

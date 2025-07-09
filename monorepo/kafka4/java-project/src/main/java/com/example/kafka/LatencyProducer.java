@@ -42,14 +42,34 @@ public class LatencyProducer {
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
 
+        // Parse command line arguments: message_count spacing_ms
+        int messageCount = 10; // default
+        int spacingMs = 500;   // default
+        
+        if (args.length >= 1) {
+            try {
+                messageCount = Integer.parseInt(args[0]);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid message count: " + args[0]);
+            }
+        }
+        if (args.length >= 2) {
+            try {
+                spacingMs = Integer.parseInt(args[1]);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid spacing: " + args[1]);
+            }
+        }
+
         String producerID = "java-latency-producer";
         System.out.println("Starting Java Latency Producer...");
         System.out.println("Producer: " + producerID);
         System.out.println("Topic: " + TOPIC);
+        System.out.println("Sending " + messageCount + " messages with " + spacingMs + "ms spacing...");
 
         try (Producer<String, String> producer = new org.apache.kafka.clients.producer.KafkaProducer<>(props)) {
             
-            for (int i = 1; i <= 10; i++) {
+            for (int i = 1; i <= messageCount; i++) {
                 MessagePayload payload = new MessagePayload(
                     "java-msg-" + i,
                     "Java latency test message " + i,
@@ -66,7 +86,7 @@ public class LatencyProducer {
                     
                     System.out.println("Sent: " + payload.id + " at " + payload.sentAt);
                     
-                    Thread.sleep(500);
+                    Thread.sleep(spacingMs);
                     
                 } catch (Exception e) {
                     System.err.println("Error sending message " + i + ": " + e.getMessage());
