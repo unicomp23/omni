@@ -12,30 +12,35 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Function to get timestamp
+get_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S.%3N'
+}
+
 print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "${GREEN}[INFO]${NC} [$(get_timestamp)] $1"
 }
 
 print_header() {
     echo -e "${BLUE}========================================${NC}"
-    echo -e "${BLUE}$1${NC}"
+    echo -e "${BLUE}[$(get_timestamp)] $1${NC}"
     echo -e "${BLUE}========================================${NC}"
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "${YELLOW}[WARN]${NC} [$(get_timestamp)] $1"
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} [$(get_timestamp)] $1"
 }
 
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}✅${NC} [$(get_timestamp)] $1"
 }
 
 print_fail() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}❌${NC} [$(get_timestamp)] $1"
 }
 
 # Configuration with defaults
@@ -44,6 +49,13 @@ NUM_CONSUMERS=${2:-3}  # m consumers
 MESSAGE_COUNT=${3:-4}  # messages per producer
 SPACING_MS=${4:-800}   # x millis between messages
 BUFFER_MS=${5:-2000}   # buffer time for consumers
+
+# Global variables for process tracking
+CONSUMER_PIDS=()
+PRODUCER_PIDS=()
+CONSUMER_OUTPUTS=()
+PRODUCER_OUTPUTS=()
+TEST_START_TIME=""
 
 # Function to show usage
 show_usage() {
@@ -131,9 +143,6 @@ create_fresh_topics() {
 start_consumers() {
     print_header "STARTING CONSUMERS"
     
-    CONSUMER_PIDS=()
-    CONSUMER_OUTPUTS=()
-    
     for i in $(seq 1 $NUM_CONSUMERS); do
         print_status "Starting Consumer $i..."
         
@@ -161,9 +170,6 @@ start_consumers() {
 # Function to start producers
 start_producers() {
     print_header "STARTING PRODUCERS"
-    
-    PRODUCER_PIDS=()
-    PRODUCER_OUTPUTS=()
     
     # Start all producers simultaneously
     for i in $(seq 1 $NUM_PRODUCERS); do
@@ -375,8 +381,56 @@ show_test_summary() {
     echo "  5. No coordination overhead or complex synchronization"
 }
 
+# Function to handle signal interruption
+handle_signal() {
+    local signal_name="$1"
+    local end_time=$(get_timestamp)
+    local elapsed_time=""
+    
+    if [ -n "$TEST_START_TIME" ]; then
+        local start_epoch=$(date -d "$TEST_START_TIME" +%s)
+        local end_epoch=$(date +%s)
+        elapsed_time=" (elapsed: $((end_epoch - start_epoch))s)"
+    fi
+    
+    print_error "Test interrupted by signal $signal_name at $end_time$elapsed_time"
+    
+    # Kill all running processes
+    if [ ${#PRODUCER_PIDS[@]} -gt 0 ]; then
+        print_status "Terminating ${#PRODUCER_PIDS[@]} producer processes..."
+        for pid in "${PRODUCER_PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    if [ ${#CONSUMER_PIDS[@]} -gt 0 ]; then
+        print_status "Terminating ${#CONSUMER_PIDS[@]} consumer processes..."
+        for pid in "${CONSUMER_PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+                kill "$pid" 2>/dev/null || true
+            fi
+        done
+    fi
+    
+    # Give processes time to terminate gracefully
+    sleep 1
+    
+    # Force kill any remaining processes
+    for pid in "${PRODUCER_PIDS[@]}" "${CONSUMER_PIDS[@]}"; do
+        if kill -0 "$pid" 2>/dev/null; then
+            kill -9 "$pid" 2>/dev/null || true
+        fi
+    done
+    
+    print_status "Process cleanup completed"
+    exit 1
+}
+
 # Main execution
 main() {
+    TEST_START_TIME=$(get_timestamp)
     print_header "AUTOMATED COORDINATED PRODUCER-CONSUMER TEST"
     
     # Show configuration
@@ -407,7 +461,8 @@ main() {
 }
 
 # Trap to handle interruption
-trap 'print_error "Test interrupted"; exit 1' INT TERM
+trap 'handle_signal "INT"' INT
+trap 'handle_signal "TERM"' TERM
 
 # Run main function
 main "$@" 
