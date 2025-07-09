@@ -55,21 +55,7 @@ services:
     stdin_open: true
     tty: true
 
-  dev-java:
-    build:
-      context: ./java-project
-      dockerfile: Dockerfile
-    container_name: dev-java
-    working_dir: /workspace
-    environment:
-      - MAVEN_OPTS=-Xmx1024m
-    depends_on:
-      kafka4:
-        condition: service_healthy
-    networks:
-      - kafka-network
-    stdin_open: true
-    tty: true
+
 
 volumes:
   kafka_data:
