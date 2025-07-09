@@ -7,10 +7,21 @@
 *latency*.log
 *latency*.debug
 
+# Auto-exit test files
+*auto-exit*.jsonl
+*auto-exit*.debug
+
+# Container test files
+*container*.jsonl
+*container*.debug
+
 # Realtime and fresh log files
 realtime-*.jsonl
 fresh-*.jsonl
 *-percentile-logs.jsonl
+
+# Topic configuration (generated)
+topic-config.env
 
 # Temporary files
 *.tmp
