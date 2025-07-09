@@ -33,12 +33,17 @@ type LatencyRecord struct {
 }
 
 func main() {
+	topic := os.Getenv("GO_LATENCY_TOPIC")
+	if topic == "" {
+		topic = "latency-topic" // fallback
+	}
+	
 	// Create Kafka client
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers("kafka4:29092"),
 		kgo.ClientID("go-latency-consumer"),
 		kgo.ConsumerGroup("go-latency-consumer-group"),
-		kgo.ConsumeTopics("latency-topic"),
+		kgo.ConsumeTopics(topic),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 	)
 	if err != nil {

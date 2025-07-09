@@ -14,8 +14,9 @@ import java.util.Collections;
 import java.util.Properties;
 
 public class LatencyConsumer {
-    private static final String TOPIC = "latency-topic";
     private static final String BOOTSTRAP_SERVERS = "kafka4:29092";
+    private static final String TOPIC = System.getenv("JAVA_LATENCY_TOPIC") != null ? 
+        System.getenv("JAVA_LATENCY_TOPIC") : "latency-topic";
     private static final String GROUP_ID = "java-latency-consumer-group";
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());

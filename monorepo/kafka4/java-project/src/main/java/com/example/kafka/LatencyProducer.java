@@ -13,8 +13,9 @@ import java.util.Properties;
 import java.util.concurrent.Future;
 
 public class LatencyProducer {
-    private static final String TOPIC = "latency-topic";
     private static final String BOOTSTRAP_SERVERS = "kafka4:29092";
+    private static final String TOPIC = System.getenv("JAVA_LATENCY_TOPIC") != null ? 
+        System.getenv("JAVA_LATENCY_TOPIC") : "latency-topic";
     private static final ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule());
 

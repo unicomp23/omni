@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -29,7 +30,10 @@ func main() {
 	defer client.Close()
 
 	ctx := context.Background()
-	topic := "latency-topic"
+	topic := os.Getenv("GO_LATENCY_TOPIC")
+	if topic == "" {
+		topic = "latency-topic" // fallback
+	}
 
 	fmt.Println("Starting Go Latency Producer...")
 	fmt.Printf("Producer: %s\n", "go-latency-producer")
