@@ -227,7 +227,7 @@ export class ShastaCdkStackL1 extends Stack {
 
         // Define the MSK configuration using the constant
         const mskConfig = new msk.CfnConfiguration(this, 'ShastaCdkMskConfig', {
-            name: `ShastaCdkMskConfig-${cdk.Aws.STACK_NAME}`,
+            name: `ShastaCdkMskConfig-40-${cdk.Aws.STACK_NAME}`,
             kafkaVersionsList: [ShastaCdkStackL1.KAFKA_VERSION],
             serverProperties: `
 auto.create.topics.enable=true
