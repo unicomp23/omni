@@ -225,26 +225,6 @@ export class ShastaCdkStackL1 extends Stack {
         const azCount = vpcInstance.selectSubnets({subnetType: ec2.SubnetType.PRIVATE_ISOLATED}).availabilityZones.length;
         console.log(`Availability Zones Count: ${azCount}`);
 
-        // Define the MSK configuration using the constant
-        const mskConfig = new msk.CfnConfiguration(this, 'ShastaCdkMskConfig', {
-            name: `ShastaCdkMskConfig-${cdk.Aws.STACK_NAME}`,
-            kafkaVersionsList: [ShastaCdkStackL1.KAFKA_VERSION],
-            serverProperties: `
-auto.create.topics.enable=true
-delete.topic.enable=true
-default.replication.factor=3
-min.insync.replicas=2
-num.partitions=36
-num.io.threads=36
-num.network.threads=16
-num.replica.fetchers=8
-replica.lag.time.max.ms=30000
-socket.receive.buffer.bytes=1024000
-socket.request.max.bytes=104857600
-socket.send.buffer.bytes=1024000
-unclean.leader.election.enable=false`
-        });
-        
         // Define the MSK cluster using the constant
         const mskCluster = new msk.CfnCluster(this, 'ShastaCdkMskCluster', {
             clusterName: 'ShastaCdkMskCluster',
