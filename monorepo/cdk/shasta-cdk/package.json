@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@types/uuid": "^9.0.7",
+    "aws-sdk": "^2.1692.0",
     "cdk-redisdb": "^0.0.37",
     "constructs": "^10.0.0",
     "uuid": "^9.0.1"
