@@ -232,17 +232,10 @@ export class ShastaCdkStackL1 extends Stack {
             serverProperties: `
 auto.create.topics.enable=true
 delete.topic.enable=true
-default.replication.factor=3
-min.insync.replicas=2
 num.partitions=36
 num.io.threads=36
 num.network.threads=16
-num.replica.fetchers=8
-replica.lag.time.max.ms=30000
-socket.receive.buffer.bytes=1024000
-socket.request.max.bytes=104857600
-socket.send.buffer.bytes=1024000
-unclean.leader.election.enable=false`
+num.replica.fetchers=16`
         });
         
         // Define the MSK cluster using the constant
@@ -255,11 +248,10 @@ unclean.leader.election.enable=false`
                 securityGroups: [securityGroupInstance.securityGroupId],
                 clientSubnets: vpcInstance.selectSubnets({subnetType: ec2.SubnetType.PRIVATE_ISOLATED}).subnetIds
             },
-            /***
             configurationInfo: {
                 arn: mskConfig.ref,
                 revision: 1
-            },***/
+            },
             encryptionInfo: {
                 encryptionInTransit: {
                     clientBroker: 'PLAINTEXT',
