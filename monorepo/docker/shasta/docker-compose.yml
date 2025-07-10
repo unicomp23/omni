@@ -82,37 +82,20 @@ services:
     networks:
       - mynetwork
 
-  zookeeper:
-    image: zookeeper:3.7.1
-    ports:
-      - "2181:2181"
-      - "8080:8080"  # Admin port
-    environment:
-      - ZOO_MY_ID=1
-      - JVMFLAGS=-Dzookeeper.admin.enableServer=true
-    volumes:
-      - zookeeper-data:/data
-      - zookeeper-datalog:/datalog
-      - ./zoo.cfg:/conf/zoo.cfg:ro
-    networks:
-      - mynetwork
-    healthcheck:
-      test: ["CMD-SHELL", "zkServer.sh status"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
   kafka:
     image: apache/kafka:4.0.0
     ports:
       - "9095:9095"  # External port (different from redpanda)
       - "9094:9094"  # Internal port
+      - "9093:9093"  # Controller port
     environment:
-      - KAFKA_BROKER_ID=1
-      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_LISTENERS=INTERNAL://0.0.0.0:9094,EXTERNAL://0.0.0.0:9095
+      - KAFKA_NODE_ID=1
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka:9093
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_LISTENERS=INTERNAL://0.0.0.0:9094,EXTERNAL://0.0.0.0:9095,CONTROLLER://0.0.0.0:9093
       - KAFKA_ADVERTISED_LISTENERS=INTERNAL://kafka:9094,EXTERNAL://localhost:9095
-      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT,CONTROLLER:PLAINTEXT
       - KAFKA_INTER_BROKER_LISTENER_NAME=INTERNAL
       - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1
       - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=1
@@ -120,10 +103,9 @@ services:
       - KAFKA_AUTO_CREATE_TOPICS_ENABLE=true
       - KAFKA_LOG_RETENTION_HOURS=168
       - KAFKA_LOG_SEGMENT_BYTES=1073741824
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
     volumes:
       - kafka-data:/var/lib/kafka/data
-    depends_on:
-      - zookeeper
     networks:
       - mynetwork
     healthcheck:
@@ -137,6 +119,4 @@ networks:
 
 volumes:
   nats-data:
-  zookeeper-data:
-  zookeeper-datalog:
   kafka-data:
