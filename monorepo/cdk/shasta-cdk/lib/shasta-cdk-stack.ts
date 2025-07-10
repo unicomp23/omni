@@ -44,7 +44,7 @@ const vpcProps = {
 
 export class ShastaCdkStackL1 extends Stack {
     // Define the Kafka version as a constant
-    private static readonly KAFKA_VERSION = '3.6.0';
+    private static readonly KAFKA_VERSION = '4.0.x.kraft';
 
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
