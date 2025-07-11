@@ -75,55 +75,19 @@ export class ShastaCdkStackL2 extends Stack {
         const instanceType = ec2.InstanceType.of(ec2.InstanceClass.C5, ec2.InstanceSize.XLARGE4);
         const machineImage = ec2.MachineImage.latestAmazonLinux2023();
 
-        // Create a security group for the bastion host
-        const bastionSecurityGroup = new ec2.SecurityGroup(this, 'BastionSecurityGroup', {
-            vpc,
-            description: 'Security group for bastion host',
-            allowAllOutbound: true,
-        });
-
-        // Allow SSH access to bastion only from anywhere
-        bastionSecurityGroup.addIngressRule(
+        // Update security group to allow direct SSH access from anywhere
+        securityGroup.addIngressRule(
             ec2.Peer.anyIpv4(),
             ec2.Port.tcp(22),
-            'Allow SSH access from anywhere'
+            'Allow direct SSH access from anywhere'
         );
 
-        // Modify the main security group to only allow SSH from bastion
-        securityGroup.addIngressRule(
-            ec2.Peer.securityGroupId(bastionSecurityGroup.securityGroupId),
-            ec2.Port.tcp(22),
-            'Allow SSH access from bastion only'
-        );
-
-        // Create bastion host
-        const bastionHost = new ec2.Instance(this, 'BastionHost', {
-            vpc,
-            vpcSubnets: {
-                subnetType: ec2.SubnetType.PUBLIC,  // Bastion must be in public subnet
-            },
-            securityGroup: bastionSecurityGroup,
-            instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-            machineImage: ec2.MachineImage.latestAmazonLinux2023(),
-            keyName: ShastaCdkStackL2.keyName,
-            role,
-        });
-
-        // Add bastion host user data
-        userData.forEach(data => bastionHost.addUserData(data));
-
-        // Add output for bastion host public IP
-        new cdk.CfnOutput(this, 'BastionHostPublicIP', {
-            value: bastionHost.instancePublicIp,
-            description: 'Public IP address of the bastion host',
-        });
-
-        // Modify producer instances to use private subnets
+        // Create producer instances in public subnets for direct SSH access
         const producerCount = Number(process.env.INSTANCE_COUNT) || 1;
         for (let instanceIndex = 0; instanceIndex < producerCount; instanceIndex++) {
             const instanceProducer = new ec2.Instance(this, `ShastaCdkEc2InstanceProducer${instanceIndex}`, {
                 vpc,
-                vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+                vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
                 instanceType,
                 machineImage,
                 securityGroup,
@@ -138,13 +102,13 @@ export class ShastaCdkStackL2 extends Stack {
             userData.forEach(data => instanceProducer.addUserData(data));
         }
 
-        // Modify consumer instances to use private subnets
+        // Create consumer instances in public subnets for direct SSH access
         const consumerCount = Number(process.env.INSTANCE_COUNT) || 1;
         const consumerInstanceType = ec2.InstanceType.of(ec2.InstanceClass.C5, ec2.InstanceSize.XLARGE4);
         for (let instanceIndex = 0; instanceIndex < consumerCount; instanceIndex++) {
             const instanceConsumer = new ec2.Instance(this, `ShastaCdkEc2InstanceConsumer${instanceIndex}`, {
                 vpc,
-                vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+                vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
                 instanceType: consumerInstanceType,
                 machineImage,
                 securityGroup,
@@ -159,41 +123,6 @@ export class ShastaCdkStackL2 extends Stack {
             userData.forEach(data => instanceConsumer.addUserData(data));
             instanceConsumer.addUserData(`touch /tmp/consumer.txt`);
         }
-
-        // Add this before the orchestrator instance creation
-        const monitorInstanceType = ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO);
-        const monitorUserData = [
-            ...userData, 
-            `su - ec2-user -c "echo export ORCHESTRATOR=true >> ~/.bashrc"`,
-            `sudo yum update -y`,
-            `sudo yum install python-pip -y`,
-            `pip install awscli --upgrade --user`,
-            `aws --version`,
-            `curl -1sLf 'https://packages.vectorized.io/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup.sh' | sudo bash`,
-        ];
-        
-        // Modify monitor instance to use private subnet
-        const monitorInstance = new ec2.Instance(this, 'ShastaCdkEc2OrchestratorInstance', {
-            vpc,
-            vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-            instanceType: monitorInstanceType,
-            machineImage,
-            securityGroup,
-            keyName: ShastaCdkStackL2.keyName,
-            role
-        });
-
-        // Add 'worker' tag to the orchestrator instance
-        cdk.Tags.of(monitorInstance).add('shasta-role', 'monitor');
-
-        // Add SSM permissions to the orchestrator role
-        (role as iam.Role).addToPolicy(new iam.PolicyStatement({
-            actions: ['ssm:*'],
-            resources: ['*'],
-        }));
-
-        // Add user data to orchestrator instance
-        monitorUserData.forEach(data => monitorInstance.addUserData(data));
 
         // Define the environment variables and SSM setup for ASG instances
         const asgUserData = ec2.UserData.forLinux();
@@ -227,7 +156,7 @@ export class ShastaCdkStackL2 extends Stack {
 
         const producerAsg = new autoscaling.AutoScalingGroup(this, 'ProducerASG', {
             vpc,
-            vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+            vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
             instanceType,
             machineImage,
             securityGroup,
@@ -246,7 +175,7 @@ export class ShastaCdkStackL2 extends Stack {
 
         const consumerAsg = new autoscaling.AutoScalingGroup(this, 'ConsumerASG', {
             vpc,
-            vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+            vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
             instanceType: consumerInstanceType,
             machineImage,
             securityGroup,
