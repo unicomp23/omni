@@ -17,9 +17,12 @@ type MessageWithTimestamp struct {
 }
 
 type Producer struct {
-	client *kgo.Client
-	topic  string
+	client    *kgo.Client
+	topic     string
+	cdkConfig *CDKConfig
 }
+
+
 
 func NewProducer(brokers []string, topic string) (*Producer, error) {
 	client, err := kgo.NewClient(
@@ -31,9 +34,13 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
 	}
 
+	cdkConfig := LoadCDKConfig()
+	LogCDKConfig(cdkConfig, "Producer")
+
 	return &Producer{
-		client: client,
-		topic:  topic,
+		client:    client,
+		topic:     topic,
+		cdkConfig: cdkConfig,
 	}, nil
 }
 
@@ -67,6 +74,21 @@ func (p *Producer) SendMessage(ctx context.Context, id string, payload string) e
 
 func (p *Producer) Close() {
 	p.client.Close()
+}
+
+// GetCDKConfig returns the CDK configuration
+func (p *Producer) GetCDKConfig() *CDKConfig {
+	return p.cdkConfig
+}
+
+// GetMemoryDBEndpoint returns the MemoryDB endpoint if configured
+func (p *Producer) GetMemoryDBEndpoint() string {
+	return p.cdkConfig.GetMemoryDBEndpoint()
+}
+
+// GetSNSTopicARN returns the SNS topic ARN if configured
+func (p *Producer) GetSNSTopicARN() string {
+	return p.cdkConfig.GetSNSTopicARN()
 }
 
 func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time.Duration) error {

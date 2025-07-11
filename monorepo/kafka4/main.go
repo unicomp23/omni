@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -22,9 +23,51 @@ const (
 	DefaultWaitTime     = 5 * time.Second
 )
 
+// getDefaultBrokers returns the default broker addresses, checking CDK environment variables first
+func getDefaultBrokers() string {
+	cdkConfig := LoadCDKConfig()
+	
+	// Check for CDK environment variable first
+	if bootstrapBrokers := cdkConfig.GetBootstrapBrokers(); bootstrapBrokers != "" {
+		log.Printf("Using CDK BOOTSTRAP_BROKERS: %s", bootstrapBrokers)
+		return bootstrapBrokers
+	}
+	
+	// Fall back to local default
+	log.Printf("Using default broker: %s", DefaultBroker)
+	return DefaultBroker
+}
+
+// parseBrokerList parses a comma-separated string of broker addresses
+func parseBrokerList(brokerString string) []string {
+	if brokerString == "" {
+		return []string{}
+	}
+	
+	brokers := strings.Split(brokerString, ",")
+	var cleanBrokers []string
+	for _, broker := range brokers {
+		if trimmed := strings.TrimSpace(broker); trimmed != "" {
+			cleanBrokers = append(cleanBrokers, trimmed)
+		}
+	}
+	return cleanBrokers
+}
+
+// logCDKEnvironmentInfo logs relevant CDK environment variables for debugging
+func logCDKEnvironmentInfo() {
+	cdkConfig := LoadCDKConfig()
+	LogCDKConfig(cdkConfig, "Main")
+}
+
 func main() {
+	// Log CDK environment info for debugging
+	logCDKEnvironmentInfo()
+	
+	defaultBrokers := getDefaultBrokers()
+	
 	var (
-		brokers        = flag.String("brokers", DefaultBroker, "Kafka broker addresses (comma-separated)")
+		brokers        = flag.String("brokers", defaultBrokers, "Kafka broker addresses (comma-separated)")
 		producerBrokers = flag.String("producer-brokers", "", "Kafka broker addresses for producer (if different from consumer)")
 		consumerBrokers = flag.String("consumer-brokers", "", "Kafka broker addresses for consumer (if different from producer)")
 		topicPrefix    = flag.String("topic-prefix", DefaultTopicPrefix, "Kafka topic prefix (UUID will be appended)")
@@ -48,25 +91,22 @@ func main() {
 	// Determine broker addresses for producer and consumer
 	var producerBrokerList, consumerBrokerList []string
 	
-	// Default broker list
-	defaultBrokerList := []string{*brokers}
-	if *brokers != DefaultBroker {
-		// If custom brokers are provided, you might want to split by comma
-		// defaultBrokerList = strings.Split(*brokers, ",")
+	// Default broker list - now supports comma-separated brokers
+	defaultBrokerList := parseBrokerList(*brokers)
+	if len(defaultBrokerList) == 0 {
+		log.Fatal("No valid broker addresses found")
 	}
 	
 	// Producer brokers
 	if *producerBrokers != "" {
-		producerBrokerList = []string{*producerBrokers}
-		// producerBrokerList = strings.Split(*producerBrokers, ",")
+		producerBrokerList = parseBrokerList(*producerBrokers)
 	} else {
 		producerBrokerList = defaultBrokerList
 	}
 	
 	// Consumer brokers  
 	if *consumerBrokers != "" {
-		consumerBrokerList = []string{*consumerBrokers}
-		// consumerBrokerList = strings.Split(*consumerBrokers, ",")
+		consumerBrokerList = parseBrokerList(*consumerBrokers)
 	} else {
 		consumerBrokerList = defaultBrokerList
 	}
@@ -144,7 +184,7 @@ func main() {
 	}()
 
 	// Run the test workflow
-	if err := runTestWorkflow(ctx, producerBrokerList, consumerBrokerList, testTopic, *consumerGroup, *outputFile, 
+	if err := runTestWorkflow(ctx, cancel, producerBrokerList, consumerBrokerList, testTopic, *consumerGroup, *outputFile, 
 		*messageCount, *interval, *waitTime, *consumerOnly, *producerOnly); err != nil {
 		log.Printf("[%s] Test workflow error: %v", time.Now().Format(time.RFC3339), err)
 	}
@@ -163,7 +203,7 @@ func main() {
 		endTime.Format(time.RFC3339), duration)
 }
 
-func runTestWorkflow(ctx context.Context, producerBrokers []string, consumerBrokers []string, topic string, consumerGroup string, 
+func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBrokers []string, consumerBrokers []string, topic string, consumerGroup string, 
 	outputFile string, messageCount int, interval time.Duration, waitTime time.Duration, 
 	consumerOnly bool, producerOnly bool) error {
 
@@ -230,11 +270,16 @@ func runTestWorkflow(ctx context.Context, producerBrokers []string, consumerBrok
 			ticker := time.NewTicker(1 * time.Second)
 			defer ticker.Stop()
 			
+			// Create a single timeout timer for the entire wait period
+			timeoutTimer := time.NewTimer(waitTime)
+			defer timeoutTimer.Stop()
+			
 			waitLoop:
 			for {
 				select {
-				case <-time.After(waitTime):
+				case <-timeoutTimer.C:
 					log.Printf("[%s] ⏰ Wait time expired, stopping consumer", time.Now().Format(time.RFC3339))
+					cancel() // Cancel the context to stop the consumer
 					break waitLoop
 				case <-consumerDone:
 					log.Printf("[%s] 🎉 Consumer finished naturally", time.Now().Format(time.RFC3339))

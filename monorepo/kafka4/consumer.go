@@ -28,7 +28,10 @@ type Consumer struct {
 	topic        string
 	outputFile   *os.File
 	recordCount  int
+	cdkConfig    *CDKConfig
 }
+
+
 
 func NewConsumer(brokers []string, topic string, consumerGroup string, outputFilePath string) (*Consumer, error) {
 	client, err := kgo.NewClient(
@@ -46,10 +49,14 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 		return nil, fmt.Errorf("failed to open output file: %w", err)
 	}
 
+	cdkConfig := LoadCDKConfig()
+	LogCDKConfig(cdkConfig, "Consumer")
+
 	return &Consumer{
 		client:     client,
 		topic:      topic,
 		outputFile: outputFile,
+		cdkConfig:  cdkConfig,
 	}, nil
 }
 
@@ -146,4 +153,14 @@ func (c *Consumer) Close() {
 
 func (c *Consumer) GetRecordCount() int {
 	return c.recordCount
+}
+
+// GetCDKConfig returns the CDK configuration
+func (c *Consumer) GetCDKConfig() *CDKConfig {
+	return c.cdkConfig
+}
+
+// GetMemoryDBEndpoint returns the MemoryDB endpoint if configured
+func (c *Consumer) GetMemoryDBEndpoint() string {
+	return c.cdkConfig.GetMemoryDBEndpoint()
 } 
