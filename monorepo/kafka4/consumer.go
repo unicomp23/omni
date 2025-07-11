@@ -39,6 +39,10 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeTopics(topic),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+		// Optimize for latency
+		kgo.FetchMaxWait(10*time.Millisecond), // Don't wait long for batches
+		kgo.FetchMinBytes(1),                   // Don't wait for large batches
+		kgo.FetchMaxBytes(1024*1024),          // 1MB max fetch
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
@@ -125,12 +129,14 @@ func (c *Consumer) processRecord(record *kgo.Record) error {
 		return fmt.Errorf("failed to write to output file: %w", err)
 	}
 
-	// Ensure data is written to disk
-	if err := c.outputFile.Sync(); err != nil {
-		return fmt.Errorf("failed to sync output file: %w", err)
-	}
-
 	c.recordCount++
+
+	// Only sync to disk every 100 messages (much faster!)
+	if c.recordCount%100 == 0 {
+		if err := c.outputFile.Sync(); err != nil {
+			return fmt.Errorf("failed to sync output file: %w", err)
+		}
+	}
 	
 	// Show periodic progress updates
 	if c.recordCount%100 == 0 || c.recordCount <= 10 {
@@ -145,6 +151,8 @@ func (c *Consumer) Close() {
 	closeTime := time.Now()
 	c.client.Close()
 	if c.outputFile != nil {
+		// Final sync to ensure all data is written
+		c.outputFile.Sync()
 		c.outputFile.Close()
 	}
 	log.Printf("[%s] Consumer closed. Total records processed: %d", 

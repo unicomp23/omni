@@ -143,8 +143,8 @@ func main() {
 			}
 		}
 
-		// Create new test topic
-		testTopic, err = topicManager.CreateTestTopic(ctx, 1, 1)
+		// Create new test topic with multiple partitions for better performance
+		testTopic, err = topicManager.CreateTestTopic(ctx, 3, 1) // 3 partitions, 1 replica
 		if err != nil {
 			log.Fatalf("Failed to create test topic: %v", err)
 		}

@@ -28,7 +28,12 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.DefaultProduceTopic(topic),
-		kgo.RequiredAcks(kgo.AllISRAcks()),
+		// Optimize for per-event latency (no batching)
+		kgo.RequiredAcks(kgo.LeaderAck()), // Only wait for leader (faster than AllISRAcks)
+		kgo.DisableIdempotentWrite(), // Disable idempotency to allow LeaderAck for faster latency
+		kgo.ProducerLinger(0), // No linger time - send immediately
+		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+		kgo.RequestTimeoutOverhead(1*time.Second), // Shorter timeout
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
@@ -62,13 +67,12 @@ func (p *Producer) SendMessage(ctx context.Context, id string, payload string) e
 		Value: msgBytes,
 	}
 
+	// Use synchronous production for lowest per-event latency
 	results := p.client.ProduceSync(ctx, record)
 	if err := results.FirstErr(); err != nil {
-		return fmt.Errorf("failed to produce message: %w", err)
+		return fmt.Errorf("failed to produce message %s: %w", id, err)
 	}
 
-	log.Printf("[%s] Produced message with ID: %s at %s", 
-		time.Now().Format(time.RFC3339), id, msg.Timestamp.Format(time.RFC3339Nano))
 	return nil
 }
 
@@ -102,6 +106,18 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 		progressInterval = 1
 	}
 	
+	// Calculate logging interval based on message count
+	var logInterval int
+	if count <= 10 {
+		logInterval = 1 // Log every message for small batches
+	} else if count <= 100 {
+		logInterval = 10 // Log every 10th message
+	} else if count <= 1000 {
+		logInterval = 100 // Log every 100th message
+	} else {
+		logInterval = 500 // Log every 500th message for large batches
+	}
+	
 	for i := 0; i < count; i++ {
 		select {
 		case <-ctx.Done():
@@ -121,6 +137,12 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 			continue
 		}
 		sentCount++
+
+		// Log individual messages using modulo for high-volume runs
+		if sentCount%logInterval == 0 || sentCount <= 5 || sentCount == count {
+			log.Printf("[%s] 📤 Produced message %s (batch %d/%d)", 
+				time.Now().Format(time.RFC3339), id, sentCount, count)
+		}
 
 		// Show progress indicators
 		if sentCount%progressInterval == 0 || sentCount == count {
