@@ -179,28 +179,6 @@ export class ShastaCdkStackL1 extends Stack {
             resources: [ecrRepo.repositoryArn], // Added this line
         }); // Added this line
 
-        const user = new iam.User(this, 'ShastaCdkEc2User');
-        user.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
-        user.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AWSCodeCommitFullAccess'));
-        user.addToPolicy(ecrPolicy); // Added this line
-
-        user.addToPolicy(userToRole);
-
-        role.addToPolicy(new iam.PolicyStatement({
-            actions: [
-                'kafka:*', 
-                'sns:*',
-                'ec2messages:*',
-                'codecommit:*', 
-                'lambda:*',
-                'kafka-cluster:*', 
-                'sts:*',
-                's3:*',
-                'ec2:*'
-            ],
-            resources: ['*'],
-        }));
-
         new cdk.CfnOutput(this, SHASTA_CDK_REPO_CLONE_URL_SSH, {
             value: repo.repositoryCloneUrlSsh,
             description: 'Shasta CodeCommit repository clone URL (SSH)',
