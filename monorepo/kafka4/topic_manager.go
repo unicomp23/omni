@@ -19,6 +19,13 @@ type TopicManager struct {
 }
 
 func NewTopicManager(brokers []string, topicPrefix string) (*TopicManager, error) {
+	// Check Kafka version compatibility before creating client
+	ctx, cancel := context.WithTimeout(context.Background(), VERSION_CHECK_TIMEOUT)
+	defer cancel()
+	
+	log.Printf("[%s] 🔍 TopicManager: Verifying Kafka version compatibility...", time.Now().Format(time.RFC3339))
+	CheckKafkaVersionAndExit(ctx, brokers)
+
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 	)
