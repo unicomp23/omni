@@ -12,26 +12,24 @@ import (
 )
 
 type LatencyRecord struct {
-	MessageID       string        `json:"message_id"`
-	ProducedAt      time.Time     `json:"produced_at"`
-	ConsumedAt      time.Time     `json:"consumed_at"`
-	LatencyMs       int64         `json:"latency_ms"`
-	LatencyNs       int64         `json:"latency_ns"`
-	Topic           string        `json:"topic"`
-	Partition       int32         `json:"partition"`
-	Offset          int64         `json:"offset"`
-	OriginalPayload string        `json:"original_payload"`
+	MessageID       string    `json:"message_id"`
+	ProducedAt      time.Time `json:"produced_at"`
+	ConsumedAt      time.Time `json:"consumed_at"`
+	LatencyMs       int64     `json:"latency_ms"`
+	LatencyNs       int64     `json:"latency_ns"`
+	Topic           string    `json:"topic"`
+	Partition       int32     `json:"partition"`
+	Offset          int64     `json:"offset"`
+	OriginalPayload string    `json:"original_payload"`
 }
 
 type Consumer struct {
-	client       *kgo.Client
-	topic        string
-	outputFile   *os.File
-	recordCount  int
-	cdkConfig    *CDKConfig
+	client      *kgo.Client
+	topic       string
+	outputFile  *os.File
+	recordCount int
+	cdkConfig   *CDKConfig
 }
-
-
 
 func NewConsumer(brokers []string, topic string, consumerGroup string, outputFilePath string) (*Consumer, error) {
 	client, err := kgo.NewClient(
@@ -41,7 +39,7 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		// Optimize for latency
 		kgo.FetchMaxWait(10*time.Millisecond), // Don't wait long for batches
-		kgo.FetchMinBytes(1),                   // Don't wait for large batches
+		kgo.FetchMinBytes(1),                  // Don't wait for large batches
 		kgo.FetchMaxBytes(1024*1024),          // 1MB max fetch
 	)
 	if err != nil {
@@ -65,9 +63,9 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 }
 
 func (c *Consumer) ConsumeMessages(ctx context.Context) error {
-	log.Printf("[%s] 🎧 Starting to consume messages from topic: %s", 
+	log.Printf("[%s] 🎧 Starting to consume messages from topic: %s",
 		time.Now().Format(time.RFC3339), c.topic)
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -93,7 +91,7 @@ func (c *Consumer) ConsumeMessages(ctx context.Context) error {
 
 func (c *Consumer) processRecord(record *kgo.Record) error {
 	consumedAt := time.Now()
-	
+
 	// Parse the original message
 	var originalMsg MessageWithTimestamp
 	if err := json.Unmarshal(record.Value, &originalMsg); err != nil {
@@ -137,10 +135,10 @@ func (c *Consumer) processRecord(record *kgo.Record) error {
 			return fmt.Errorf("failed to sync output file: %w", err)
 		}
 	}
-	
+
 	// Show periodic progress updates
 	if c.recordCount%100 == 0 || c.recordCount <= 10 {
-		log.Printf("[%s] 📈 Processed message %s: latency=%dms (%dns) | Total processed: %d", 
+		log.Printf("[%s] 📈 Processed message %s: latency=%dms (%dns) | Total processed: %d",
 			consumedAt.Format(time.RFC3339), originalMsg.ID, latencyMs, latencyNs, c.recordCount)
 	}
 
@@ -155,7 +153,7 @@ func (c *Consumer) Close() {
 		c.outputFile.Sync()
 		c.outputFile.Close()
 	}
-	log.Printf("[%s] Consumer closed. Total records processed: %d", 
+	log.Printf("[%s] Consumer closed. Total records processed: %d",
 		closeTime.Format(time.RFC3339), c.recordCount)
 }
 
@@ -171,4 +169,4 @@ func (c *Consumer) GetCDKConfig() *CDKConfig {
 // GetMemoryDBEndpoint returns the MemoryDB endpoint if configured
 func (c *Consumer) GetMemoryDBEndpoint() string {
 	return c.cdkConfig.GetMemoryDBEndpoint()
-} 
+}

@@ -22,18 +22,16 @@ type Producer struct {
 	cdkConfig *CDKConfig
 }
 
-
-
 func NewProducer(brokers []string, topic string) (*Producer, error) {
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
 		kgo.DefaultProduceTopic(topic),
 		// Optimize for per-event latency (no batching)
-		kgo.RequiredAcks(kgo.LeaderAck()), // Only wait for leader (faster than AllISRAcks)
-		kgo.DisableIdempotentWrite(), // Disable idempotency to allow LeaderAck for faster latency
-		kgo.ProducerLinger(0), // No linger time - send immediately
+		kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (faster than AllISRAcks)
+		kgo.DisableIdempotentWrite(),                      // Disable idempotency to allow LeaderAck for faster latency
+		kgo.ProducerLinger(0),                             // No linger time - send immediately
 		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
-		kgo.RequestTimeoutOverhead(1*time.Second), // Shorter timeout
+		kgo.RequestTimeoutOverhead(1*time.Second),         // Shorter timeout
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
@@ -97,15 +95,15 @@ func (p *Producer) GetSNSTopicARN() string {
 
 func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time.Duration) error {
 	startTime := time.Now()
-	log.Printf("[%s] 🚀 Starting to produce %d messages with %v interval", 
+	log.Printf("[%s] 🚀 Starting to produce %d messages with %v interval",
 		startTime.Format(time.RFC3339), count, interval)
-	
+
 	sentCount := 0
-	progressInterval := count/20 // Show progress every 5%
+	progressInterval := count / 20 // Show progress every 5%
 	if progressInterval < 1 {
 		progressInterval = 1
 	}
-	
+
 	// Calculate logging interval based on message count
 	var logInterval int
 	if count <= 10 {
@@ -117,12 +115,12 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 	} else {
 		logInterval = 500 // Log every 500th message for large batches
 	}
-	
+
 	for i := 0; i < count; i++ {
 		select {
 		case <-ctx.Done():
 			cancelTime := time.Now()
-			log.Printf("[%s] ⏹️  Producer canceled after sending %d/%d messages (%.1f%%)", 
+			log.Printf("[%s] ⏹️  Producer canceled after sending %d/%d messages (%.1f%%)",
 				cancelTime.Format(time.RFC3339), sentCount, count, float64(sentCount)/float64(count)*100)
 			return ctx.Err()
 		default:
@@ -130,9 +128,9 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 
 		id := fmt.Sprintf("msg-%d", i)
 		payload := fmt.Sprintf("Test message %d", i)
-		
+
 		if err := p.SendMessage(ctx, id, payload); err != nil {
-			log.Printf("[%s] ❌ Error sending message %s: %v", 
+			log.Printf("[%s] ❌ Error sending message %s: %v",
 				time.Now().Format(time.RFC3339), id, err)
 			continue
 		}
@@ -140,7 +138,7 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 
 		// Log individual messages using modulo for high-volume runs
 		if sentCount%logInterval == 0 || sentCount <= 5 || sentCount == count {
-			log.Printf("[%s] 📤 Produced message %s (batch %d/%d)", 
+			log.Printf("[%s] 📤 Produced message %s (batch %d/%d)",
 				time.Now().Format(time.RFC3339), id, sentCount, count)
 		}
 
@@ -150,8 +148,8 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 			elapsed := time.Since(startTime)
 			rate := float64(sentCount) / elapsed.Seconds()
 			remaining := time.Duration(float64(count-sentCount)/rate) * time.Second
-			
-			log.Printf("[%s] 📊 Progress: %d/%d messages (%.1f%%) | Rate: %.1f msg/s | ETA: %v", 
+
+			log.Printf("[%s] 📊 Progress: %d/%d messages (%.1f%%) | Rate: %.1f msg/s | ETA: %v",
 				time.Now().Format(time.RFC3339), sentCount, count, percentage, rate, remaining.Truncate(time.Second))
 		}
 
@@ -163,7 +161,7 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 	finishTime := time.Now()
 	duration := finishTime.Sub(startTime)
 	avgRate := float64(sentCount) / duration.Seconds()
-	log.Printf("[%s] 🎉 Finished producing %d messages - Duration: %v | Avg rate: %.1f msg/s", 
+	log.Printf("[%s] 🎉 Finished producing %d messages - Duration: %v | Avg rate: %.1f msg/s",
 		finishTime.Format(time.RFC3339), sentCount, duration.Truncate(time.Millisecond), avgRate)
 	return nil
-} 
+}

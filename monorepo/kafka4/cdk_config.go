@@ -7,29 +7,29 @@ import (
 
 // CDKConfig holds CDK environment variables
 type CDKConfig struct {
-	BootstrapBrokers      string
-	MemoryDBEndpoint      string
-	CodecommitRepoSSH     string
-	CodecommitRepoHTTPS   string
+	BootstrapBrokers     string
+	MemoryDBEndpoint     string
+	CodecommitRepoSSH    string
+	CodecommitRepoHTTPS  string
 	SNSTopicARN          string
-	CodecommitStreamName  string
-	MulticastStreamName   string
+	CodecommitStreamName string
+	MulticastStreamName  string
 	ECRRepoURI           string
 }
 
 // LoadCDKConfig loads CDK environment variables
 func LoadCDKConfig() *CDKConfig {
 	config := &CDKConfig{
-		BootstrapBrokers:      os.Getenv("BOOTSTRAP_BROKERS"),
-		MemoryDBEndpoint:      os.Getenv("MEMORY_DB_ENDPOINT_ADDRESS"),
-		CodecommitRepoSSH:     os.Getenv("CODECOMMIT_REPO_SSH"),
-		CodecommitRepoHTTPS:   os.Getenv("CODECOMMIT_REPO_HTTPS"),
+		BootstrapBrokers:     os.Getenv("BOOTSTRAP_BROKERS"),
+		MemoryDBEndpoint:     os.Getenv("MEMORY_DB_ENDPOINT_ADDRESS"),
+		CodecommitRepoSSH:    os.Getenv("CODECOMMIT_REPO_SSH"),
+		CodecommitRepoHTTPS:  os.Getenv("CODECOMMIT_REPO_HTTPS"),
 		SNSTopicARN:          os.Getenv("SNS_TOPIC_ARN"),
-		CodecommitStreamName:  os.Getenv("CODECOMMIT_STREAM_NAME"),
-		MulticastStreamName:   os.Getenv("MULTICAST_STREAM_NAME"),
+		CodecommitStreamName: os.Getenv("CODECOMMIT_STREAM_NAME"),
+		MulticastStreamName:  os.Getenv("MULTICAST_STREAM_NAME"),
 		ECRRepoURI:           os.Getenv("SHASTA_CDK_ECR_REPO_URI"),
 	}
-	
+
 	return config
 }
 
@@ -85,6 +85,6 @@ func (c *CDKConfig) GetBootstrapBrokers() string {
 
 // HasCDKConfig returns true if any CDK environment variables are set
 func (c *CDKConfig) HasCDKConfig() bool {
-	return c != nil && (c.BootstrapBrokers != "" || c.MemoryDBEndpoint != "" || 
+	return c != nil && (c.BootstrapBrokers != "" || c.MemoryDBEndpoint != "" ||
 		c.SNSTopicARN != "" || c.CodecommitRepoHTTPS != "" || c.ECRRepoURI != "")
-} 
+}
