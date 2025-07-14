@@ -7,6 +7,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
@@ -111,7 +112,7 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 		warmupStart := time.Now()
 		for i := 0; i < 3; i++ {
 			warmupMsg := MessageWithTimestamp{
-				ID:        fmt.Sprintf("warmup-%d", i),
+				ID:        fmt.Sprintf("warmup-%s", uuid.New().String()),
 				Timestamp: time.Now(),
 				Payload:   "warmup message",
 			}
@@ -156,7 +157,7 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 		default:
 		}
 
-		id := fmt.Sprintf("msg-%d", i)
+		id := uuid.New().String()
 		payload := fmt.Sprintf("Test message %d", i)
 
 		if err := p.SendMessage(ctx, id, payload); err != nil {
