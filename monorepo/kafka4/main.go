@@ -80,12 +80,24 @@ func main() {
 		consumerOnly    = flag.Bool("consumer-only", false, "Run only consumer (use existing topic)")
 		producerOnly    = flag.Bool("producer-only", false, "Run only producer (use existing topic)")
 		topic           = flag.String("topic", "", "Use specific topic (for consumer-only/producer-only modes)")
+		numConsumers    = flag.Int("consumers", 3, "Number of consumer instances to run")
+		optimizeSingle  = flag.Bool("optimize-single", false, "Enable ultra-optimized single consumer mode (forces consumers=1)")
 	)
 	flag.Parse()
 
 	// Validate flags
 	if *consumerOnly && *producerOnly {
 		log.Fatal("Cannot run both -consumer-only and -producer-only")
+	}
+
+	// Handle optimize-single flag
+	if *optimizeSingle {
+		*numConsumers = 1
+		log.Printf("⚡ ULTRA-OPTIMIZED SINGLE CONSUMER MODE ENABLED - forcing consumers=1")
+	}
+
+	if *numConsumers < 1 {
+		log.Fatal("Number of consumers must be at least 1")
 	}
 
 	// Determine broker addresses for producer and consumer
@@ -165,6 +177,7 @@ func main() {
 	log.Printf("  Message Count: %d", *messageCount)
 	log.Printf("  Interval: %v", *interval)
 	log.Printf("  Wait Time: %v", *waitTime)
+	log.Printf("  Number of Consumers: %d", *numConsumers)
 
 	// Handle shutdown signals
 	go func() {
@@ -185,7 +198,7 @@ func main() {
 
 	// Run the test workflow
 	if err := runTestWorkflow(ctx, cancel, producerBrokerList, consumerBrokerList, testTopic, *consumerGroup, *outputFile,
-		*messageCount, *interval, *waitTime, *consumerOnly, *producerOnly); err != nil {
+		*messageCount, *interval, *waitTime, *consumerOnly, *producerOnly, *numConsumers, *optimizeSingle); err != nil {
 		log.Printf("[%s] Test workflow error: %v", time.Now().Format(time.RFC3339), err)
 	}
 
@@ -215,43 +228,71 @@ func main() {
 
 func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBrokers []string, consumerBrokers []string, topic string, consumerGroup string,
 	outputFile string, messageCount int, interval time.Duration, waitTime time.Duration,
-	consumerOnly bool, producerOnly bool) error {
+	consumerOnly bool, producerOnly bool, numConsumers int, optimizeSingle bool) error {
 
 	var wg sync.WaitGroup
-	var consumer *Consumer
+	var consumerWg sync.WaitGroup
+	var consumers []*Consumer
 	var consumerDone = make(chan struct{})
 	var producerDone = make(chan struct{})
 
-	// Start consumer first (unless producer-only)
+	// Start consumers first (unless producer-only)
 	if !producerOnly {
-		log.Printf("[%s] 🎧 Starting consumer phase...", time.Now().Format(time.RFC3339))
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer close(consumerDone)
+		log.Printf("[%s] 🎧 Starting %d consumer instances...", time.Now().Format(time.RFC3339), numConsumers)
+		consumers = make([]*Consumer, numConsumers)
+		
+		for i := 0; i < numConsumers; i++ {
+			consumerID := i
+			wg.Add(1)
+			consumerWg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer consumerWg.Done()
 
-			var err error
-			consumer, err = NewConsumer(consumerBrokers, topic, consumerGroup, outputFile)
-			if err != nil {
-				log.Printf("[%s] ❌ Failed to create consumer: %v", time.Now().Format(time.RFC3339), err)
-				return
-			}
-			defer consumer.Close()
-
-			if err := consumer.ConsumeMessages(ctx); err != nil {
-				if err != context.Canceled {
-					log.Printf("[%s] ❌ Consumer error: %v", time.Now().Format(time.RFC3339), err)
+				// Create output file for this consumer
+				var consumerOutputFile string
+				if numConsumers == 1 {
+					consumerOutputFile = outputFile
+				} else {
+					// Insert consumer ID before file extension
+					if strings.HasSuffix(outputFile, ".jsonl") {
+						consumerOutputFile = strings.TrimSuffix(outputFile, ".jsonl") + fmt.Sprintf("-consumer-%d.jsonl", consumerID+1)
+					} else {
+						consumerOutputFile = outputFile + fmt.Sprintf("-consumer-%d", consumerID+1)
+					}
 				}
-			}
-		}()
 
-		// Give consumer time to start and connect
-		log.Printf("[%s] ⏳ Waiting for consumer to initialize (3s)...", time.Now().Format(time.RFC3339))
+				var err error
+				consumers[consumerID], err = NewConsumer(consumerBrokers, topic, consumerGroup, consumerOutputFile, optimizeSingle)
+				if err != nil {
+					log.Printf("[%s] ❌ Failed to create consumer %d: %v", time.Now().Format(time.RFC3339), consumerID+1, err)
+					return
+				}
+				defer consumers[consumerID].Close()
+
+				log.Printf("[%s] 🎧 Consumer %d started, writing to: %s", time.Now().Format(time.RFC3339), consumerID+1, consumerOutputFile)
+
+				if err := consumers[consumerID].ConsumeMessages(ctx); err != nil {
+					if err != context.Canceled {
+						log.Printf("[%s] ❌ Consumer %d error: %v", time.Now().Format(time.RFC3339), consumerID+1, err)
+					}
+				}
+			}()
+		}
+
+		// Give consumers time to start and connect
+		log.Printf("[%s] ⏳ Waiting for %d consumers to initialize (3s)...", time.Now().Format(time.RFC3339), numConsumers)
 		for i := 3; i > 0; i-- {
 			log.Printf("[%s] ⏱️  Consumer initialization: %ds remaining", time.Now().Format(time.RFC3339), i)
 			time.Sleep(1 * time.Second)
 		}
-		log.Printf("[%s] ✅ Consumer initialization complete", time.Now().Format(time.RFC3339))
+		log.Printf("[%s] ✅ All %d consumers initialized", time.Now().Format(time.RFC3339), numConsumers)
+
+		// Start a goroutine to close consumerDone when all consumers are done
+		go func() {
+			consumerWg.Wait()
+			close(consumerDone)
+		}()
 	}
 
 	// Start producer (unless consumer-only)
@@ -272,10 +313,10 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 	if !consumerOnly && !producerOnly {
 		select {
 		case <-producerDone:
-			log.Printf("[%s] ✅ Producer finished, waiting %v for consumer to process remaining messages...",
+			log.Printf("[%s] ✅ Producer finished, waiting %v for consumers to process remaining messages...",
 				time.Now().Format(time.RFC3339), waitTime)
 
-			// Wait specified time for consumer to finish processing with countdown
+			// Wait specified time for consumers to finish processing with countdown
 			waitStart := time.Now()
 			ticker := time.NewTicker(1 * time.Second)
 			defer ticker.Stop()
@@ -288,22 +329,29 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 			for {
 				select {
 				case <-timeoutTimer.C:
-					log.Printf("[%s] ⏰ Wait time expired, stopping consumer", time.Now().Format(time.RFC3339))
-					cancel() // Cancel the context to stop the consumer
+					log.Printf("[%s] ⏰ Wait time expired, stopping consumers", time.Now().Format(time.RFC3339))
+					cancel() // Cancel the context to stop all consumers
 					break waitLoop
 				case <-consumerDone:
-					log.Printf("[%s] 🎉 Consumer finished naturally", time.Now().Format(time.RFC3339))
+					log.Printf("[%s] 🎉 All consumers finished naturally", time.Now().Format(time.RFC3339))
 					break waitLoop
 				case <-ticker.C:
 					elapsed := time.Since(waitStart)
 					remaining := waitTime - elapsed
 					if remaining > 0 {
-						processed := 0
-						if consumer != nil {
-							processed = consumer.GetRecordCount()
+						totalProcessed := 0
+						for i, consumer := range consumers {
+							if consumer != nil {
+								count := consumer.GetRecordCount()
+								totalProcessed += count
+								if i == 0 || count > 0 { // Show individual counts for first consumer or active consumers
+									log.Printf("[%s] 📊 Consumer %d: %d messages processed", 
+										time.Now().Format(time.RFC3339), i+1, count)
+								}
+							}
 						}
-						log.Printf("[%s] ⏳ Waiting for consumer... %v remaining | Processed: %d",
-							time.Now().Format(time.RFC3339), remaining.Truncate(time.Second), processed)
+						log.Printf("[%s] ⏳ Waiting for consumers... %v remaining | Total processed: %d",
+							time.Now().Format(time.RFC3339), remaining.Truncate(time.Second), totalProcessed)
 					}
 				}
 			}
@@ -316,11 +364,19 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 	// Wait for all goroutines to complete
 	wg.Wait()
 
-	// Print final statistics if we have a consumer
-	if consumer != nil {
-		finalCount := consumer.GetRecordCount()
-		log.Printf("[%s] 📊 Final statistics - Messages processed: %d",
-			time.Now().Format(time.RFC3339), finalCount)
+	// Print final statistics for all consumers
+	if len(consumers) > 0 {
+		totalCount := 0
+		for i, consumer := range consumers {
+			if consumer != nil {
+				count := consumer.GetRecordCount()
+				totalCount += count
+				log.Printf("[%s] 📊 Consumer %d final count: %d messages",
+					time.Now().Format(time.RFC3339), i+1, count)
+			}
+		}
+		log.Printf("[%s] 📊 Total messages processed across all consumers: %d",
+			time.Now().Format(time.RFC3339), totalCount)
 	}
 
 	return nil
@@ -350,11 +406,11 @@ func runProducer(ctx context.Context, brokers []string, topic string, messageCou
 	return nil
 }
 
-func runConsumer(ctx context.Context, brokers []string, topic string, consumerGroup string, outputFile string) error {
+func runConsumer(ctx context.Context, brokers []string, topic string, consumerGroup string, outputFile string, optimizeSingle bool) error {
 	startTime := time.Now()
 	log.Printf("[%s] Starting consumer...", startTime.Format(time.RFC3339))
 
-	consumer, err := NewConsumer(brokers, topic, consumerGroup, outputFile)
+	consumer, err := NewConsumer(brokers, topic, consumerGroup, outputFile, optimizeSingle)
 	if err != nil {
 		return fmt.Errorf("failed to create consumer: %w", err)
 	}
