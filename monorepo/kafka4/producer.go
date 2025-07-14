@@ -105,6 +105,29 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 	log.Printf("[%s] 🚀 Starting to produce %d messages with %v interval",
 		startTime.Format(time.RFC3339), count, interval)
 
+	// Warm up connection and reduce cold start latency for accurate measurements
+	if count > 10 {
+		log.Printf("[%s] 🔥 Warming up connection...", time.Now().Format(time.RFC3339))
+		warmupStart := time.Now()
+		for i := 0; i < 3; i++ {
+			warmupMsg := MessageWithTimestamp{
+				ID:        fmt.Sprintf("warmup-%d", i),
+				Timestamp: time.Now(),
+				Payload:   "warmup message",
+			}
+			msgBytes, _ := json.Marshal(warmupMsg)
+			record := &kgo.Record{
+				Topic: p.topic,
+				Key:   []byte(warmupMsg.ID),
+				Value: msgBytes,
+			}
+			// Send warmup message (ignore any errors)
+			p.client.ProduceSync(ctx, record)
+		}
+		warmupDuration := time.Since(warmupStart)
+		log.Printf("[%s] ✅ Connection warmed up in %v", time.Now().Format(time.RFC3339), warmupDuration)
+	}
+
 	sentCount := 0
 	progressInterval := count / 20 // Show progress every 5%
 	if progressInterval < 1 {

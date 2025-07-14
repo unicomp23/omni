@@ -21,6 +21,23 @@ $(BINARY): $(GO_FILES) go.mod go.sum
 	go build -o $(BINARY) .
 	@echo "✅ Build complete: $(BINARY)"
 
+# Install Go (if not already installed)
+.PHONY: install-go
+install-go:
+	@echo "🔧 Installing Go..."
+	@if command -v go >/dev/null 2>&1; then \
+		echo "✅ Go is already installed: $$(go version)"; \
+	else \
+		echo "📦 Go not found, running installation script..."; \
+		./install-go.sh; \
+	fi
+	@echo "✅ Go installation check complete"
+
+# Complete setup (install Go + dependencies)
+.PHONY: setup
+setup: install-go deps
+	@echo "🎉 Complete setup finished! You can now run 'make build' or 'make test'"
+
 # Install dependencies
 .PHONY: deps
 deps:
@@ -59,6 +76,14 @@ test: build
 stress: build
 	@echo "🚀 Running stress test ($(STRESS_COUNT) messages)..."
 	./$(BINARY) -count=$(STRESS_COUNT) -interval=$(INTERVAL)
+
+# Test robustness (includes warmup and cleanup testing)
+.PHONY: test-robust
+test-robust: build
+	@echo "🛡️  Running robustness test with cleanup and warmup..."
+	./$(BINARY) -count=50 -interval=10ms
+	@echo "🧪 Testing with small batch (no warmup)..."
+	./$(BINARY) -count=5 -interval=100ms
 
 # Run custom test
 .PHONY: run
@@ -140,12 +165,20 @@ clean-logs:
 help:
 	@echo "🔧 Kafka Latency Testing Makefile"
 	@echo ""
+	@echo "🚀 Quick Start:"
+	@echo "  1. Run 'make setup' to install Go and dependencies"
+	@echo "  2. Run 'make test' to run a basic latency test"
+	@echo "  3. Run 'make analyze-detailed' to see detailed results"
+	@echo ""
 	@echo "📋 Available targets:"
+	@echo "  setup           - Complete setup (install Go + dependencies)"
+	@echo "  install-go      - Install Go (if not already installed)"
 	@echo "  build           - Build the application"
 	@echo "  deps            - Install Go dependencies"
 	@echo "  fmt             - Format Go code"
 	@echo "  lint            - Lint Go code"
 	@echo "  test            - Run basic test ($(TEST_COUNT) messages)"
+	@echo "  test-robust     - Run robustness test (warmup + cleanup testing)"
 	@echo "  stress          - Run stress test ($(STRESS_COUNT) messages)"
 	@echo "  run ARGS='...'  - Run with custom arguments"
 	@echo "  analyze         - Quick analysis of latest results"
@@ -162,6 +195,8 @@ help:
 	@echo "  INTERVAL=$(INTERVAL)         - Interval between messages"
 	@echo ""
 	@echo "💡 Examples:"
+	@echo "  make setup      # Complete setup for new developers"
+	@echo "  make install-go # Install Go only"
 	@echo "  make test"
 	@echo "  make stress"
 	@echo "  make run ARGS='-count=5000 -interval=500us'"

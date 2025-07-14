@@ -191,9 +191,19 @@ func main() {
 
 	// Cleanup test topic if we created it
 	if topicManager != nil && testTopic != "" && !*consumerOnly && !*producerOnly {
-		if err := topicManager.DeleteTopic(ctx, testTopic); err != nil {
-			log.Printf("[%s] Warning: Failed to cleanup test topic: %v",
-				time.Now().Format(time.RFC3339), err)
+		log.Printf("[%s] 🧹 Cleaning up test topic...", time.Now().Format(time.RFC3339))
+		
+		// Create a separate context for cleanup with generous timeout
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cleanupCancel()
+		
+		if err := topicManager.DeleteTopic(cleanupCtx, testTopic); err != nil {
+			log.Printf("[%s] ⚠️  Warning: Failed to cleanup test topic %s: %v", 
+				time.Now().Format(time.RFC3339), testTopic, err)
+			log.Printf("[%s] 📝 Note: Test topic may remain in cluster for auto-cleanup", 
+				time.Now().Format(time.RFC3339))
+		} else {
+			log.Printf("[%s] ✅ Test topic cleanup successful", time.Now().Format(time.RFC3339))
 		}
 	}
 

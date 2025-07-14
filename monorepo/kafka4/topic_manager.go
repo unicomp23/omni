@@ -195,19 +195,43 @@ func (tm *TopicManager) shouldDeleteTopic(ctx context.Context, topicName string,
 func (tm *TopicManager) DeleteTopic(ctx context.Context, topicName string) error {
 	log.Printf("[%s] Deleting topic: %s", time.Now().Format(time.RFC3339), topicName)
 
-	results, err := tm.admin.DeleteTopics(ctx, topicName)
-	if err != nil {
-		return fmt.Errorf("failed to delete topic: %w", err)
-	}
-
-	for topic, result := range results {
-		if result.Err != nil {
-			return fmt.Errorf("failed to delete topic %s: %w", topic, result.Err)
+	// Add retry logic for topic deletion
+	maxRetries := 3
+	var lastErr error
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		// Create a fresh context with timeout for each attempt
+		deleteCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		
+		results, err := tm.admin.DeleteTopics(deleteCtx, topicName)
+		cancel()
+		
+		if err != nil {
+			lastErr = fmt.Errorf("failed to delete topic (attempt %d/%d): %w", attempt, maxRetries, err)
+			if attempt < maxRetries {
+				log.Printf("[%s] ⚠️  %v, retrying...", time.Now().Format(time.RFC3339), lastErr)
+				time.Sleep(time.Duration(attempt) * time.Second) // Exponential backoff
+				continue
+			}
+			return lastErr
 		}
-		log.Printf("[%s] Successfully deleted topic: %s", time.Now().Format(time.RFC3339), topic)
-	}
 
-	return nil
+		for topic, result := range results {
+			if result.Err != nil {
+				lastErr = fmt.Errorf("failed to delete topic %s (attempt %d/%d): %w", topic, attempt, maxRetries, result.Err)
+				if attempt < maxRetries {
+					log.Printf("[%s] ⚠️  %v, retrying...", time.Now().Format(time.RFC3339), lastErr)
+					time.Sleep(time.Duration(attempt) * time.Second)
+					break // Break inner loop to retry
+				}
+				return lastErr
+			}
+			log.Printf("[%s] Successfully deleted topic: %s (attempt %d)", time.Now().Format(time.RFC3339), topic, attempt)
+			return nil // Success
+		}
+	}
+	
+	return lastErr
 }
 
 func (tm *TopicManager) Close() {
