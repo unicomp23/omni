@@ -42,6 +42,10 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 	var client *kgo.Client
 	var err error
 
+	// Check for ultra-optimized 2-worker mode
+	optimize2Workers := os.Getenv("KAFKA_OPTIMIZE_2_WORKERS") == "true"
+	ultraLowLatency := os.Getenv("KAFKA_ULTRA_LOW_LATENCY") == "true"
+
 	if optimizeSingle {
 		// ULTRA-AGGRESSIVE LATENCY OPTIMIZATIONS FOR SINGLE CONSUMER
 		log.Printf("[%s] ⚡ Creating ULTRA-OPTIMIZED single consumer...", time.Now().Format(time.RFC3339))
@@ -67,6 +71,39 @@ func NewConsumer(brokers []string, topic string, consumerGroup string, outputFil
 			kgo.RetryBackoffFn(func(tries int) time.Duration {
 				return time.Duration(tries) * 5 * time.Millisecond
 			}),
+		)
+	} else if optimize2Workers && ultraLowLatency {
+		// ULTRA-AGGRESSIVE LATENCY OPTIMIZATIONS FOR 2 WORKERS
+		log.Printf("[%s] ⚡ Creating ULTRA-OPTIMIZED 2-worker consumer...", time.Now().Format(time.RFC3339))
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.ConsumerGroup(consumerGroup),
+			kgo.ConsumeTopics(topic),
+			kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+			
+			// ULTRA-AGGRESSIVE settings for 2-worker setup
+			kgo.FetchMaxWait(10*time.Millisecond),   // Minimum allowed fetch wait
+			kgo.FetchMinBytes(1),                    // Don't wait for data
+			kgo.FetchMaxBytes(128*1024),             // Larger batches for better throughput
+			kgo.FetchMaxPartitionBytes(32*1024),     // Balanced per-partition batches
+			
+			// Optimized consumer group settings for 2 workers
+			kgo.SessionTimeout(10*time.Second),      // Slightly longer to reduce rebalancing
+			kgo.HeartbeatInterval(3*time.Second),    // Balanced heartbeat frequency
+			kgo.RebalanceTimeout(30*time.Second),    // Longer rebalance timeout for stability
+			kgo.RequireStableFetchOffsets(),         // Ensure stable offset fetching
+			
+			// Sticky partition assignment to reduce rebalancing overhead
+			kgo.Balancers(kgo.StickyBalancer()),
+			
+			// Ultra-fast retry for 2 workers
+			kgo.RetryBackoffFn(func(tries int) time.Duration {
+				return time.Duration(tries) * 3 * time.Millisecond
+			}),
+			
+			// Optimize for 2 workers specifically
+			kgo.DisableAutoCommit(),                 // Manual offset management for better control
+			kgo.AutoCommitInterval(100*time.Millisecond), // Faster commits when enabled
 		)
 	} else {
 		// Standard multi-consumer configuration

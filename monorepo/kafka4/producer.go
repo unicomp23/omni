@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -31,16 +32,51 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 	log.Printf("[%s] 🔍 Producer: Verifying Kafka version compatibility...", time.Now().Format(time.RFC3339))
 	CheckKafkaVersionAndExit(ctx, brokers)
 
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(brokers...),
-		kgo.DefaultProduceTopic(topic),
-		// Optimize for per-event latency (no batching)
-		kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (faster than AllISRAcks)
-		kgo.DisableIdempotentWrite(),                      // Disable idempotency to allow LeaderAck for faster latency
-		kgo.ProducerLinger(0),                             // No linger time - send immediately
-		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
-		kgo.RequestTimeoutOverhead(1*time.Second),         // Shorter timeout
-	)
+	// Check for ultra-optimized settings
+	optimize2Workers := os.Getenv("KAFKA_OPTIMIZE_2_WORKERS") == "true"
+	ultraLowLatency := os.Getenv("KAFKA_ULTRA_LOW_LATENCY") == "true"
+
+	var client *kgo.Client
+	var err error
+
+	if optimize2Workers && ultraLowLatency {
+		// ULTRA-OPTIMIZED PRODUCER for 2-worker setup
+		log.Printf("[%s] ⚡ Creating ULTRA-OPTIMIZED producer for 2-worker setup...", time.Now().Format(time.RFC3339))
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+			
+			// ULTRA-AGGRESSIVE producer settings for higher throughput
+			kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (fastest)
+			kgo.DisableIdempotentWrite(),                      // Disable idempotency for speed
+			kgo.ProducerLinger(1*time.Millisecond),           // Minimal linger for micro-batching
+			kgo.ProducerBatchMaxBytes(1024*1024),             // Larger batches for better throughput
+			kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+			kgo.RequestTimeoutOverhead(1*time.Second),        // Minimum allowed timeout
+			
+			// Enhanced connection settings
+			kgo.ConnIdleTimeout(30*time.Second),               // Keep connections alive longer
+			kgo.MetadataMaxAge(5*time.Minute),                // Refresh metadata less frequently
+			kgo.MetadataMinAge(10*time.Second),               // But not too infrequently
+			
+			// Optimized retry settings
+			kgo.RetryBackoffFn(func(tries int) time.Duration {
+				return time.Duration(tries) * 2 * time.Millisecond
+			}),
+		)
+	} else {
+		// Standard producer configuration
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+			// Optimize for per-event latency (no batching)
+			kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (faster than AllISRAcks)
+			kgo.DisableIdempotentWrite(),                      // Disable idempotency to allow LeaderAck for faster latency
+			kgo.ProducerLinger(0),                             // No linger time - send immediately
+			kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+			kgo.RequestTimeoutOverhead(1*time.Second),         // Shorter timeout
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
 	}

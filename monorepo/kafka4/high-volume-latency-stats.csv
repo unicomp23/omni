@@ -1,0 +1,12 @@
+metric,value,unit
+total_messages,1800003,count
+min_latency,0,ms
+max_latency,49,ms
+avg_latency,0.441,ms
+p50_latency,0,ms
+p75_latency,1,ms
+p90_latency,1,ms
+p95_latency,1,ms
+p99_latency,1,ms
+p99_9_latency,2,ms
+p99_99_latency,8,ms
