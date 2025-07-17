@@ -24,6 +24,13 @@ export class ShastaRedpandaStack extends Stack {
         const securityGroupId = cdk.Token.asString(securityGroupIdToken);
         const securityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, "ImportedSecurityGroup", securityGroupId);
 
+        // Add SSH access from anywhere for load test instance
+        securityGroup.addIngressRule(
+            ec2.Peer.anyIpv4(),
+            ec2.Port.tcp(22),
+            'Allow SSH access from anywhere for load test instance'
+        );
+
         // Create additional security group for Redpanda specific ports
         const redpandaSecurityGroup = new ec2.SecurityGroup(this, 'RedpandaSecurityGroup', {
             vpc: vpc,
