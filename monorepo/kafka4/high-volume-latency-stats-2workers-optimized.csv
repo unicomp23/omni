@@ -1,0 +1,15 @@
+metric,value,unit
+total_messages,1800003,count
+workers,2,count
+optimization_level,ultra_optimized,string
+min_latency,0,ms
+max_latency,3050,ms
+avg_latency,2.643,ms
+p50_latency,2,ms
+p75_latency,2,ms
+p90_latency,2,ms
+p95_latency,3,ms
+p99_latency,3,ms
+p99_9_latency,4,ms
+p99_99_latency,2508,ms
+actual_throughput,319.43,msg_per_sec

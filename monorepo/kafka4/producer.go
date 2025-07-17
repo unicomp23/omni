@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/google/uuid"
@@ -27,26 +28,123 @@ func NewProducer(brokers []string, topic string) (*Producer, error) {
 	// Check Kafka version compatibility before creating client
 	ctx, cancel := context.WithTimeout(context.Background(), VERSION_CHECK_TIMEOUT)
 	defer cancel()
-	
+
 	log.Printf("[%s] 🔍 Producer: Verifying Kafka version compatibility...", time.Now().Format(time.RFC3339))
 	CheckKafkaVersionAndExit(ctx, brokers)
 
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(brokers...),
-		kgo.DefaultProduceTopic(topic),
-		// Optimize for per-event latency (no batching)
-		kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (faster than AllISRAcks)
-		kgo.DisableIdempotentWrite(),                      // Disable idempotency to allow LeaderAck for faster latency
-		kgo.ProducerLinger(0),                             // No linger time - send immediately
-		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
-		kgo.RequestTimeoutOverhead(1*time.Second),         // Shorter timeout
-	)
+	// Check for ultra-optimized settings
+	optimize2Workers := os.Getenv("KAFKA_OPTIMIZE_2_WORKERS") == "true"
+	ultraLowLatency := os.Getenv("KAFKA_ULTRA_LOW_LATENCY") == "true"
+
+	var client *kgo.Client
+	var err error
+
+	if optimize2Workers && ultraLowLatency {
+		// ULTRA-OPTIMIZED PRODUCER for 2-worker setup
+		log.Printf("[%s] ⚡ Creating ULTRA-OPTIMIZED producer for 2-worker setup...", time.Now().Format(time.RFC3339))
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+
+			// ULTRA-AGGRESSIVE producer settings for higher throughput
+			kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (fastest)
+			kgo.DisableIdempotentWrite(),                      // Disable idempotency for speed
+			kgo.ProducerLinger(1*time.Millisecond),            // Minimal linger for micro-batching
+			kgo.ProducerBatchMaxBytes(1024*1024),              // Larger batches for better throughput
+			kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+			kgo.RequestTimeoutOverhead(1*time.Second),         // Minimum allowed timeout
+
+			// Enhanced connection settings
+			kgo.ConnIdleTimeout(30*time.Second), // Keep connections alive longer
+			kgo.MetadataMaxAge(5*time.Minute),   // Refresh metadata less frequently
+			kgo.MetadataMinAge(10*time.Second),  // But not too infrequently
+
+			// Optimized retry settings
+			kgo.RetryBackoffFn(func(tries int) time.Duration {
+				return time.Duration(tries) * 2 * time.Millisecond
+			}),
+		)
+	} else {
+		// Standard producer configuration
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+			// Optimize for per-event latency (no batching)
+			kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (faster than AllISRAcks)
+			kgo.DisableIdempotentWrite(),                      // Disable idempotency to allow LeaderAck for faster latency
+			kgo.ProducerLinger(0),                             // No linger time - send immediately
+			kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+			kgo.RequestTimeoutOverhead(1*time.Second),         // Shorter timeout
+		)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to create kafka client: %w", err)
 	}
 
 	cdkConfig := LoadCDKConfig()
 	LogCDKConfig(cdkConfig, "Producer")
+
+	return &Producer{
+		client:    client,
+		topic:     topic,
+		cdkConfig: cdkConfig,
+	}, nil
+}
+
+func NewProducerWithOptions(brokers []string, topic string, producerID int, optimizeLatency bool) (*Producer, error) {
+	// Check Kafka version compatibility before creating client
+	ctx, cancel := context.WithTimeout(context.Background(), VERSION_CHECK_TIMEOUT)
+	defer cancel()
+
+	log.Printf("[%s] 🔍 Producer %d: Verifying Kafka version compatibility...", time.Now().Format(time.RFC3339), producerID+1)
+	CheckKafkaVersionAndExit(ctx, brokers)
+
+	var client *kgo.Client
+	var err error
+
+	if optimizeLatency {
+		// ULTRA-LOW LATENCY PRODUCER for multiple producer setup
+		log.Printf("[%s] ⚡ Creating ULTRA-LOW LATENCY producer %d...", time.Now().Format(time.RFC3339), producerID+1)
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+			// Ultra-low latency settings
+			kgo.RequiredAcks(kgo.LeaderAck()),                 // Only wait for leader (fastest)
+			kgo.DisableIdempotentWrite(),                      // Disable idempotency for speed
+			kgo.ProducerLinger(0),                             // No batching - send immediately
+			kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+			kgo.RequestTimeoutOverhead(1*time.Second),         // Minimum allowed timeout
+
+			// Optimized connection settings
+			kgo.ConnIdleTimeout(60*time.Second), // Longer idle timeout
+			kgo.MetadataMaxAge(30*time.Second),  // Moderate metadata refresh
+			kgo.MetadataMinAge(5*time.Second),   // Faster metadata refresh
+
+			// Optimized retry settings
+			kgo.RetryBackoffFn(func(tries int) time.Duration {
+				return time.Duration(tries) * time.Millisecond // Very fast retries
+			}),
+		)
+	} else {
+		// Standard producer configuration
+		client, err = kgo.NewClient(
+			kgo.SeedBrokers(brokers...),
+			kgo.DefaultProduceTopic(topic),
+			// Standard settings
+			kgo.RequiredAcks(kgo.LeaderAck()),
+			kgo.DisableIdempotentWrite(),
+			kgo.ProducerLinger(0),
+			kgo.ProducerBatchCompression(kgo.NoCompression()),
+			kgo.RequestTimeoutOverhead(1*time.Second),
+		)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create kafka client for producer %d: %w", producerID+1, err)
+	}
+
+	cdkConfig := LoadCDKConfig()
+	LogCDKConfig(cdkConfig, fmt.Sprintf("Producer-%d", producerID+1))
 
 	return &Producer{
 		client:    client,
@@ -130,22 +228,6 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 	}
 
 	sentCount := 0
-	progressInterval := count / 20 // Show progress every 5%
-	if progressInterval < 1 {
-		progressInterval = 1
-	}
-
-	// Calculate logging interval based on message count
-	var logInterval int
-	if count <= 10 {
-		logInterval = 1 // Log every message for small batches
-	} else if count <= 100 {
-		logInterval = 10 // Log every 10th message
-	} else if count <= 1000 {
-		logInterval = 100 // Log every 100th message
-	} else {
-		logInterval = 500 // Log every 500th message for large batches
-	}
 
 	for i := 0; i < count; i++ {
 		select {
@@ -167,22 +249,7 @@ func (p *Producer) ProduceMessages(ctx context.Context, count int, interval time
 		}
 		sentCount++
 
-		// Log individual messages using modulo for high-volume runs
-		if sentCount%logInterval == 0 || sentCount <= 5 || sentCount == count {
-			log.Printf("[%s] 📤 Produced message %s (batch %d/%d)",
-				time.Now().Format(time.RFC3339), id, sentCount, count)
-		}
-
-		// Show progress indicators
-		if sentCount%progressInterval == 0 || sentCount == count {
-			percentage := float64(sentCount) / float64(count) * 100
-			elapsed := time.Since(startTime)
-			rate := float64(sentCount) / elapsed.Seconds()
-			remaining := time.Duration(float64(count-sentCount)/rate) * time.Second
-
-			log.Printf("[%s] 📊 Progress: %d/%d messages (%.1f%%) | Rate: %.1f msg/s | ETA: %v",
-				time.Now().Format(time.RFC3339), sentCount, count, percentage, rate, remaining.Truncate(time.Second))
-		}
+		// Progress logging removed for cleaner output
 
 		if i < count-1 && interval > 0 {
 			time.Sleep(interval)
