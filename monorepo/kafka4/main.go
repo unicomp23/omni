@@ -81,7 +81,9 @@ func main() {
 		producerOnly    = flag.Bool("producer-only", false, "Run only producer (use existing topic)")
 		topic           = flag.String("topic", "", "Use specific topic (for consumer-only/producer-only modes)")
 		numConsumers    = flag.Int("consumers", 3, "Number of consumer instances to run")
+		numProducers    = flag.Int("producers", 1, "Number of producer instances to run")
 		optimizeSingle  = flag.Bool("optimize-single", false, "Enable ultra-optimized single consumer mode (forces consumers=1)")
+		optimizeLatency = flag.Bool("optimize-latency", false, "Enable ultra-low latency mode for multiple producers")
 	)
 	flag.Parse()
 
@@ -198,22 +200,22 @@ func main() {
 
 	// Run the test workflow
 	if err := runTestWorkflow(ctx, cancel, producerBrokerList, consumerBrokerList, testTopic, *consumerGroup, *outputFile,
-		*messageCount, *interval, *waitTime, *consumerOnly, *producerOnly, *numConsumers, *optimizeSingle); err != nil {
+		*messageCount, *interval, *waitTime, *consumerOnly, *producerOnly, *numConsumers, *numProducers, *optimizeSingle, *optimizeLatency); err != nil {
 		log.Printf("[%s] Test workflow error: %v", time.Now().Format(time.RFC3339), err)
 	}
 
 	// Cleanup test topic if we created it
 	if topicManager != nil && testTopic != "" && !*consumerOnly && !*producerOnly {
 		log.Printf("[%s] 🧹 Cleaning up test topic...", time.Now().Format(time.RFC3339))
-		
+
 		// Create a separate context for cleanup with generous timeout
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cleanupCancel()
-		
+
 		if err := topicManager.DeleteTopic(cleanupCtx, testTopic); err != nil {
-			log.Printf("[%s] ⚠️  Warning: Failed to cleanup test topic %s: %v", 
+			log.Printf("[%s] ⚠️  Warning: Failed to cleanup test topic %s: %v",
 				time.Now().Format(time.RFC3339), testTopic, err)
-			log.Printf("[%s] 📝 Note: Test topic may remain in cluster for auto-cleanup", 
+			log.Printf("[%s] 📝 Note: Test topic may remain in cluster for auto-cleanup",
 				time.Now().Format(time.RFC3339))
 		} else {
 			log.Printf("[%s] ✅ Test topic cleanup successful", time.Now().Format(time.RFC3339))
@@ -228,7 +230,7 @@ func main() {
 
 func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBrokers []string, consumerBrokers []string, topic string, consumerGroup string,
 	outputFile string, messageCount int, interval time.Duration, waitTime time.Duration,
-	consumerOnly bool, producerOnly bool, numConsumers int, optimizeSingle bool) error {
+	consumerOnly bool, producerOnly bool, numConsumers int, numProducers int, optimizeSingle bool, optimizeLatency bool) error {
 
 	var wg sync.WaitGroup
 	var consumerWg sync.WaitGroup
@@ -240,7 +242,7 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 	if !producerOnly {
 		log.Printf("[%s] 🎧 Starting %d consumer instances...", time.Now().Format(time.RFC3339), numConsumers)
 		consumers = make([]*Consumer, numConsumers)
-		
+
 		for i := 0; i < numConsumers; i++ {
 			consumerID := i
 			wg.Add(1)
@@ -295,18 +297,52 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 		}()
 	}
 
-	// Start producer (unless consumer-only)
+	// Start producer(s) (unless consumer-only)
 	if !consumerOnly {
-		log.Printf("[%s] 📤 Starting producer phase...", time.Now().Format(time.RFC3339))
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			defer close(producerDone)
+		if numProducers == 1 {
+			log.Printf("[%s] 📤 Starting single producer phase...", time.Now().Format(time.RFC3339))
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer close(producerDone)
 
-			if err := runProducer(ctx, producerBrokers, topic, messageCount, interval); err != nil {
-				log.Printf("[%s] ❌ Producer error: %v", time.Now().Format(time.RFC3339), err)
+				if err := runProducer(ctx, producerBrokers, topic, messageCount, interval); err != nil {
+					log.Printf("[%s] ❌ Producer error: %v", time.Now().Format(time.RFC3339), err)
+				}
+			}()
+		} else {
+			log.Printf("[%s] 📤 Starting %d producer instances...", time.Now().Format(time.RFC3339), numProducers)
+			var producerWg sync.WaitGroup
+
+			// Calculate messages per producer
+			messagesPerProducer := messageCount / numProducers
+			remainingMessages := messageCount % numProducers
+
+			for i := 0; i < numProducers; i++ {
+				producerID := i
+				producerMessageCount := messagesPerProducer
+				if i < remainingMessages {
+					producerMessageCount++ // Distribute remaining messages
+				}
+
+				wg.Add(1)
+				producerWg.Add(1)
+				go func() {
+					defer wg.Done()
+					defer producerWg.Done()
+
+					if err := runProducerWithID(ctx, producerBrokers, topic, producerMessageCount, interval, producerID, optimizeLatency); err != nil {
+						log.Printf("[%s] ❌ Producer %d error: %v", time.Now().Format(time.RFC3339), producerID+1, err)
+					}
+				}()
 			}
-		}()
+
+			// Close producerDone when all producers finish
+			go func() {
+				producerWg.Wait()
+				close(producerDone)
+			}()
+		}
 	}
 
 	// Wait for producer to finish if both are running
@@ -345,7 +381,7 @@ func runTestWorkflow(ctx context.Context, cancel context.CancelFunc, producerBro
 								count := consumer.GetRecordCount()
 								totalProcessed += count
 								if i == 0 || count > 0 { // Show individual counts for first consumer or active consumers
-									log.Printf("[%s] 📊 Consumer %d: %d messages processed", 
+									log.Printf("[%s] 📊 Consumer %d: %d messages processed",
 										time.Now().Format(time.RFC3339), i+1, count)
 								}
 							}
@@ -402,7 +438,41 @@ func runProducer(ctx context.Context, brokers []string, topic string, messageCou
 	}
 
 	finishTime := time.Now()
+	duration := finishTime.Sub(startTime)
+	avgRate := float64(messageCount) / duration.Seconds()
 	log.Printf("[%s] Producer finished successfully", finishTime.Format(time.RFC3339))
+	log.Printf("[%s] 🎉 Finished producing %d messages - Duration: %v | Avg rate: %.2f msg/s",
+		finishTime.Format(time.RFC3339), messageCount, duration, avgRate)
+
+	return nil
+}
+
+func runProducerWithID(ctx context.Context, brokers []string, topic string, messageCount int, interval time.Duration, producerID int, optimizeLatency bool) error {
+	startTime := time.Now()
+	log.Printf("[%s] Starting producer %d (messages: %d, interval: %v)...",
+		startTime.Format(time.RFC3339), producerID+1, messageCount, interval)
+
+	producer, err := NewProducerWithOptions(brokers, topic, producerID, optimizeLatency)
+	if err != nil {
+		return fmt.Errorf("failed to create producer %d: %w", producerID+1, err)
+	}
+	defer func() {
+		producer.Close()
+		endTime := time.Now()
+		duration := endTime.Sub(startTime)
+		log.Printf("[%s] Producer %d closed - Runtime: %v", endTime.Format(time.RFC3339), producerID+1, duration)
+	}()
+
+	if err := producer.ProduceMessages(ctx, messageCount, interval); err != nil {
+		return fmt.Errorf("failed to produce messages from producer %d: %w", producerID+1, err)
+	}
+
+	finishTime := time.Now()
+	duration := finishTime.Sub(startTime)
+	avgRate := float64(messageCount) / duration.Seconds()
+	log.Printf("[%s] 🎉 Producer %d finished - %d messages in %v | Avg rate: %.2f msg/s",
+		finishTime.Format(time.RFC3339), producerID+1, messageCount, duration, avgRate)
+
 	return nil
 }
 
