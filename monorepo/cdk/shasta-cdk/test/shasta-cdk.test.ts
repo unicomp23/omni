@@ -5,7 +5,7 @@ import * as ShastaCdk from '../lib/shasta-cdk-stack';
 test('SQS Queue and SNS Topic Created', () => {
   const app = new cdk.App();
   // WHEN
-  const stack = new ShastaCdk.ShastaCdkStack(app, 'MyTestStack');
+  const stack = new ShastaCdk.ShastaCdkStackL1(app, 'MyTestStack');
   // THEN
 
   const template = Template.fromStack(stack);

@@ -82,7 +82,7 @@ export class ShastaCdkStackL1 extends Stack {
         const ecrRepo = new ecr.Repository(this, 'ShastaCdkEcrRepo', {
             repositoryName: 'shasta-cdk-ecr-repo',
             removalPolicy: cdk.RemovalPolicy.DESTROY,
-            autoDeleteImages: true  // This enables force delete by removing images first
+            emptyOnDelete: true  // Updated from autoDeleteImages to emptyOnDelete
         });
 
         const snsTopic = new sns.Topic(this, 'ShastaCdkTopic');

@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { ShastaCdkStackL1 } from '../lib/shasta-cdk-stack';
 import { ShastaCdkStackL2 } from '../lib/shasta-cdk-stack-layer2';
+import { ShastaRedpandaStack } from '../lib/shasta-redpanda-stack';
 
 const env = {
     // calent: 060795946368
@@ -24,5 +25,10 @@ console.log(env);
         env
     });
 
+    const shastaRedpandaStack = new ShastaRedpandaStack(app, 'ShastaRedpandaStack', {
+        env
+    });
+
     shastaCdkStackL2.addDependency(shastaCdkStackL1);
+    shastaRedpandaStack.addDependency(shastaCdkStackL1);
 }
