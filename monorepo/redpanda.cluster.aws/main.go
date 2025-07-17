@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,12 +17,13 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 // Message represents a test message with timestamp
 type Message struct {
-	ID        int64 `json:"id"`
-	Timestamp int64 `json:"timestamp"`
+	ID        int64  `json:"id"`
+	Timestamp int64  `json:"timestamp"`
 	Payload   string `json:"payload"`
 }
 
@@ -42,6 +45,7 @@ type LatencyRecord struct {
 // LoadTest configuration and state
 type LoadTest struct {
 	brokers        []string
+	baseTopic      string
 	topic          string
 	totalMessages  int64
 	producerRate   int // total messages per second across all producers
@@ -52,6 +56,7 @@ type LoadTest struct {
 	// Clients
 	producerClients []*kgo.Client
 	consumerClients []*kgo.Client
+	adminClient     *kgo.Client // Added for topic management
 	
 	// Synchronization
 	messageCounter int64
@@ -64,6 +69,161 @@ type LoadTest struct {
 	// Metrics
 	startTime time.Time
 	endTime   time.Time
+}
+
+// generateUUID generates a simple UUID for topic naming
+func generateUUID() string {
+	bytes := make([]byte, 16)
+	rand.Read(bytes)
+	return hex.EncodeToString(bytes)[:8]
+}
+
+// listTopics lists all topics matching the pattern
+func (lt *LoadTest) listTopics() ([]string, error) {
+	req := kmsg.NewPtrMetadataRequest()
+	shards := lt.adminClient.RequestSharded(context.Background(), req)
+	
+	var topics []string
+	for _, shard := range shards {
+		if shard.Err != nil {
+			return nil, fmt.Errorf("metadata request failed: %w", shard.Err)
+		}
+		
+		resp := shard.Resp.(*kmsg.MetadataResponse)
+		for _, topic := range resp.Topics {
+			if topic.Topic != nil && strings.HasPrefix(*topic.Topic, lt.baseTopic+"-") {
+				topics = append(topics, *topic.Topic)
+			}
+		}
+	}
+	
+	return topics, nil
+}
+
+// createTopic creates a new topic with optimized settings for latency
+func (lt *LoadTest) createTopic() error {
+	log.Printf("Creating topic: %s", lt.topic)
+	
+	req := kmsg.NewPtrCreateTopicsRequest()
+	req.TimeoutMillis = 30000
+	
+	topicReq := kmsg.NewCreateTopicsRequestTopic()
+	topicReq.Topic = lt.topic
+	topicReq.NumPartitions = 36  // 36 partitions for better distribution
+	topicReq.ReplicationFactor = 3
+	
+	// Optimize for latency
+	configs := []kmsg.CreateTopicsRequestTopicConfig{
+		{Name: "min.insync.replicas", Value: kmsg.StringPtr("2")},
+		{Name: "unclean.leader.election.enable", Value: kmsg.StringPtr("false")},
+		{Name: "retention.ms", Value: kmsg.StringPtr("3600000")}, // 1 hour
+		{Name: "segment.ms", Value: kmsg.StringPtr("60000")},     // 1 minute
+		{Name: "flush.ms", Value: kmsg.StringPtr("100")},         // Fast flush for latency
+		{Name: "compression.type", Value: kmsg.StringPtr("lz4")}, // Fast compression
+	}
+	topicReq.Configs = configs
+	
+	req.Topics = []kmsg.CreateTopicsRequestTopic{topicReq}
+	
+	shards := lt.adminClient.RequestSharded(context.Background(), req)
+	for _, shard := range shards {
+		if shard.Err != nil {
+			return fmt.Errorf("create topic request failed: %w", shard.Err)
+		}
+		
+		resp := shard.Resp.(*kmsg.CreateTopicsResponse)
+		for _, topic := range resp.Topics {
+			if topic.ErrorCode != 0 {
+				if topic.ErrorCode == 36 { // TOPIC_ALREADY_EXISTS
+					log.Printf("Topic %s already exists", lt.topic)
+					return nil
+				}
+				return fmt.Errorf("failed to create topic %s: error code %d", lt.topic, topic.ErrorCode)
+			}
+		}
+	}
+	
+	log.Printf("Topic %s created successfully", lt.topic)
+	return nil
+}
+
+// cleanupOldTopics deletes old topics matching the pattern
+func (lt *LoadTest) cleanupOldTopics() error {
+	log.Printf("Cleaning up old topics with pattern: %s-*", lt.baseTopic)
+	
+	topics, err := lt.listTopics()
+	if err != nil {
+		return fmt.Errorf("failed to list topics: %w", err)
+	}
+	
+	// Filter out the current topic
+	var topicsToDelete []string
+	for _, topic := range topics {
+		if topic != lt.topic {
+			topicsToDelete = append(topicsToDelete, topic)
+		}
+	}
+	
+	if len(topicsToDelete) == 0 {
+		log.Printf("No old topics to cleanup")
+		return nil
+	}
+	
+	log.Printf("Found %d old topics to cleanup: %v", len(topicsToDelete), topicsToDelete)
+	
+	req := kmsg.NewPtrDeleteTopicsRequest()
+	req.TimeoutMillis = 30000
+	
+	for _, topic := range topicsToDelete {
+		topicReq := kmsg.NewDeleteTopicsRequestTopic()
+		topicReq.Topic = &topic
+		req.Topics = append(req.Topics, topicReq)
+	}
+	
+	shards := lt.adminClient.RequestSharded(context.Background(), req)
+	for _, shard := range shards {
+		if shard.Err != nil {
+			return fmt.Errorf("delete topics request failed: %w", shard.Err)
+		}
+		
+		resp := shard.Resp.(*kmsg.DeleteTopicsResponse)
+		for _, topic := range resp.Topics {
+			if topic.ErrorCode != 0 {
+				log.Printf("Failed to delete topic %s: error code %d", *topic.Topic, topic.ErrorCode)
+			} else {
+				log.Printf("Deleted topic: %s", *topic.Topic)
+			}
+		}
+	}
+	
+	return nil
+}
+
+// cleanup closes all clients and resources
+func (lt *LoadTest) cleanup() {
+	// Close producer clients
+	for _, client := range lt.producerClients {
+		if client != nil {
+			client.Close()
+		}
+	}
+	
+	// Close consumer clients
+	for _, client := range lt.consumerClients {
+		if client != nil {
+			client.Close()
+		}
+	}
+	
+	// Close admin client
+	if lt.adminClient != nil {
+		lt.adminClient.Close()
+	}
+	
+	// Close JSONL file
+	if lt.jsonlFile != nil {
+		lt.jsonlFile.Close()
+	}
 }
 
 func NewLoadTest() *LoadTest {
@@ -110,10 +270,12 @@ func NewLoadTest() *LoadTest {
 		}
 	}
 	
-	topic := os.Getenv("TOPIC")
-	if topic == "" {
-		topic = "latency-test"
+	baseTopic := os.Getenv("BASE_TOPIC")
+	if baseTopic == "" {
+		baseTopic = "latency-test"
 	}
+	
+	topic := fmt.Sprintf("%s-%s", baseTopic, generateUUID())
 	
 	// Create JSONL output file
 	jsonlFile, err := os.Create("latency_records.jsonl")
@@ -123,6 +285,7 @@ func NewLoadTest() *LoadTest {
 	
 	return &LoadTest{
 		brokers:            brokers,
+		baseTopic:          baseTopic,
 		topic:              topic,
 		totalMessages:      totalMessages,
 		producerRate:       producerRate,
@@ -359,6 +522,7 @@ func (lt *LoadTest) reportProgress(ctx context.Context) {
 func (lt *LoadTest) Run() error {
 	fmt.Printf("Starting Kafka latency load test...\n")
 	fmt.Printf("Brokers: %v\n", lt.brokers)
+	fmt.Printf("Base topic: %s\n", lt.baseTopic)
 	fmt.Printf("Topic: %s\n", lt.topic)
 	fmt.Printf("Total messages: %d\n", lt.totalMessages)
 	fmt.Printf("Producer rate: %d msg/s\n", lt.producerRate)
@@ -368,18 +532,32 @@ func (lt *LoadTest) Run() error {
 	fmt.Printf("JSONL output: latency_records.jsonl\n")
 	fmt.Printf("=======================\n")
 	
-	defer func() {
-		if lt.jsonlFile != nil {
-			lt.jsonlFile.Close()
-		}
-	}()
-	
 	// Setup clients
 	if err := lt.setupProducers(); err != nil {
 		return err
 	}
 	
 	if err := lt.setupConsumers(); err != nil {
+		return err
+	}
+
+	// Create admin client for topic management
+	adminOpts := []kgo.Opt{
+		kgo.SeedBrokers(lt.brokers...),
+	}
+	adminClient, err := kgo.NewClient(adminOpts...)
+	if err != nil {
+		return fmt.Errorf("failed to create admin client: %w", err)
+	}
+	lt.adminClient = adminClient
+
+	// Create topic if it doesn't exist
+	if err := lt.createTopic(); err != nil {
+		return err
+	}
+
+	// Cleanup old topics
+	if err := lt.cleanupOldTopics(); err != nil {
 		return err
 	}
 	
@@ -466,6 +644,8 @@ func (lt *LoadTest) Run() error {
 
 func main() {
 	loadTest := NewLoadTest()
+	defer loadTest.cleanup()
+	
 	if err := loadTest.Run(); err != nil {
 		log.Fatalf("Load test failed: %v", err)
 	}

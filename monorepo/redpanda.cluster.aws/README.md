@@ -10,7 +10,16 @@ A high-performance Go-based load test tool using franz-go that measures producer
 - **Latency Optimization**: Optimized for low latency over high throughput
 - **Iteration-based Testing**: Tests a specific number of messages (default: 100k)
 - **Real-time Progress Reporting**: Live progress updates during testing
+- **Automatic Topic Management**: Creates unique topics per run and cleans up old topics
 - **Graceful Shutdown**: Handles SIGINT/SIGTERM for clean termination
+
+## Automatic Topic Management
+
+The load test automatically handles topic lifecycle:
+- **Unique Topics**: Each run creates a topic with format `{BASE_TOPIC}-{UUID}`
+- **Optimized Configuration**: Topics are created with latency-optimized settings
+- **Automatic Cleanup**: Old topics matching the base pattern are automatically deleted
+- **Isolation**: Each test run uses a fresh topic to avoid cross-contamination
 
 ## Prerequisites
 
@@ -34,7 +43,7 @@ go build -o kafka-latency-test
 ### With custom configuration:
 ```bash
 export REDPANDA_BROKERS="redpanda-broker-1:9092,redpanda-broker-2:9092,redpanda-broker-3:9092"
-export TOPIC="my-latency-test"
+export BASE_TOPIC="my-latency-test"
 export TOTAL_MESSAGES=50000
 export PRODUCER_RATE=1000
 export NUM_PRODUCERS=5
@@ -48,7 +57,7 @@ export MESSAGE_SIZE=2048
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `REDPANDA_BROKERS` | Comma-separated list of broker addresses | `localhost:9092` |
-| `TOPIC` | Kafka topic name | `latency-test` |
+| `BASE_TOPIC` | Base topic name (UUID will be appended automatically) | `latency-test` |
 | `TOTAL_MESSAGES` | Total number of messages to produce | `100000` |
 | `PRODUCER_RATE` | Total messages per second across all producers | `2000` |
 | `NUM_PRODUCERS` | Number of concurrent producers | `10` |

@@ -10,7 +10,7 @@ echo ""
 
 # Set environment variables for production test
 export REDPANDA_BROKERS="redpanda-broker-1:9092,redpanda-broker-2:9092,redpanda-broker-3:9092"
-export TOPIC="latency-test"
+export BASE_TOPIC="latency-test"
 export TOTAL_MESSAGES=100000      # 100k iterations
 export PRODUCER_RATE=2000         # 2k msg/s total
 export NUM_PRODUCERS=10           # 10 concurrent producers

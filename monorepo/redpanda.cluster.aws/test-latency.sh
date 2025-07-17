@@ -6,7 +6,7 @@ echo "Starting Kafka latency load test with multiple producers and consumer work
 
 # Set environment variables for the test
 export REDPANDA_BROKERS="redpanda-broker-1:9092,redpanda-broker-2:9092,redpanda-broker-3:9092"
-export TOPIC="latency-test"
+export BASE_TOPIC="latency-test"
 export TOTAL_MESSAGES=10000      # Smaller test run
 export PRODUCER_RATE=1000        # 1000 msg/s total
 export NUM_PRODUCERS=5           # 5 concurrent producers
