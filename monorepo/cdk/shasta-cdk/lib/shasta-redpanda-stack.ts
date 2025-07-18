@@ -154,18 +154,33 @@ export class ShastaRedpandaStack extends Stack {
         // Grant S3 read/write permissions to EC2 role
         s3Bucket.grantReadWrite(ec2Role);
 
+        // Add SSM Parameter Store permissions for broker IP discovery
+        ec2Role.addToPolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                'ssm:GetParameter',
+                'ssm:GetParameters',
+                'ssm:GetParametersByPath',
+                'ssm:PutParameter',
+                'ssm:DeleteParameter',
+            ],
+            resources: [
+                `arn:aws:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter/redpanda/cluster/*`,
+            ],
+        }));
+
         // Reference existing key pair for EC2 instances
         const keyPair = ec2.KeyPair.fromKeyPairName(this, 'RedpandaKeyPair', 'john.davis');
 
         // User data script for Redpanda installation and configuration
-        const getBrokerUserData = (brokerId: number, brokerIps: string[]) => {
+        const getBrokerUserData = (brokerId: number, totalBrokers: number) => {
             const userData = ec2.UserData.forLinux({
                 shebang: '#!/bin/bash',
             });
             
             userData.addCommands(
                 'yum update -y',
-                'yum install -y htop iotop ec2-instance-connect',
+                'yum install -y htop iotop ec2-instance-connect jq',
                 
                 // Install Redpanda
                 'curl -1sLf "https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh" | bash',
@@ -179,47 +194,83 @@ export class ShastaRedpandaStack extends Stack {
                 'echo "net.core.netdev_max_backlog = 5000" >> /etc/sysctl.conf',
                 'sysctl -p',
                 
-                // Configure Redpanda for low latency
+                // Get instance metadata
+                'INSTANCE_ID=$(curl -s http://169.254.169.254/latest/meta-data/instance-id)',
+                'LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)',
+                'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
+                
+                // Store this broker's IP in Parameter Store
+                `aws ssm put-parameter --region $REGION --name "/redpanda/cluster/broker-${brokerId}/ip" --value $LOCAL_IP --type "String" --overwrite`,
+                
+                // Wait for all brokers to register their IPs
+                'echo "Waiting for all brokers to register their IPs..."',
+                'for i in {1..60}; do',
+                `  BROKER_COUNT=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "length(Parameters)" --output text)`,
+                `  if [ "$BROKER_COUNT" -eq "${totalBrokers}" ]; then`,
+                '    echo "All brokers registered!"',
+                '    break',
+                '  fi',
+                '  echo "Found $BROKER_COUNT/${totalBrokers} brokers, waiting..."',
+                '  sleep 10',
+                'done',
+                
+                // Get all broker IPs from Parameter Store
+                'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" " ")',
+                'echo "Broker IPs: $BROKER_IPS"',
+                
+                // Configure Redpanda
                 'mkdir -p /etc/redpanda',
-                `cat > /etc/redpanda/redpanda.yaml << 'EOF'
-redpanda:
-  data_directory: /var/lib/redpanda/data
-  node_id: ${brokerId}
-  rpc_server:
-    address: 0.0.0.0
-    port: 33145
-  kafka_api:
-    - address: 0.0.0.0
-      port: 9092
-  admin:
-    - address: 0.0.0.0
-      port: 9644
-  seed_servers:
-${brokerIps.map((ip, idx) => `    - host:
-        address: ${ip}
-        port: 33145`).join('\n')}
-  
-  # Low latency optimizations
-  group_initial_rebalance_delay_ms: 0
-  group_new_member_join_timeout_ms: 5000
-  log_segment_size: 134217728
-  compacted_log_segment_size: 134217728
-  max_compacted_log_segment_size: 536870912
-  
-  # Performance tuning
-  disable_batch_cache: false
-  batch_cache_ttl_ms: 1000
-  
-pandaproxy:
-  pandaproxy_api:
-    - address: 0.0.0.0
-      port: 8082
-      
-schema_registry:
-  schema_registry_api:
-    - address: 0.0.0.0
-      port: 8081
-EOF`,
+                'cat > /etc/redpanda/redpanda.yaml << EOF',
+                'redpanda:',
+                '  data_directory: /var/lib/redpanda/data',
+                `  node_id: ${brokerId}`,
+                '  rpc_server:',
+                '    address: 0.0.0.0',
+                '    port: 33145',
+                '  kafka_api:',
+                '    - address: 0.0.0.0',
+                '      port: 9092',
+                '  admin:',
+                '    - address: 0.0.0.0',
+                '      port: 9644',
+                '  seed_servers:',
+                '    - host:',
+                '        address: BROKER_IP_1',
+                '        port: 33145',
+                '    - host:',
+                '        address: BROKER_IP_2',
+                '        port: 33145',
+                '    - host:',
+                '        address: BROKER_IP_3',
+                '        port: 33145',
+                '  ',
+                '  # Low latency optimizations',
+                '  group_initial_rebalance_delay_ms: 0',
+                '  group_new_member_join_timeout_ms: 5000',
+                '  log_segment_size: 134217728',
+                '  compacted_log_segment_size: 134217728',
+                '  max_compacted_log_segment_size: 536870912',
+                '  ',
+                '  # Performance tuning',
+                '  disable_batch_cache: false',
+                '  batch_cache_ttl_ms: 1000',
+                '  ',
+                'pandaproxy:',
+                '  pandaproxy_api:',
+                '    - address: 0.0.0.0',
+                '      port: 8082',
+                '      ',
+                'schema_registry:',
+                '  schema_registry_api:',
+                '    - address: 0.0.0.0',
+                '      port: 8081',
+                'EOF',
+                
+                // Replace placeholder IPs with actual broker IPs
+                'BROKER_IP_ARRAY=($BROKER_IPS)',
+                'sed -i "s/BROKER_IP_1/${BROKER_IP_ARRAY[0]}/g" /etc/redpanda/redpanda.yaml',
+                'sed -i "s/BROKER_IP_2/${BROKER_IP_ARRAY[1]}/g" /etc/redpanda/redpanda.yaml',
+                'sed -i "s/BROKER_IP_3/${BROKER_IP_ARRAY[2]}/g" /etc/redpanda/redpanda.yaml',
                 
                 // Start Redpanda service
                 'systemctl enable redpanda',
@@ -268,7 +319,6 @@ EOF`,
 
         // Create broker instances using CfnInstance with Launch Template
         const brokerInstances: ec2.CfnInstance[] = [];
-        const brokerIps = ['10.1.1.100', '10.1.2.100', '10.1.3.100']; // Static IPs for predictable configuration
 
         for (let i = 0; i < 3; i++) {
             const brokerInstance = new ec2.CfnInstance(this, `RedpandaBroker${i + 1}`, {
@@ -277,7 +327,7 @@ EOF`,
                     version: brokerLaunchTemplate.latestVersionNumber,
                 },
                 subnetId: privateSubnets[i].subnetId,
-                userData: cdk.Fn.base64(getBrokerUserData(i, brokerIps).render()),
+                userData: cdk.Fn.base64(getBrokerUserData(i, 3).render()),
             });
 
             brokerInstances.push(brokerInstance);
@@ -293,7 +343,7 @@ EOF`,
         
         loadTestUserData.addCommands(
             'yum update -y',
-            'yum install -y htop iotop python3 python3-pip git awscli ec2-instance-connect',
+            'yum install -y htop iotop python3 python3-pip git awscli ec2-instance-connect jq',
             
             // Install Redpanda (for RPK client)
             'curl -1sLf "https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh" | bash',
@@ -306,25 +356,44 @@ EOF`,
             'chmod +x /usr/local/bin/rpk',
             
             // Install Python Kafka client for performance testing
-            'pip3 install kafka-python confluent-kafka boto3',
+            'pip3 install boto3 requests',
+            
+            // Wait for brokers to register their IPs
+            'echo "Waiting for Redpanda brokers to register..."',
+            'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
+            'for i in {1..120}; do',
+            '  BROKER_COUNT=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "length(Parameters)" --output text)',
+            '  if [ "$BROKER_COUNT" -eq "3" ]; then',
+            '    echo "All brokers registered!"',
+            '    break',
+            '  fi',
+            '  echo "Found $BROKER_COUNT/3 brokers, waiting..."',
+            '  sleep 10',
+            'done',
+            
+            // Get broker IPs dynamically
+            'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" ",")',
+            'BROKER_IPS=${BROKER_IPS%,}',  // Remove trailing comma
+            'BROKER_IPS_ARRAY=($BROKER_IPS)',
+            'echo "Discovered broker IPs: $BROKER_IPS"',
             
             // Configure RPK for cluster access
-            `rpk profile create cluster --brokers ${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}`,
+            'rpk profile create cluster --brokers ${BROKER_IPS_ARRAY[0]}:9092,${BROKER_IPS_ARRAY[1]}:9092,${BROKER_IPS_ARRAY[2]}:9092',
             'rpk profile use cluster',
             
             // Set Redpanda cluster environment variables
-            `echo 'export REDPANDA_BROKERS=${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_BROKERS=${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}' >> /root/.bashrc`,
-            `echo 'export REDPANDA_KAFKA_PORT=9092' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_KAFKA_PORT=9092' >> /root/.bashrc`,
-            `echo 'export REDPANDA_ADMIN_PORT=9644' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_ADMIN_PORT=9644' >> /root/.bashrc`,
-            `echo 'export REDPANDA_SCHEMA_REGISTRY_PORT=8081' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_SCHEMA_REGISTRY_PORT=8081' >> /root/.bashrc`,
-            `echo 'export REDPANDA_PANDAPROXY_PORT=8082' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_PANDAPROXY_PORT=8082' >> /root/.bashrc`,
-            `echo 'export REDPANDA_BROKER_IPS=${brokerIps.join(',')}' >> /home/ec2-user/.bashrc`,
-            `echo 'export REDPANDA_BROKER_IPS=${brokerIps.join(',')}' >> /root/.bashrc`,
+            'echo "export REDPANDA_BROKERS=${BROKER_IPS_ARRAY[0]}:9092,${BROKER_IPS_ARRAY[1]}:9092,${BROKER_IPS_ARRAY[2]}:9092" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_BROKERS=${BROKER_IPS_ARRAY[0]}:9092,${BROKER_IPS_ARRAY[1]}:9092,${BROKER_IPS_ARRAY[2]}:9092" >> /root/.bashrc',
+            'echo "export REDPANDA_KAFKA_PORT=9092" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_KAFKA_PORT=9092" >> /root/.bashrc',
+            'echo "export REDPANDA_ADMIN_PORT=9644" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_ADMIN_PORT=9644" >> /root/.bashrc',
+            'echo "export REDPANDA_SCHEMA_REGISTRY_PORT=8081" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_SCHEMA_REGISTRY_PORT=8081" >> /root/.bashrc',
+            'echo "export REDPANDA_PANDAPROXY_PORT=8082" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_PANDAPROXY_PORT=8082" >> /root/.bashrc',
+            'echo "export REDPANDA_BROKER_IPS=$BROKER_IPS" >> /home/ec2-user/.bashrc',
+            'echo "export REDPANDA_BROKER_IPS=$BROKER_IPS" >> /root/.bashrc',
             
             // Set S3 bucket name as environment variable
             `echo 'export REDPANDA_S3_BUCKET=${s3Bucket.bucketName}' >> /home/ec2-user/.bashrc`,
@@ -336,78 +405,182 @@ EOF`,
 import time
 import json
 import os
-from kafka import KafkaProducer, KafkaConsumer
-from kafka.errors import KafkaError
-import threading
+import boto3
+import subprocess
 import statistics
+from datetime import datetime
 
-def latency_test():
-    # Get broker list from environment variable
-    brokers = os.environ.get('REDPANDA_BROKERS', '${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}').split(',')
+def get_broker_ips():
+    """Get broker IPs from SSM Parameter Store"""
+    try:
+        # Get region from instance metadata
+        import requests
+        region = requests.get('http://169.254.169.254/latest/meta-data/placement/region', timeout=2).text
+        
+        # Get broker IPs from Parameter Store
+        ssm = boto3.client('ssm', region_name=region)
+        response = ssm.get_parameters_by_path(Path='/redpanda/cluster/')
+        
+        broker_ips = [param['Value'] for param in response['Parameters']]
+        broker_ips.sort()  # Sort for consistent ordering
+        
+        return broker_ips
+    except Exception as e:
+        print(f"Error getting broker IPs: {e}")
+        # Fallback to environment variable
+        env_brokers = os.environ.get('REDPANDA_BROKER_IPS', 'localhost')
+        return env_brokers.split(',')
+
+def run_rpk_latency_test():
+    """Run latency test using RPK"""
+    print("=== RPK-Based Latency Test ===")
     
-    # Configure for low latency
-    producer = KafkaProducer(
-        bootstrap_servers=brokers,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-        acks='all',
-        retries=0,
-        batch_size=1,
-        linger_ms=0,
-        buffer_memory=33554432,
-        compression_type=None
-    )
+    # Get broker IPs
+    broker_ips = get_broker_ips()
+    broker_string = ','.join([f"{ip}:9092" for ip in broker_ips])
+    print(f"Testing with brokers: {broker_string}")
     
-    consumer = KafkaConsumer(
-        'latency-test',
-        bootstrap_servers=brokers,
-        value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-        enable_auto_commit=False,
-        auto_offset_reset='latest',
-        fetch_min_bytes=1,
-        fetch_max_wait_ms=500
-    )
+    # Create test topic
+    test_topic = "rpk-latency-test"
+    print(f"Creating topic: {test_topic}")
+    
+    subprocess.run([
+        'rpk', 'topic', 'create', test_topic,
+        '--partitions', '1',
+        '--replicas', '3',
+        '--brokers', broker_string
+    ], check=False)
+    
+    # Test 1: Basic throughput test
+    print("\\n1. Running throughput test...")
+    
+    start_time = time.time()
+    result = subprocess.run([
+        'rpk', 'topic', 'produce', test_topic,
+        '--brokers', broker_string,
+        '--num', '1000',
+        '--rate', '1000'
+    ], input="test message", text=True, capture_output=True)
+    
+    end_time = time.time()
+    duration = end_time - start_time
+    
+    if result.returncode == 0:
+        throughput = 1000 / duration
+        print(f"✓ Produced 1000 messages in {duration:.2f}s")
+        print(f"✓ Throughput: {throughput:.0f} messages/sec")
+    else:
+        print(f"✗ Production failed: {result.stderr}")
+    
+    # Test 2: End-to-end latency test
+    print("\\n2. Running end-to-end latency test...")
     
     latencies = []
     
-    def produce_messages():
-        for i in range(1000):
-            start_time = time.time_ns()
-            message = {'id': i, 'timestamp': start_time}
-            producer.send('latency-test', value=message)
-            producer.flush()
-            time.sleep(0.001)  # 1ms between messages
-    
-    def consume_messages():
-        for message in consumer:
+    for i in range(100):
+        message = f'{{"id": {i}, "timestamp": {time.time_ns()}}}'
+        
+        # Send message
+        start_time = time.time_ns()
+        
+        prod_result = subprocess.run([
+            'rpk', 'topic', 'produce', test_topic,
+            '--brokers', broker_string,
+            '--key', f'test-{i}'
+        ], input=message, text=True, capture_output=True)
+        
+        if prod_result.returncode == 0:
+            # Consume message
+            cons_result = subprocess.run([
+                'rpk', 'topic', 'consume', test_topic,
+                '--brokers', broker_string,
+                '--num', '1',
+                '--offset', 'start',
+                '--partition', '0'
+            ], capture_output=True, text=True, timeout=5)
+            
             end_time = time.time_ns()
-            start_time = message.value['timestamp']
-            latency = (end_time - start_time) / 1_000_000  # Convert to milliseconds
-            latencies.append(latency)
-            if len(latencies) >= 1000:
-                break
+            
+            if cons_result.returncode == 0:
+                latency_ms = (end_time - start_time) / 1_000_000
+                latencies.append(latency_ms)
+                
+                if i % 10 == 0:
+                    print(f"  Message {i}: {latency_ms:.2f}ms")
+        
+        time.sleep(0.01)  # Small delay between tests
     
-    # Start consumer first
-    consumer_thread = threading.Thread(target=consume_messages)
-    consumer_thread.start()
-    
-    time.sleep(2)  # Give consumer time to start
-    
-    # Start producer
-    producer_thread = threading.Thread(target=produce_messages)
-    producer_thread.start()
-    
-    producer_thread.join()
-    consumer_thread.join()
-    
+    # Calculate statistics
     if latencies:
-        print(f"Average latency: {statistics.mean(latencies):.2f}ms")
-        print(f"P50 latency: {statistics.median(latencies):.2f}ms")
-        print(f"P95 latency: {statistics.quantiles(latencies, n=20)[18]:.2f}ms")
-        print(f"P99 latency: {statistics.quantiles(latencies, n=100)[98]:.2f}ms")
-        print(f"Max latency: {max(latencies):.2f}ms")
+        print(f"\\n3. Latency Statistics (n={len(latencies)}):")
+        print(f"   Average: {statistics.mean(latencies):.2f}ms")
+        print(f"   Median:  {statistics.median(latencies):.2f}ms")
+        print(f"   Min:     {min(latencies):.2f}ms")
+        print(f"   Max:     {max(latencies):.2f}ms")
+        
+        if len(latencies) >= 20:
+            p95 = statistics.quantiles(latencies, n=20)[18]
+            print(f"   P95:     {p95:.2f}ms")
+        
+        if len(latencies) >= 10:
+            p99 = statistics.quantiles(latencies, n=10)[8]
+            print(f"   P90:     {p99:.2f}ms")
+    else:
+        print("✗ No latency measurements collected")
+    
+    # Cleanup
+    print(f"\\n4. Cleaning up test topic...")
+    subprocess.run([
+        'rpk', 'topic', 'delete', test_topic,
+        '--brokers', broker_string
+    ], check=False)
+    
+    print("\\n=== Test Complete ===")
+
+def run_cluster_validation():
+    """Run basic cluster validation"""
+    print("\\n=== Cluster Validation ===")
+    
+    broker_ips = get_broker_ips()
+    broker_string = ','.join([f"{ip}:9092" for ip in broker_ips])
+    
+    # Test cluster health
+    result = subprocess.run([
+        'rpk', 'cluster', 'health',
+        '--brokers', broker_string
+    ], capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        print("✓ Cluster health check passed")
+        print(result.stdout)
+    else:
+        print("✗ Cluster health check failed")
+        print(result.stderr)
+    
+    # Test cluster info
+    result = subprocess.run([
+        'rpk', 'cluster', 'info',
+        '--brokers', broker_string
+    ], capture_output=True, text=True)
+    
+    if result.returncode == 0:
+        print("✓ Cluster info retrieved")
+        print(result.stdout)
+    else:
+        print("✗ Failed to get cluster info")
+        print(result.stderr)
 
 if __name__ == "__main__":
-    latency_test()
+    print(f"Starting Redpanda validation at {datetime.now()}")
+    
+    try:
+        run_cluster_validation()
+        run_rpk_latency_test()
+    except Exception as e:
+        print(f"Test failed with error: {e}")
+        exit(1)
+    
+    print("\\nAll tests completed successfully!")
 EOF`,
             'chmod +x /home/ec2-user/latency_test.py',
             'chown ec2-user:ec2-user /home/ec2-user/latency_test.py',
@@ -518,6 +691,126 @@ EOF`,
             `echo 'aws s3 ls s3://$REDPANDA_S3_BUCKET/ --recursive' >> /home/ec2-user/s3_helper.sh`,
             'chmod +x /home/ec2-user/s3_helper.sh',
             'chown ec2-user:ec2-user /home/ec2-user/s3_helper.sh',
+            
+            // Create comprehensive validation script using echo to avoid template literal issues
+            'cat > /home/ec2-user/validate_cluster.sh << EOF',
+            '#!/bin/bash',
+            '',
+            'echo "=== Redpanda Cluster Validation ==="',
+            'echo "Timestamp: $(date)"',
+            'echo',
+            '',
+            '# Get broker IPs from Parameter Store',
+            'echo "1. Getting broker IPs from Parameter Store..."',
+            'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
+            'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" ",")',
+            'BROKER_IPS=${BROKER_IPS%,}  # Remove trailing comma',
+            'BROKER_STRING=$(echo $BROKER_IPS | sed "s/,/:9092,/g"):9092',
+            '',
+            'echo "Discovered broker IPs: $BROKER_IPS"',
+            'echo "Broker string: $BROKER_STRING"',
+            'echo',
+            '',
+            '# Test cluster health',
+            'echo "2. Testing cluster health..."',
+            'if rpk cluster health --brokers $BROKER_STRING; then',
+            '    echo "✓ Cluster health check passed"',
+            'else',
+            '    echo "✗ Cluster health check failed"',
+            '    exit 1',
+            'fi',
+            'echo',
+            '',
+            '# Test cluster info',
+            'echo "3. Getting cluster information..."',
+            'if rpk cluster info --brokers $BROKER_STRING; then',
+            '    echo "✓ Cluster info retrieved"',
+            'else',
+            '    echo "✗ Failed to get cluster info"',
+            '    exit 1',
+            'fi',
+            'echo',
+            '',
+            '# Test individual brokers',
+            'echo "4. Testing individual brokers..."',
+            'IFS="," read -ra BROKER_ARRAY <<< "$BROKER_IPS"',
+            'for broker in "${BROKER_ARRAY[@]}"; do',
+            '    echo "Testing broker $broker:9092..."',
+            '    if timeout 5 rpk cluster info --brokers $broker:9092 > /dev/null 2>&1; then',
+            '        echo "✓ Broker $broker:9092 is responsive"',
+            '    else',
+            '        echo "✗ Broker $broker:9092 is not responsive"',
+            '    fi',
+            'done',
+            'echo',
+            '',
+            '# Test basic topic operations',
+            'echo "5. Testing topic operations..."',
+            'TEST_TOPIC="validation-test-$(date +%s)"',
+            'echo "Creating test topic: $TEST_TOPIC"',
+            '',
+            'if rpk topic create $TEST_TOPIC --partitions 3 --replicas 3 --brokers $BROKER_STRING; then',
+            '    echo "✓ Topic creation successful"',
+            '    ',
+            '    # Test produce/consume',
+            '    echo "Testing produce/consume..."',
+            '    TEST_MESSAGE="test-message-$(date +%s)"',
+            '    ',
+            '    if echo "$TEST_MESSAGE" | rpk topic produce $TEST_TOPIC --brokers $BROKER_STRING --key test-key; then',
+            '        echo "✓ Message production successful"',
+            '        ',
+            '        # Try to consume the message',
+            '        if timeout 10 rpk topic consume $TEST_TOPIC --brokers $BROKER_STRING --from-beginning --num 1 --timeout 5s | grep -q "$TEST_MESSAGE"; then',
+            '            echo "✓ Message consumption successful"',
+            '        else',
+            '            echo "✗ Message consumption failed"',
+            '        fi',
+            '    else',
+            '        echo "✗ Message production failed"',
+            '    fi',
+            '    ',
+            '    # Clean up test topic',
+            '    echo "Cleaning up test topic..."',
+            '    if rpk topic delete $TEST_TOPIC --brokers $BROKER_STRING; then',
+            '        echo "✓ Test topic deleted"',
+            '    else',
+            '        echo "✗ Failed to delete test topic"',
+            '    fi',
+            'else',
+            '    echo "✗ Topic creation failed"',
+            'fi',
+            'echo',
+            '',
+            '# Test admin API',
+            'echo "6. Testing admin API..."',
+            'IFS="," read -ra BROKER_ARRAY <<< "$BROKER_IPS"',
+            'ADMIN_BROKER=${BROKER_ARRAY[0]}',
+            'if curl -s -m 5 http://$ADMIN_BROKER:9644/v1/cluster/health_overview > /dev/null; then',
+            '    echo "✓ Admin API accessible on $ADMIN_BROKER:9644"',
+            'else',
+            '    echo "✗ Admin API not accessible on $ADMIN_BROKER:9644"',
+            'fi',
+            'echo',
+            '',
+            '# Network latency test',
+            'echo "7. Network latency test..."',
+            'for ip in "${BROKER_ARRAY[@]}"; do',
+            '    if ping -c 1 -W 1 $ip > /dev/null 2>&1; then',
+            '        LATENCY=$(ping -c 1 $ip | grep "time=" | cut -d"=" -f4 | cut -d" " -f1)',
+            '        echo "✓ Ping to $ip: ${LATENCY}ms"',
+            '    else',
+            '        echo "✗ Ping to $ip failed"',
+            '    fi',
+            'done',
+            'echo',
+            '',
+            'echo "=== Validation Complete ==="',
+            'echo "If all tests show ✓, your Redpanda cluster is healthy!"',
+            'echo "To run performance tests: python3 ~/latency_test.py"',
+            'echo "To test S3 integration: python3 ~/s3_test.py"',
+            'EOF',
+            'chmod +x /home/ec2-user/validate_cluster.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/validate_cluster.sh',
         );
 
         const loadTestInstance = new ec2.Instance(this, 'RedpandaLoadTest', {
