@@ -27,6 +27,7 @@ export const SHASTA_CDK_ECR_REPO_URI = 'ShastaCdkEcrRepoUri'; // Added this line
 const vpcProps = {
     vpcName: SHASTA_VPC_NAME,
     createInternetGateway: true,
+    ipAddresses: ec2.IpAddresses.cidr('10.0.0.0/16'),
     subnetConfiguration: [
         {
             subnetType: ec2.SubnetType.PUBLIC,
