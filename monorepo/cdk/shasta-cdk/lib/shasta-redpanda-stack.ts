@@ -246,39 +246,44 @@ EOF`,
         const privateSubnets = vpc.privateSubnets;
         const publicSubnets = vpc.publicSubnets;
 
-        // Create broker instances
-        const brokerInstances: ec2.Instance[] = [];
+        // Create launch template for broker instances
+        const brokerLaunchTemplate = new ec2.LaunchTemplate(this, 'RedpandaBrokerLaunchTemplate', {
+            launchTemplateName: 'RedpandaBrokerLaunchTemplate',
+            instanceType: ec2.InstanceType.of(ec2.InstanceClass.C5N, ec2.InstanceSize.XLARGE),
+            machineImage: ec2.MachineImage.latestAmazonLinux2(),
+            securityGroup: securityGroup,
+            role: ec2Role,
+            keyPair: keyPair,
+            blockDevices: [
+                {
+                    deviceName: '/dev/xvda',
+                    volume: ec2.BlockDeviceVolume.ebs(100, {
+                        volumeType: ec2.EbsDeviceVolumeType.GP3,
+                        iops: 3000,
+                        throughput: 125,
+                    }),
+                },
+            ],
+        });
+
+        // Create broker instances using CfnInstance with Launch Template
+        const brokerInstances: ec2.CfnInstance[] = [];
         const brokerIps = ['10.1.1.100', '10.1.2.100', '10.1.3.100']; // Static IPs for predictable configuration
 
         for (let i = 0; i < 3; i++) {
-            const brokerInstance = new ec2.Instance(this, `RedpandaBroker${i + 1}`, {
-                vpc: vpc,
-                instanceType: ec2.InstanceType.of(ec2.InstanceClass.C5N, ec2.InstanceSize.XLARGE), // High network performance
-                machineImage: ec2.MachineImage.latestAmazonLinux2(),
-                securityGroup: securityGroup,
-                vpcSubnets: {
-                    subnets: [privateSubnets[i]],
+            const brokerInstance = new ec2.CfnInstance(this, `RedpandaBroker${i + 1}`, {
+                launchTemplate: {
+                    launchTemplateId: brokerLaunchTemplate.launchTemplateId,
+                    version: brokerLaunchTemplate.latestVersionNumber,
                 },
-                role: ec2Role,
-                userData: getBrokerUserData(i, brokerIps),
-                blockDevices: [
-                    {
-                        deviceName: '/dev/xvda',
-                        volume: ec2.BlockDeviceVolume.ebs(100, {
-                            volumeType: ec2.EbsDeviceVolumeType.GP3,
-                            iops: 3000,
-                            throughput: 125,
-                        }),
-                    },
-                ],
-                keyPair: keyPair,
-                associatePublicIpAddress: false,
+                subnetId: privateSubnets[i].subnetId,
+                userData: cdk.Fn.base64(getBrokerUserData(i, brokerIps).render()),
             });
 
             brokerInstances.push(brokerInstance);
             
             // Add dependency on placement group
-            brokerInstance.node.addDependency(placementGroup);
+            brokerInstance.addDependency(placementGroup);
         }
 
         // Create load test instance
@@ -307,6 +312,20 @@ EOF`,
             `rpk profile create cluster --brokers ${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}`,
             'rpk profile use cluster',
             
+            // Set Redpanda cluster environment variables
+            `echo 'export REDPANDA_BROKERS=${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_BROKERS=${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}' >> /root/.bashrc`,
+            `echo 'export REDPANDA_KAFKA_PORT=9092' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_KAFKA_PORT=9092' >> /root/.bashrc`,
+            `echo 'export REDPANDA_ADMIN_PORT=9644' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_ADMIN_PORT=9644' >> /root/.bashrc`,
+            `echo 'export REDPANDA_SCHEMA_REGISTRY_PORT=8081' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_SCHEMA_REGISTRY_PORT=8081' >> /root/.bashrc`,
+            `echo 'export REDPANDA_PANDAPROXY_PORT=8082' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_PANDAPROXY_PORT=8082' >> /root/.bashrc`,
+            `echo 'export REDPANDA_BROKER_IPS=${brokerIps.join(',')}' >> /home/ec2-user/.bashrc`,
+            `echo 'export REDPANDA_BROKER_IPS=${brokerIps.join(',')}' >> /root/.bashrc`,
+            
             // Set S3 bucket name as environment variable
             `echo 'export REDPANDA_S3_BUCKET=${s3Bucket.bucketName}' >> /home/ec2-user/.bashrc`,
             `echo 'export REDPANDA_S3_BUCKET=${s3Bucket.bucketName}' >> /root/.bashrc`,
@@ -316,15 +335,19 @@ EOF`,
 #!/usr/bin/env python3
 import time
 import json
+import os
 from kafka import KafkaProducer, KafkaConsumer
 from kafka.errors import KafkaError
 import threading
 import statistics
 
 def latency_test():
+    # Get broker list from environment variable
+    brokers = os.environ.get('REDPANDA_BROKERS', '${brokerIps.join(',').replace(/\d+\.\d+\.\d+\.\d+/g, (ip) => ip + ':9092')}').split(',')
+    
     # Configure for low latency
     producer = KafkaProducer(
-        bootstrap_servers=['${brokerIps[0]}:9092', '${brokerIps[1]}:9092', '${brokerIps[2]}:9092'],
+        bootstrap_servers=brokers,
         value_serializer=lambda v: json.dumps(v).encode('utf-8'),
         acks='all',
         retries=0,
@@ -336,7 +359,7 @@ def latency_test():
     
     consumer = KafkaConsumer(
         'latency-test',
-        bootstrap_servers=['${brokerIps[0]}:9092', '${brokerIps[1]}:9092', '${brokerIps[2]}:9092'],
+        bootstrap_servers=brokers,
         value_deserializer=lambda m: json.loads(m.decode('utf-8')),
         enable_auto_commit=False,
         auto_offset_reset='latest',
@@ -467,6 +490,27 @@ EOF`,
             'chmod +x /home/ec2-user/s3_test.py',
             'chown ec2-user:ec2-user /home/ec2-user/s3_test.py',
             
+            // Create Redpanda environment helper script
+            `cat > /home/ec2-user/redpanda_env.sh << 'EOF'
+#!/bin/bash
+echo "=== Redpanda Cluster Environment Variables ==="
+echo "REDPANDA_BROKERS: $REDPANDA_BROKERS"
+echo "REDPANDA_BROKER_IPS: $REDPANDA_BROKER_IPS"
+echo "REDPANDA_KAFKA_PORT: $REDPANDA_KAFKA_PORT"
+echo "REDPANDA_ADMIN_PORT: $REDPANDA_ADMIN_PORT"
+echo "REDPANDA_SCHEMA_REGISTRY_PORT: $REDPANDA_SCHEMA_REGISTRY_PORT"
+echo "REDPANDA_PANDAPROXY_PORT: $REDPANDA_PANDAPROXY_PORT"
+echo "REDPANDA_S3_BUCKET: $REDPANDA_S3_BUCKET"
+echo ""
+echo "=== Quick Commands ==="
+echo "RPK cluster info: rpk cluster info"
+echo "RPK topic list: rpk topic list"
+echo "Run latency test: python3 latency_test.py"
+echo "Run S3 test: python3 s3_test.py"
+EOF`,
+            'chmod +x /home/ec2-user/redpanda_env.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/redpanda_env.sh',
+            
             // Create simple S3 helper script
             `echo '#!/bin/bash' > /home/ec2-user/s3_helper.sh`,
             `echo 'export REDPANDA_S3_BUCKET=${s3Bucket.bucketName}' >> /home/ec2-user/s3_helper.sh`,
@@ -509,7 +553,7 @@ EOF`,
         });
 
         new cdk.CfnOutput(this, REDPANDA_BROKER_IPS, {
-            value: brokerInstances.map(instance => instance.instancePrivateIp).join(','),
+            value: brokerInstances.map(instance => instance.attrPrivateIp).join(','),
             description: 'Redpanda Broker Private IPs',
             exportName: REDPANDA_BROKER_IPS,
         });
