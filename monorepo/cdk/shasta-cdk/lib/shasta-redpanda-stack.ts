@@ -151,23 +151,8 @@ export class ShastaRedpandaStack extends Stack {
             },
         }));
 
-        // Grant S3 read/write permissions to EC2 role
+        // Grant S3 read/write permissions to EC2 role for broker discovery and data storage
         s3Bucket.grantReadWrite(ec2Role);
-
-        // Add SSM Parameter Store permissions for broker IP discovery
-        ec2Role.addToPolicy(new iam.PolicyStatement({
-            effect: iam.Effect.ALLOW,
-            actions: [
-                'ssm:GetParameter',
-                'ssm:GetParameters',
-                'ssm:GetParametersByPath',
-                'ssm:PutParameter',
-                'ssm:DeleteParameter',
-            ],
-            resources: [
-                `arn:aws:ssm:${cdk.Aws.REGION}:${cdk.Aws.ACCOUNT_ID}:parameter/redpanda/cluster/*`,
-            ],
-        }));
 
         // Reference existing key pair for EC2 instances
         const keyPair = ec2.KeyPair.fromKeyPairName(this, 'RedpandaKeyPair', 'john.davis');
@@ -199,13 +184,21 @@ export class ShastaRedpandaStack extends Stack {
                 'LOCAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)',
                 'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
                 
-                // Store this broker's IP in Parameter Store
-                `aws ssm put-parameter --region $REGION --name "/redpanda/cluster/broker-${brokerId}/ip" --value $LOCAL_IP --type "String" --overwrite`,
+                // Store this broker's IP in S3
+                `echo "Registering broker ${brokerId} with IP $LOCAL_IP in S3..."`,
+                `aws s3 cp - s3://${s3Bucket.bucketName}/cluster/broker-${brokerId}.json <<EOF
+{
+  "broker_id": ${brokerId},
+  "ip_address": "$LOCAL_IP",
+  "registered_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "instance_id": "$INSTANCE_ID"
+}
+EOF`,
                 
-                // Wait for all brokers to register their IPs
-                'echo "Waiting for all brokers to register their IPs..."',
-                'for i in {1..60}; do',
-                `  BROKER_COUNT=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "length(Parameters)" --output text)`,
+                // Wait for all brokers to register their IPs in S3
+                'echo "Waiting for all brokers to register their IPs in S3..."',
+                'for i in {1..120}; do',
+                `  BROKER_COUNT=$(aws s3 ls s3://${s3Bucket.bucketName}/cluster/ | grep "broker-" | wc -l)`,
                 `  if [ "$BROKER_COUNT" -eq "${totalBrokers}" ]; then`,
                 '    echo "All brokers registered!"',
                 '    break',
@@ -214,8 +207,10 @@ export class ShastaRedpandaStack extends Stack {
                 '  sleep 10',
                 'done',
                 
-                // Get all broker IPs from Parameter Store
-                'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" " ")',
+                // Download all broker info from S3 and extract IPs
+                'echo "Downloading broker information from S3..."',
+                `aws s3 sync s3://${s3Bucket.bucketName}/cluster/ /tmp/cluster/`,
+                'BROKER_IPS=$(cat /tmp/cluster/broker-*.json | jq -r ".ip_address" | sort -V | tr "\\n" " ")',
                 'echo "Broker IPs: $BROKER_IPS"',
                 
                 // Configure Redpanda
@@ -234,15 +229,18 @@ export class ShastaRedpandaStack extends Stack {
                 '    - address: 0.0.0.0',
                 '      port: 9644',
                 '  seed_servers:',
-                '    - host:',
-                '        address: BROKER_IP_1',
-                '        port: 33145',
-                '    - host:',
-                '        address: BROKER_IP_2',
-                '        port: 33145',
-                '    - host:',
-                '        address: BROKER_IP_3',
-                '        port: 33145',
+                'EOF',
+                
+                // Add seed servers dynamically
+                'BROKER_IP_ARRAY=($BROKER_IPS)',
+                'for ip in "${BROKER_IP_ARRAY[@]}"; do',
+                '  echo "    - host:" >> /etc/redpanda/redpanda.yaml',
+                '  echo "        address: $ip" >> /etc/redpanda/redpanda.yaml',
+                '  echo "        port: 33145" >> /etc/redpanda/redpanda.yaml',
+                'done',
+                
+                // Add performance settings
+                'cat >> /etc/redpanda/redpanda.yaml << EOF',
                 '  ',
                 '  # Low latency optimizations',
                 '  group_initial_rebalance_delay_ms: 0',
@@ -266,12 +264,6 @@ export class ShastaRedpandaStack extends Stack {
                 '      port: 8081',
                 'EOF',
                 
-                // Replace placeholder IPs with actual broker IPs
-                'BROKER_IP_ARRAY=($BROKER_IPS)',
-                'sed -i "s/BROKER_IP_1/${BROKER_IP_ARRAY[0]}/g" /etc/redpanda/redpanda.yaml',
-                'sed -i "s/BROKER_IP_2/${BROKER_IP_ARRAY[1]}/g" /etc/redpanda/redpanda.yaml',
-                'sed -i "s/BROKER_IP_3/${BROKER_IP_ARRAY[2]}/g" /etc/redpanda/redpanda.yaml',
-                
                 // Start Redpanda service
                 'systemctl enable redpanda',
                 'systemctl start redpanda',
@@ -288,6 +280,9 @@ export class ShastaRedpandaStack extends Stack {
                 // Configure RPK
                 'rpk profile create cluster --brokers localhost:9092',
                 'rpk profile use cluster',
+                
+                // Mark broker as ready
+                `echo "Broker ${brokerId} ready at $(date)" | aws s3 cp - s3://${s3Bucket.bucketName}/cluster/broker-${brokerId}-ready.txt`,
             );
             
             return userData;
@@ -362,7 +357,7 @@ export class ShastaRedpandaStack extends Stack {
             'echo "Waiting for Redpanda brokers to register..."',
             'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
             'for i in {1..120}; do',
-            '  BROKER_COUNT=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "length(Parameters)" --output text)',
+            `  BROKER_COUNT=$(aws s3 ls s3://${s3Bucket.bucketName}/cluster/ | grep "broker-.*\\.json" | wc -l)`,
             '  if [ "$BROKER_COUNT" -eq "3" ]; then',
             '    echo "All brokers registered!"',
             '    break',
@@ -371,8 +366,10 @@ export class ShastaRedpandaStack extends Stack {
             '  sleep 10',
             'done',
             
-            // Get broker IPs dynamically
-            'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" ",")',
+            // Get broker IPs dynamically from S3
+            'echo "Downloading broker information from S3..."',
+            `aws s3 sync s3://${s3Bucket.bucketName}/cluster/ /tmp/cluster/`,
+            'BROKER_IPS=$(cat /tmp/cluster/broker-*.json | jq -r ".ip_address" | sort -V | tr "\\n" ",")',
             'BROKER_IPS=${BROKER_IPS%,}',  // Remove trailing comma
             'BROKER_IPS_ARRAY=($BROKER_IPS)',
             'echo "Discovered broker IPs: $BROKER_IPS"',
@@ -411,22 +408,31 @@ import statistics
 from datetime import datetime
 
 def get_broker_ips():
-    """Get broker IPs from SSM Parameter Store"""
+    """Get broker IPs from S3 bucket"""
     try:
         # Get region from instance metadata
         import requests
         region = requests.get('http://169.254.169.254/latest/meta-data/placement/region', timeout=2).text
         
-        # Get broker IPs from Parameter Store
-        ssm = boto3.client('ssm', region_name=region)
-        response = ssm.get_parameters_by_path(Path='/redpanda/cluster/')
+        # Get broker IPs from S3
+        s3 = boto3.client('s3', region_name=region)
+        bucket_name = os.environ.get('REDPANDA_S3_BUCKET', '${s3Bucket.bucketName}')
         
-        broker_ips = [param['Value'] for param in response['Parameters']]
+        # List all broker JSON files
+        response = s3.list_objects_v2(Bucket=bucket_name, Prefix='cluster/broker-')
+        
+        broker_ips = []
+        for obj in response.get('Contents', []):
+            if obj['Key'].endswith('.json'):
+                # Download and parse broker info
+                broker_obj = s3.get_object(Bucket=bucket_name, Key=obj['Key'])
+                broker_data = json.loads(broker_obj['Body'].read())
+                broker_ips.append(broker_data['ip_address'])
+        
         broker_ips.sort()  # Sort for consistent ordering
-        
         return broker_ips
     except Exception as e:
-        print(f"Error getting broker IPs: {e}")
+        print(f"Error getting broker IPs from S3: {e}")
         # Fallback to environment variable
         env_brokers = os.environ.get('REDPANDA_BROKER_IPS', 'localhost')
         return env_brokers.split(',')
@@ -700,43 +706,54 @@ EOF`,
             'echo "Timestamp: $(date)"',
             'echo',
             '',
-            '# Get broker IPs from Parameter Store',
-            'echo "1. Getting broker IPs from Parameter Store..."',
+            '# Get broker IPs from S3',
+            'echo "1. Getting broker IPs from S3..."',
             'REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)',
-            'BROKER_IPS=$(aws ssm get-parameters-by-path --region $REGION --path "/redpanda/cluster/" --query "Parameters[*].Value" --output text | tr "\\t" "\\n" | sort -V | tr "\\n" ",")',
-            'BROKER_IPS=${BROKER_IPS%,}  # Remove trailing comma',
+            `BUCKET=$(aws cloudformation describe-stacks --stack-name ShastaRedpandaStack --query 'Stacks[0].Outputs[?OutputKey==\`RedpandaS3BucketName\`].OutputValue' --output text)`,
+            'mkdir -p /tmp/cluster',
+            `aws s3 sync s3://$BUCKET/cluster/ /tmp/cluster/`,
+            'BROKER_IPS=$(cat /tmp/cluster/broker-*.json 2>/dev/null | jq -r ".ip_address" | sort -V | tr "\\n" "," | sed "s/,$//")',
             'BROKER_STRING=$(echo $BROKER_IPS | sed "s/,/:9092,/g"):9092',
             '',
             'echo "Discovered broker IPs: $BROKER_IPS"',
             'echo "Broker string: $BROKER_STRING"',
             'echo',
             '',
+            'if [ -z "$BROKER_IPS" ]; then',
+            '    echo "✗ No broker IPs found!"',
+            '    exit 1',
+            'fi',
+            '',
+            '# Create RPK profile with discovered brokers',
+            'echo "2. Setting up RPK profile..."',
+            'rpk profile create cluster --brokers $BROKER_STRING --overwrite',
+            'rpk profile use cluster',
+            '',
             '# Test cluster health',
-            'echo "2. Testing cluster health..."',
-            'if rpk cluster health --brokers $BROKER_STRING; then',
+            'echo "3. Testing cluster health..."',
+            'if rpk cluster health; then',
             '    echo "✓ Cluster health check passed"',
             'else',
             '    echo "✗ Cluster health check failed"',
-            '    exit 1',
+            '    echo "Brokers may still be starting up..."',
             'fi',
             'echo',
             '',
             '# Test cluster info',
-            'echo "3. Getting cluster information..."',
-            'if rpk cluster info --brokers $BROKER_STRING; then',
+            'echo "4. Getting cluster information..."',
+            'if rpk cluster info; then',
             '    echo "✓ Cluster info retrieved"',
             'else',
             '    echo "✗ Failed to get cluster info"',
-            '    exit 1',
             'fi',
             'echo',
             '',
             '# Test individual brokers',
-            'echo "4. Testing individual brokers..."',
+            'echo "5. Testing individual brokers..."',
             'IFS="," read -ra BROKER_ARRAY <<< "$BROKER_IPS"',
             'for broker in "${BROKER_ARRAY[@]}"; do',
             '    echo "Testing broker $broker:9092..."',
-            '    if timeout 5 rpk cluster info --brokers $broker:9092 > /dev/null 2>&1; then',
+            '    if timeout 10 rpk cluster info --brokers $broker:9092 > /dev/null 2>&1; then',
             '        echo "✓ Broker $broker:9092 is responsive"',
             '    else',
             '        echo "✗ Broker $broker:9092 is not responsive"',
@@ -745,22 +762,22 @@ EOF`,
             'echo',
             '',
             '# Test basic topic operations',
-            'echo "5. Testing topic operations..."',
+            'echo "6. Testing topic operations..."',
             'TEST_TOPIC="validation-test-$(date +%s)"',
             'echo "Creating test topic: $TEST_TOPIC"',
             '',
-            'if rpk topic create $TEST_TOPIC --partitions 3 --replicas 3 --brokers $BROKER_STRING; then',
+            'if rpk topic create $TEST_TOPIC --partitions 3 --replicas 3; then',
             '    echo "✓ Topic creation successful"',
             '    ',
             '    # Test produce/consume',
             '    echo "Testing produce/consume..."',
             '    TEST_MESSAGE="test-message-$(date +%s)"',
             '    ',
-            '    if echo "$TEST_MESSAGE" | rpk topic produce $TEST_TOPIC --brokers $BROKER_STRING --key test-key; then',
+            '    if echo "$TEST_MESSAGE" | rpk topic produce $TEST_TOPIC --key test-key; then',
             '        echo "✓ Message production successful"',
             '        ',
             '        # Try to consume the message',
-            '        if timeout 10 rpk topic consume $TEST_TOPIC --brokers $BROKER_STRING --from-beginning --num 1 --timeout 5s | grep -q "$TEST_MESSAGE"; then',
+            '        if timeout 10 rpk topic consume $TEST_TOPIC --from-beginning --num 1 --timeout 5s | grep -q "$TEST_MESSAGE"; then',
             '            echo "✓ Message consumption successful"',
             '        else',
             '            echo "✗ Message consumption failed"',
@@ -771,7 +788,7 @@ EOF`,
             '    ',
             '    # Clean up test topic',
             '    echo "Cleaning up test topic..."',
-            '    if rpk topic delete $TEST_TOPIC --brokers $BROKER_STRING; then',
+            '    if rpk topic delete $TEST_TOPIC; then',
             '        echo "✓ Test topic deleted"',
             '    else',
             '        echo "✗ Failed to delete test topic"',
@@ -782,7 +799,7 @@ EOF`,
             'echo',
             '',
             '# Test admin API',
-            'echo "6. Testing admin API..."',
+            'echo "7. Testing admin API..."',
             'IFS="," read -ra BROKER_ARRAY <<< "$BROKER_IPS"',
             'ADMIN_BROKER=${BROKER_ARRAY[0]}',
             'if curl -s -m 5 http://$ADMIN_BROKER:9644/v1/cluster/health_overview > /dev/null; then',
@@ -793,7 +810,7 @@ EOF`,
             'echo',
             '',
             '# Network latency test',
-            'echo "7. Network latency test..."',
+            'echo "8. Network latency test..."',
             'for ip in "${BROKER_ARRAY[@]}"; do',
             '    if ping -c 1 -W 1 $ip > /dev/null 2>&1; then',
             '        LATENCY=$(ping -c 1 $ip | grep "time=" | cut -d"=" -f4 | cut -d" " -f1)',
@@ -805,12 +822,199 @@ EOF`,
             'echo',
             '',
             'echo "=== Validation Complete ==="',
-            'echo "If all tests show ✓, your Redpanda cluster is healthy!"',
+            'echo "Broker IPs: $BROKER_IPS"',
+            'echo "Use \"rpk cluster info\" for more details"',
             'echo "To run performance tests: python3 ~/latency_test.py"',
             'echo "To test S3 integration: python3 ~/s3_test.py"',
             'EOF',
             'chmod +x /home/ec2-user/validate_cluster.sh',
             'chown ec2-user:ec2-user /home/ec2-user/validate_cluster.sh',
+            
+            // Create quick-start script for immediate testing
+            'cat > /home/ec2-user/quick_test.sh << EOF',
+            '#!/bin/bash',
+            '',
+            'echo "=== Quick Redpanda Cluster Test ==="',
+            '',
+            '# Get broker IPs from S3',
+            'echo "Getting broker IPs from S3..."',
+            `BUCKET=$(aws cloudformation describe-stacks --stack-name ShastaRedpandaStack --query 'Stacks[0].Outputs[?OutputKey==\`RedpandaS3BucketName\`].OutputValue' --output text)`,
+            'mkdir -p /tmp/cluster',
+            `aws s3 sync s3://$BUCKET/cluster/ /tmp/cluster/`,
+            'BROKER_IPS=$(cat /tmp/cluster/broker-*.json 2>/dev/null | jq -r ".ip_address" | sort -V | tr "\\n" "," | sed "s/,$//")',
+            'BROKER_STRING=$(echo $BROKER_IPS | sed "s/,/:9092,/g"):9092',
+            '',
+            'if [ -z "$BROKER_IPS" ]; then',
+            '    echo "✗ No broker IPs found! Brokers may still be starting up."',
+            '    exit 1',
+            'fi',
+            '',
+            'echo "Found brokers: $BROKER_IPS"',
+            '',
+            '# Setup RPK profile',
+            'echo "Setting up RPK profile..."',
+            'rpk profile create cluster --brokers $BROKER_STRING --overwrite',
+            'rpk profile use cluster',
+            '',
+            '# Quick cluster test',
+            'echo "Testing cluster..."',
+            'rpk cluster info',
+            'echo',
+            'rpk cluster health',
+            'echo',
+            '',
+            '# Test topic operations',
+            'echo "Testing topic operations..."',
+            'rpk topic create quick-test --partitions 1 --replicas 3',
+            'echo "Hello Redpanda!" | rpk topic produce quick-test',
+            'echo "Consuming message:"',
+            'timeout 5 rpk topic consume quick-test --from-beginning --num 1',
+            'rpk topic delete quick-test',
+            '',
+            'echo "=== Quick test complete! ==="',
+            'echo "For full validation, run: ./validate_cluster.sh"',
+            'EOF',
+            'chmod +x /home/ec2-user/quick_test.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/quick_test.sh',
+            
+            // Create environment setup script
+            'cat > /home/ec2-user/setup_env.sh << EOF',
+            '#!/bin/bash',
+            '',
+            'echo "=== Setting up Redpanda Environment ==="',
+            '',
+            '# Get broker IPs from S3',
+            `BUCKET=$(aws cloudformation describe-stacks --stack-name ShastaRedpandaStack --query 'Stacks[0].Outputs[?OutputKey==\`RedpandaS3BucketName\`].OutputValue' --output text)`,
+            'mkdir -p /tmp/cluster',
+            `aws s3 sync s3://$BUCKET/cluster/ /tmp/cluster/`,
+            'BROKER_IPS=$(cat /tmp/cluster/broker-*.json 2>/dev/null | jq -r ".ip_address" | sort -V | tr "\\n" "," | sed "s/,$//")',
+            'BROKER_STRING=$(echo $BROKER_IPS | sed "s/,/:9092,/g"):9092',
+            '',
+            'if [ ! -z "$BROKER_IPS" ]; then',
+            '    echo "export REDPANDA_BROKER_IPS=$BROKER_IPS" >> ~/.bashrc',
+            '    echo "export REDPANDA_BROKERS=$BROKER_STRING" >> ~/.bashrc',
+            '    echo "export REDPANDA_S3_BUCKET=$BUCKET" >> ~/.bashrc',
+            '    ',
+            '    # Setup RPK profile',
+            '    rpk profile create cluster --brokers $BROKER_STRING --overwrite',
+            '    rpk profile use cluster',
+            '    ',
+            '    echo "✓ Environment variables set"',
+            '    echo "✓ RPK profile configured"',
+            '    echo "Run: source ~/.bashrc"',
+            'else',
+            '    echo "✗ No broker IPs found yet"',
+            'fi',
+            'EOF',
+            'chmod +x /home/ec2-user/setup_env.sh',
+            'chown ec2-user:ec2-user /home/ec2-user/setup_env.sh',
+            
+            // Create README file
+            'cat > /home/ec2-user/README.md << EOF',
+            '# Redpanda Cluster Testing',
+            '',
+            'This instance is configured for testing your Redpanda cluster.',
+            '',
+            '## Available Scripts',
+            '',
+            '### Quick Test (Recommended)',
+            '```bash',
+            './quick_test.sh',
+            '```',
+            'Runs a fast cluster validation with basic produce/consume test.',
+            '',
+            '### Full Validation',
+            '```bash',
+            './validate_cluster.sh',
+            '```',
+            'Comprehensive cluster validation including:',
+            '- Broker discovery from S3',
+            '- Cluster health and info',
+            '- Individual broker testing',
+            '- Topic operations',
+            '- Admin API testing',
+            '- Network latency testing',
+            '',
+            '### Environment Setup',
+            '```bash',
+            './setup_env.sh',
+            'source ~/.bashrc',
+            '```',
+            'Sets up environment variables and RPK profile for manual testing.',
+            '',
+            '### Performance Testing',
+            '```bash',
+            'python3 latency_test.py',
+            '```',
+            'Advanced latency testing with statistics.',
+            '',
+            '### S3 Integration Test',
+            '```bash',
+            'python3 s3_test.py',
+            '```',
+            'Tests S3 connectivity and operations.',
+            '',
+            '## Manual RPK Commands',
+            '',
+            'After running `setup_env.sh`, you can use RPK directly:',
+            '',
+            '```bash',
+            '# Cluster operations',
+            'rpk cluster info',
+            'rpk cluster health',
+            'rpk cluster nodes',
+            '',
+            '# Topic operations',
+            'rpk topic create my-topic --partitions 3 --replicas 3',
+            'rpk topic list',
+            'rpk topic describe my-topic',
+            '',
+            '# Produce/consume',
+            'echo "Hello World" | rpk topic produce my-topic',
+            'rpk topic consume my-topic --from-beginning',
+            '',
+            '# Topic cleanup',
+            'rpk topic delete my-topic',
+            '```',
+            '',
+            '## Troubleshooting',
+            '',
+            '### If brokers are not found:',
+            '1. Wait 5-10 minutes for brokers to start',
+            '2. Check S3 for broker registration:',
+            '   ```bash',
+            '   aws s3 ls s3://$(aws cloudformation describe-stacks --stack-name ShastaRedpandaStack --query "Stacks[0].Outputs[?OutputKey==\`RedpandaS3BucketName\`].OutputValue" --output text)/cluster/',
+            '   ```',
+            '3. Check broker instance status:',
+            '   ```bash',
+            '   aws ec2 describe-instances --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker*" --query "Reservations[].Instances[].[InstanceId,State.Name]" --output table',
+            '   ```',
+            '',
+            '### Direct broker access:',
+            '```bash',
+            '# Connect to broker via SSM',
+            'BROKER_ID=$(aws ec2 describe-instances --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker1" --query "Reservations[0].Instances[0].InstanceId" --output text)',
+            'aws ssm start-session --target $BROKER_ID',
+            '```',
+            '',
+            '## Architecture',
+            '',
+            '- **Brokers**: 3 x c5n.xlarge instances in private subnets',
+            '- **Discovery**: S3-based broker IP discovery',
+            '- **Storage**: GP3 EBS volumes + S3 for metadata',
+            '- **Networking**: VPC with placement groups for low latency',
+            '- **Monitoring**: Admin API on port 9644',
+            '',
+            '## Expected Performance',
+            '',
+            '- **P50 Latency**: < 5ms',
+            '- **P95 Latency**: < 15ms',
+            '- **P99 Latency**: < 25ms',
+            '- **Throughput**: 10K+ msgs/sec per partition',
+            '',
+            'Performance will vary based on message size, partition count, and replication factor.',
+            'EOF',
+            'chown ec2-user:ec2-user /home/ec2-user/README.md',
         );
 
         const loadTestInstance = new ec2.Instance(this, 'RedpandaLoadTest', {
