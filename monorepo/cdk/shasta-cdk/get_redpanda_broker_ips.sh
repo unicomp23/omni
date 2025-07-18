@@ -29,9 +29,9 @@ echo -e "${BLUE}Getting Redpanda Broker Instance details...${NC}"
 # Get broker instance information
 BROKER_QUERY='aws ec2 describe-instances \
     --region us-east-1 \
-    --filters "Name=tag:Purpose,Values=RedpandaBroker" \
+    --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker*" \
              "Name=instance-state-name,Values=running" \
-    --query "Reservations[].Instances[].[PrivateIpAddress,PublicIpAddress,InstanceId,InstanceType,Tags[?Key==\"Name\"].Value|[0],Tags[?Key==\"BrokerId\"].Value|[0]]" \
+    --query "Reservations[].Instances[].[PrivateIpAddress,PublicIpAddress,InstanceId,InstanceType,Tags[?Key==\"Name\"].Value|[0],AvailabilityZone]" \
     --output table'
 
 echo -e "${YELLOW}Running: $BROKER_QUERY${NC}"
@@ -45,20 +45,20 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
     # Get private IPs for SSH commands
     BROKER_IPS=$(aws ec2 describe-instances \
         --region us-east-1 \
-        --filters "Name=tag:Purpose,Values=RedpandaBroker" \
+        --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker*" \
                  "Name=instance-state-name,Values=running" \
         --query "Reservations[].Instances[].PrivateIpAddress" \
         --output text 2>/dev/null)
     
-    # Get public IPs for direct SSH access
+    # Get public IPs for direct SSH access - Note: Brokers are in private subnets, no public IPs
     BROKER_PUBLIC_IPS=$(aws ec2 describe-instances \
         --region us-east-1 \
-        --filters "Name=tag:Purpose,Values=RedpandaBroker" \
+        --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker*" \
                  "Name=instance-state-name,Values=running" \
         --query "Reservations[].Instances[].PublicIpAddress" \
         --output text 2>/dev/null)
     
-    if [ -n "$BROKER_IPS" ] && [ -n "$BROKER_PUBLIC_IPS" ]; then
+    if [ -n "$BROKER_IPS" ]; then
         echo -e "${BLUE}===========================================${NC}"
         echo -e "${BLUE}🔐 SSH ACCESS TO BROKER INSTANCES${NC}"
         echo -e "${BLUE}===========================================${NC}"
@@ -66,23 +66,8 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
         echo -e "${GREEN}📝 SSH Config entries for ~/.ssh/config:${NC}"
         echo
         
-        # Config for direct public IP access
-        echo -e "${YELLOW}# Direct access via public IPs (recommended for EC2 Instance Connect)${NC}"
-        COUNTER=1
-        for IP in $BROKER_PUBLIC_IPS; do
-            echo "Host redpanda-broker-$COUNTER-public"
-            echo "    HostName $IP"
-            echo "    User ec2-user"
-            echo "    IdentityFile ~/.ssh/john.davis.pem"
-            echo "    StrictHostKeyChecking no"
-            echo "    UserKnownHostsFile /dev/null"
-            echo "    LogLevel ERROR"
-            echo
-            ((COUNTER++))
-        done
-        
         # Config for private IP access via jump host
-        echo -e "${YELLOW}# Access via jump host (private IPs)${NC}"
+        echo -e "${YELLOW}# Access via jump host (private IPs only)${NC}"
         COUNTER=1
         for IP in $BROKER_IPS; do
             echo "Host redpanda-broker-$COUNTER"
@@ -101,20 +86,10 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
         echo -e "${BLUE}🚀 SSH COMMANDS${NC}"
         echo -e "${BLUE}===========================================${NC}"
         echo
-        echo -e "${GREEN}Direct SSH to public IPs (recommended):${NC}"
-        COUNTER=1
-        for IP in $BROKER_PUBLIC_IPS; do
-            echo -e "${YELLOW}# Connect to Redpanda Broker $COUNTER (public IP):${NC}"
-            echo "ssh redpanda-broker-$COUNTER-public"
-            echo "# or directly: ssh -i ~/.ssh/john.davis.pem ec2-user@$IP"
-            echo
-            ((COUNTER++))
-        done
-        
-        echo -e "${GREEN}SSH via jump host (private IPs):${NC}"
+        echo -e "${GREEN}SSH via jump host (private IPs only):${NC}"
         COUNTER=1
         for IP in $BROKER_IPS; do
-            echo -e "${YELLOW}# Connect to Redpanda Broker $COUNTER (private IP):${NC}"
+            echo -e "${YELLOW}# Connect to Redpanda Broker $COUNTER:${NC}"
             echo "ssh redpanda-broker-$COUNTER"
             echo
             ((COUNTER++))
@@ -124,8 +99,7 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
         # Get load test instance IP
         LOADTEST_IP=$(aws ec2 describe-instances \
             --region us-east-1 \
-            --filters "Name=tag:Purpose,Values=LoadTesting" \
-                     "Name=tag:Name,Values=RedpandaLoadTestInstance" \
+            --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaLoadTest" \
                      "Name=instance-state-name,Values=running" \
             --query "Reservations[].Instances[].PublicIpAddress" \
             --output text 2>/dev/null)
@@ -149,14 +123,16 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
         # Get instance IDs for Session Manager
         INSTANCE_IDS=$(aws ec2 describe-instances \
             --region us-east-1 \
-            --filters "Name=tag:Purpose,Values=RedpandaBroker" \
+            --filters "Name=tag:Name,Values=ShastaRedpandaStack/RedpandaBroker*" \
                      "Name=instance-state-name,Values=running" \
-            --query "Reservations[].Instances[].[InstanceId,Tags[?Key==\"BrokerId\"].Value|[0]]" \
+            --query "Reservations[].Instances[].[InstanceId,Tags[?Key==\"Name\"].Value|[0]]" \
             --output text 2>/dev/null)
         
         if [ -n "$INSTANCE_IDS" ]; then
-            echo "$INSTANCE_IDS" | while read -r INSTANCE_ID BROKER_ID; do
-                echo -e "${YELLOW}# Connect to Broker $BROKER_ID:${NC}"
+            echo "$INSTANCE_IDS" | while read -r INSTANCE_ID BROKER_NAME; do
+                # Extract broker number from name (ShastaRedpandaStack/RedpandaBroker1 -> 1)
+                BROKER_NUM=$(echo "$BROKER_NAME" | sed 's/.*RedpandaBroker\([0-9]*\).*/\1/')
+                echo -e "${YELLOW}# Connect to Broker $BROKER_NUM:${NC}"
                 echo "aws ssm start-session --target $INSTANCE_ID --region us-east-1"
                 echo
             done
@@ -174,51 +150,52 @@ if BROKER_RESULT=$(eval "$BROKER_QUERY" 2>&1); then
         echo
         echo -e "${GREEN}CLI-based EC2 Instance Connect:${NC}"
         if [ -n "$INSTANCE_IDS" ]; then
-            echo "$INSTANCE_IDS" | while read -r INSTANCE_ID BROKER_ID; do
-                # Get AZ and public IP for the instance
+            echo "$INSTANCE_IDS" | while read -r INSTANCE_ID BROKER_NAME; do
+                # Extract broker number from name (ShastaRedpandaStack/RedpandaBroker1 -> 1)
+                BROKER_NUM=$(echo "$BROKER_NAME" | sed 's/.*RedpandaBroker\([0-9]*\).*/\1/')
+                # Get AZ and private IP for the instance (brokers don't have public IPs)
                 INSTANCE_INFO=$(aws ec2 describe-instances \
                     --region us-east-1 \
                     --instance-ids $INSTANCE_ID \
-                    --query "Reservations[].Instances[].[Placement.AvailabilityZone,PublicIpAddress]" \
+                    --query "Reservations[].Instances[].[Placement.AvailabilityZone,PrivateIpAddress]" \
                     --output text 2>/dev/null)
                 
                 if [ -n "$INSTANCE_INFO" ]; then
                     AZ=$(echo "$INSTANCE_INFO" | cut -f1)
-                    PUBLIC_IP=$(echo "$INSTANCE_INFO" | cut -f2)
+                    PRIVATE_IP=$(echo "$INSTANCE_INFO" | cut -f2)
                     
-                    echo -e "${YELLOW}# Connect to Broker $BROKER_ID (Direct via public IP):${NC}"
-                    echo "aws ec2-instance-connect send-ssh-public-key \\"
-                    echo "    --instance-id $INSTANCE_ID \\"
-                    echo "    --availability-zone $AZ \\"
-                    echo "    --instance-os-user ec2-user \\"
-                    echo "    --ssh-public-key file://~/.ssh/id_rsa.pub"
-                    echo
-                    echo "# Then connect directly:"
-                    echo "ssh ec2-user@$PUBLIC_IP"
+                    echo -e "${YELLOW}# Connect to Broker $BROKER_NUM (Private subnet - use jump host):${NC}"
+                    echo "# Note: Broker instances are in private subnets and don't have public IPs"
+                    echo "# Use SSM Session Manager or SSH via jump host (load test instance)"
+                    echo "aws ssm start-session --target $INSTANCE_ID --region us-east-1"
                     echo
                 fi
             done
         fi
         
         echo -e "${BLUE}===========================================${NC}"
-        echo -e "${BLUE}🐳 DOCKER COMMANDS ON BROKER INSTANCES${NC}"
+        echo -e "${BLUE}🔧 REDPANDA COMMANDS ON BROKER INSTANCES${NC}"
         echo -e "${BLUE}===========================================${NC}"
         echo
         echo -e "${GREEN}Once connected to a broker instance, useful commands:${NC}"
         echo
-        echo -e "${YELLOW}# Check Docker container status:${NC}"
-        echo "docker ps"
+        echo -e "${YELLOW}# Check Redpanda service status:${NC}"
+        echo "sudo systemctl status redpanda"
         echo
         echo -e "${YELLOW}# Check Redpanda logs:${NC}"
-        echo "docker logs redpanda-broker-1  # (or 2, 3 depending on broker)"
+        echo "sudo journalctl -u redpanda -f --no-pager"
+        echo "sudo tail -f /var/log/redpanda/redpanda.log"
         echo
-        echo -e "${YELLOW}# Run health check:${NC}"
-        echo "/usr/local/bin/redpanda-health-check.sh"
+        echo -e "${YELLOW}# Run RPK commands:${NC}"
+        echo "rpk cluster health"
+        echo "rpk cluster info"
+        echo "rpk topic list"
+        echo "rpk cluster config status"
         echo
-        echo -e "${YELLOW}# Execute rpk commands inside container:${NC}"
-        echo "docker exec redpanda-broker-1 rpk cluster health --brokers localhost:9092"
-        echo "docker exec redpanda-broker-1 rpk cluster info --brokers localhost:9092"
-        echo "docker exec redpanda-broker-1 rpk topic list --brokers localhost:9092"
+        echo -e "${YELLOW}# Performance monitoring:${NC}"
+        echo "htop"
+        echo "iotop -o"
+        echo "netstat -tulpn | grep :9092"
         echo
         
     else
@@ -243,23 +220,24 @@ echo "• Load test instance must be running (acts as jump host)"
 echo "• AWS credentials configured"
 echo
 echo -e "${YELLOW}🌐 Network Setup:${NC}"
-echo "• Broker instances are in public subnets with public IPs"
-echo "• Direct access via public IPs or jump host via private IPs"
+echo "• Broker instances are in private subnets (no public IPs)"
+echo "• Access via load test instance as jump host or SSM Session Manager"
 echo "• All instances have Session Manager (SSM) enabled"
 echo "• EC2 Instance Connect enabled for browser-based and CLI access"
 echo
 echo -e "${YELLOW}⚡ Performance:${NC}"
-echo "• Instance Type: c5n.2xlarge (enhanced networking)"
+echo "• Instance Type: c5n.xlarge (enhanced networking)"
 echo "• Low latency network optimizations applied"
-echo "• Docker containers with resource limits"
+echo "• Native Redpanda installation (no Docker overhead)"
+echo "• GP3 storage with 3000 IOPS and 125 MiB/s throughput"
 echo
 echo -e "${YELLOW}🔍 Troubleshooting:${NC}"
-echo "• Direct access via public IPs is now available (no jump host needed)"
-echo "• If direct SSH fails, try Session Manager or EC2 Instance Connect"
+echo "• Broker instances are in private subnets - use SSM or jump host"
+echo "• If SSH via jump host fails, try Session Manager (no jump host needed)"
 echo "• Check security groups allow SSH from EC2 Instance Connect service"
-echo "• Verify instances have public IPs assigned"
+echo "• Verify load test instance has public IP (acts as jump host)"
 echo "• For EC2 Instance Connect, ensure public key is in ~/.ssh/id_rsa.pub"
-echo "• Jump host method still available for private IP access"
+echo "• SSM Session Manager works for private instances without public IPs"
 echo
 echo -e "${YELLOW}🔧 EC2 Instance Connect Troubleshooting:${NC}"
 echo "• If 'Connect' button is grayed out, check instance is running"
