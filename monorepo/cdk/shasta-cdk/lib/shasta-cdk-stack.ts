@@ -110,11 +110,6 @@ export class ShastaCdkStackL1 extends Stack {
         );
         securityGroupInstance.addIngressRule(
             ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
-            ec2.Port.tcp(33145),
-            'allow Redpanda inter-broker communication within VPC'
-        );
-        securityGroupInstance.addIngressRule(
-            ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
             ec2.Port.tcp(9644),
             'allow Prometheus metrics access within VPC'
         );
