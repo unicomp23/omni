@@ -1,3 +1,7 @@
+---
+alwaysApply: true
+---
+
 # RPK CLI Commands and Usage
 
 RPK is the command-line interface for Redpanda, providing comprehensive cluster management and data operations.
@@ -296,7 +300,3 @@ rpk group describe my-app-group --print-lag
 # Check topic throughput
 rpk topic describe high-volume-topic --print-usage
 ```
-description:
-globs:
-alwaysApply: false
----
