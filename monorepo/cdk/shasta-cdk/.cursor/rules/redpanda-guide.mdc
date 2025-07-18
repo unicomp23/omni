@@ -1,0 +1,363 @@
+---
+alwaysApply: true
+description: Comprehensive Redpanda streaming platform guide covering installation, CLI usage, Docker setup, and configuration patterns
+---
+
+# Redpanda Streaming Platform Guide
+
+Redpanda is a streaming data platform that's Kafka API compatible, 10x faster, with no ZooKeeper or JVM dependencies.
+
+## Installation Methods
+
+### Debian/Ubuntu
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.deb.sh' \
+  | sudo -E bash
+sudo apt-get install redpanda
+```
+
+### Fedora/RedHat/Amazon Linux
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh' \
+  | sudo -E bash
+sudo yum install redpanda
+```
+
+### macOS
+```bash
+brew install redpanda-data/tap/redpanda && rpk container start
+```
+
+### Docker Compose (Recommended for Development)
+```yaml
+version: '3.8'
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    command:
+      - redpanda
+      - start
+      - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
+      - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
+    ports:
+      - "18081:8081"
+      - "18082:8082"
+      - "19092:9092"
+      - "19644:9644"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+volumes:
+  redpanda-data:
+```
+
+## RPK CLI Commands
+
+### Installation
+```bash
+# Standalone RPK installation
+curl -LO https://github.com/redpanda-data/redpanda/releases/latest/download/rpk-linux-amd64.zip
+unzip rpk-linux-amd64.zip
+sudo mv rpk /usr/local/bin/
+```
+
+### Profile Management
+```bash
+# Create profile for local development
+rpk profile create local --brokers localhost:19092
+
+# Create profile for remote cluster
+rpk profile create production \
+  --brokers broker1:9092,broker2:9092,broker3:9092 \
+  --sasl-mechanism SCRAM-SHA-256 \
+  --sasl-username myuser \
+  --sasl-password mypassword
+
+# List and use profiles
+rpk profile list
+rpk profile use local
+```
+
+### Cluster Operations
+```bash
+# Cluster information and health
+rpk cluster info
+rpk cluster health
+rpk cluster metadata
+
+# Configuration management
+rpk cluster config get
+rpk cluster config set retention.ms 604800000
+```
+
+### Topic Management
+```bash
+# Create topic with configuration
+rpk topic create orders \
+  --partitions 12 \
+  --replicas 3 \
+  --config cleanup.policy=compact \
+  --config retention.ms=604800000
+
+# List and describe topics
+rpk topic list
+rpk topic describe orders --print-configs
+
+# Modify topics
+rpk topic alter-config orders --set retention.ms=86400000
+rpk topic add-partitions orders --partitions 24
+```
+
+### Producer Operations
+```bash
+# Interactive producer
+rpk topic produce orders
+
+# Produce with key and headers
+rpk topic produce orders \
+  --key user-123 \
+  --header "source:api" \
+  --header "version:1.0"
+
+# Produce from file
+rpk topic produce orders --file messages.json
+```
+
+### Consumer Operations
+```bash
+# Consume messages
+rpk topic consume orders --from-beginning
+rpk topic consume orders --group order-processor
+rpk topic consume orders --format json --num 100
+
+# Consumer group management
+rpk group list
+rpk group describe order-processor --print-lag
+rpk group seek order-processor --to-beginning
+```
+
+### Container Operations (Local Development)
+```bash
+# Start local single-node cluster
+rpk container start
+
+# Start with custom configuration
+rpk container start --memory 2G --cpus 2
+
+# Stop and clean up
+rpk container stop
+rpk container purge
+```
+
+## Schema Registry
+
+### Schema Management
+```bash
+# List schemas
+rpk registry schema list
+
+# Create schema
+rpk registry schema create orders-value --schema @order-schema.json
+
+# Get schema
+rpk registry schema get orders-value --version latest
+```
+
+### Example Avro Schema
+```json
+{
+  "type": "record",
+  "name": "Order",
+  "fields": [
+    {"name": "orderId", "type": "string"},
+    {"name": "customerId", "type": "string"},
+    {"name": "items", "type": {"type": "array", "items": "string"}},
+    {"name": "total", "type": "double"},
+    {"name": "timestamp", "type": "long"}
+  ]
+}
+```
+
+## Security Configuration
+
+### SASL/SCRAM Authentication
+```bash
+# Configure authentication in profile
+rpk profile set sasl.mechanism SCRAM-SHA-256
+rpk profile set sasl.username myuser
+rpk profile set sasl.password mypassword
+```
+
+### TLS Configuration
+```bash
+# Configure TLS
+rpk profile set tls.enabled true
+rpk profile set tls.ca-cert-file ca.crt
+rpk profile set tls.cert-file client.crt
+rpk profile set tls.key-file client.key
+```
+
+### ACL Management
+```bash
+# Create ACL for user
+rpk acl create \
+  --allow-principal User:alice \
+  --operation read,write \
+  --topic orders
+
+# List ACLs
+rpk acl list --principal User:alice
+```
+
+## Tiered Storage
+
+### Configuration
+```yaml
+# In docker-compose.yml
+redpanda:
+  environment:
+    REDPANDA_CLOUD_STORAGE_ENABLED: "true"
+    REDPANDA_CLOUD_STORAGE_REGION: "us-east-1"
+    REDPANDA_CLOUD_STORAGE_BUCKET: "my-redpanda-bucket"
+```
+
+### Monitoring
+```bash
+# Check tiered storage usage
+rpk cluster logdirs describe --topics orders
+```
+
+## Redpanda Connect (Data Pipelines)
+
+### Example Pipeline Configuration
+```yaml
+# generate-orders.yaml
+input:
+  generate:
+    interval: 1s
+    mapping: |
+      root.order_id = uuid_v4()
+      root.customer_id = "customer-" + counter()
+      root.amount = random_int(min:10, max:1000)
+      root.timestamp = now()
+
+pipeline:
+  processors:
+    - mapping: |
+        root.processed_at = now()
+        root.amount_usd = this.amount
+
+output:
+  kafka_franz:
+    seed_brokers: ["localhost:19092"]
+    topic: "orders"
+    max_in_flight: 1
+```
+
+### Run Pipeline
+```bash
+rpk connect run generate-orders.yaml
+```
+
+## Common Configuration Patterns
+
+### Broker Configuration
+```bash
+# Performance tuning
+rpk cluster config set group_initial_rebalance_delay_ms 3000
+rpk cluster config set log_segment_size 134217728
+rpk cluster config set log_retention_bytes 107374182400
+
+# Memory settings
+rpk cluster config set memory_abort_on_alloc_failure true
+rpk cluster config set seastar_memory_reserve_memory 2G
+```
+
+### Topic Configuration Best Practices
+```bash
+# High-throughput topic
+rpk topic create high-volume \
+  --partitions 24 \
+  --replicas 3 \
+  --config batch.max.bytes=1048576 \
+  --config linger.ms=100 \
+  --config compression.type=snappy
+
+# Compacted topic for state
+rpk topic create user-state \
+  --partitions 12 \
+  --replicas 3 \
+  --config cleanup.policy=compact \
+  --config min.cleanable.dirty.ratio=0.1
+```
+
+## CDK Integration Considerations
+
+### Environment Variables for CDK
+```typescript
+// In your CDK stack
+const redpandaConfig = {
+  brokers: process.env.REDPANDA_BROKERS || 'localhost:19092',
+  schemaRegistry: process.env.REDPANDA_SCHEMA_REGISTRY || 'http://localhost:18081',
+  username: process.env.REDPANDA_USERNAME,
+  password: process.env.REDPANDA_PASSWORD,
+}
+```
+
+### Health Checks for CDK Deployments
+```bash
+# Health check script
+#!/bin/bash
+rpk cluster health --brokers $REDPANDA_BROKERS
+rpk topic list --brokers $REDPANDA_BROKERS
+```
+
+## Monitoring and Troubleshooting
+
+### Key Metrics to Monitor
+```bash
+# Consumer lag
+rpk group describe my-group --print-lag
+
+# Topic throughput
+rpk topic describe high-volume --print-usage
+
+# Cluster health
+rpk cluster health --detailed
+```
+
+### Debug Commands
+```bash
+# Debug producer issues
+rpk topic produce test-topic --verbose
+
+# Debug consumer issues
+rpk topic consume test-topic --verbose --print-headers
+
+# Cluster diagnostics
+rpk cluster info --detailed
+```
+
+## Best Practices
+
+1. **Use profiles** for different environments (local, staging, production)
+2. **Configure appropriate partitions** based on expected throughput
+3. **Use compaction** for state topics and key-value stores
+4. **Enable tiered storage** for long-term data retention
+5. **Set up proper monitoring** for consumer lag and throughput
+6. **Use schema registry** for data governance and evolution
+7. **Configure security** with SASL/SCRAM and TLS for production
+8. **Test with rpk container** for local development
+
+## Resources
+
+- [Redpanda Documentation](https://docs.redpanda.com/)
+- [RPK CLI Reference](https://docs.redpanda.com/current/reference/rpk/)
+- [Redpanda Connect Documentation](https://docs.redpanda.com/redpanda-connect/)
+- [GitHub Repository](https://github.com/redpanda-data/redpanda)

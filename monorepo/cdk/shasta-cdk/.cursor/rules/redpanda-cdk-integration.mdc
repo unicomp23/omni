@@ -1,292 +1,427 @@
-# Redpanda CDK Integration
+---
+alwaysApply: false
+---
 
-Integration patterns for using Redpanda with AWS CDK infrastructure, specifically for the Shasta CDK project.
+# Redpanda CDK Integration Guide
 
-## Current Infrastructure Context
+This guide covers AWS CDK patterns for deploying and integrating with Redpanda streaming platform.
 
-Based on the existing [bin/shasta-cdk.ts](mdc:bin/shasta-cdk.ts) and [lib/shasta-cdk-stack.ts](mdc:lib/shasta-cdk-stack.ts), the project uses:
-- AWS MSK (Managed Streaming for Kafka) on port 9092
-- MemoryDB for Redis-compatible caching
-- VPC with public and private subnets
-- Security groups for service communication
-- ECR for container registry
+## CDK Redpanda ECS Deployment
 
-## Redpanda as MSK Alternative
-
-### Migration Considerations
-When migrating from MSK to Redpanda:
-
-1. **Port Compatibility**: Redpanda uses the same Kafka API on port 9092
-2. **Security Groups**: Existing security group rules will work
-3. **VPC Configuration**: Can reuse existing VPC and subnet configuration
-4. **Client Libraries**: Existing Kafka clients work without modification
-
-### EC2-based Redpanda Deployment
-
-```typescript
-// Add to existing security group configuration
-securityGroupInstance.addIngressRule(
-    ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
-    ec2.Port.tcp(8082),
-    'allow Redpanda REST API access within VPC'
-);
-securityGroupInstance.addIngressRule(
-    ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
-    ec2.Port.tcp(8081),
-    'allow Redpanda Schema Registry access within VPC'
-);
-```
-
-### Container-based Redpanda with ECS
-
+### ECS Service Configuration
 ```typescript
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as logs from 'aws-cdk-lib/aws-logs';
 
-// ECS Cluster for Redpanda
-const cluster = new ecs.Cluster(this, 'RedpandaCluster', {
-    vpc: vpcInstance,
-    clusterName: 'redpanda-cluster'
-});
+export class RedpandaEcsStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
 
-// Task Definition
-const taskDefinition = new ecs.FargateTaskDefinition(this, 'RedpandaTaskDef', {
-    memoryLimitMiB: 4096,
-    cpu: 2048,
-});
+    const vpc = new ec2.Vpc(this, 'RedpandaVpc', {
+      maxAzs: 3,
+      natGateways: 1,
+    });
 
-// Redpanda Container
-const redpandaContainer = taskDefinition.addContainer('redpanda', {
-    image: ecs.ContainerImage.fromRegistry('docker.redpanda.com/redpandadata/redpanda:latest'),
-    command: [
-        'redpanda', 'start',
-        '--smp', '1',
-        '--memory', '3G',
-        '--reserve-memory', '0M',
-        '--overprovisioned',
-        '--node-id', '0',
-        '--kafka-addr', 'PLAINTEXT://0.0.0.0:9092',
-        '--advertise-kafka-addr', 'PLAINTEXT://localhost:9092',
-        '--pandaproxy-addr', '0.0.0.0:8082',
-        '--schema-registry-addr', '0.0.0.0:8081'
-    ],
-    portMappings: [
-        { containerPort: 9092, protocol: ecs.Protocol.TCP },
-        { containerPort: 8082, protocol: ecs.Protocol.TCP },
-        { containerPort: 8081, protocol: ecs.Protocol.TCP },
-        { containerPort: 9644, protocol: ecs.Protocol.TCP }
-    ],
-    logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: 'redpanda',
+    const cluster = new ecs.Cluster(this, 'RedpandaCluster', {
+      vpc,
+      enableFargateCapacityProviders: true,
+    });
+
+    const taskDefinition = new ecs.FargateTaskDefinition(this, 'RedpandaTask', {
+      memoryLimitMiB: 4096,
+      cpu: 2048,
+    });
+
+    const redpandaContainer = taskDefinition.addContainer('redpanda', {
+      image: ecs.ContainerImage.fromRegistry('docker.redpanda.com/redpandadata/redpanda:latest'),
+      logging: ecs.LogDrivers.awsLogs({
         logGroup: new logs.LogGroup(this, 'RedpandaLogGroup', {
-            logGroupName: '/ecs/redpanda',
-            removalPolicy: cdk.RemovalPolicy.DESTROY
-        })
-    })
-});
+          retention: logs.RetentionDays.ONE_WEEK,
+        }),
+        streamPrefix: 'redpanda',
+      }),
+      environment: {
+        REDPANDA_ENVIRONMENT: 'production',
+        REDPANDA_CLOUD_STORAGE_ENABLED: 'true',
+        REDPANDA_CLOUD_STORAGE_REGION: this.region,
+        REDPANDA_CLOUD_STORAGE_BUCKET: 'my-redpanda-bucket',
+      },
+      portMappings: [
+        { containerPort: 9092, protocol: ecs.Protocol.TCP }, // Kafka API
+        { containerPort: 8081, protocol: ecs.Protocol.TCP }, // Schema Registry
+        { containerPort: 8082, protocol: ecs.Protocol.TCP }, // REST Proxy
+        { containerPort: 9644, protocol: ecs.Protocol.TCP }, // Admin API
+      ],
+    });
 
-// ECS Service
-const service = new ecs.FargateService(this, 'RedpandaService', {
-    cluster,
-    taskDefinition,
-    desiredCount: 1,
-    securityGroups: [securityGroupInstance],
-    vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
-    }
-});
+    // Add data volume for persistence
+    const dataVolume = {
+      name: 'redpanda-data',
+      efsVolumeConfiguration: {
+        fileSystemId: 'fs-12345678', // Replace with actual EFS ID
+        transitEncryption: 'ENABLED',
+      },
+    };
+
+    taskDefinition.addVolume(dataVolume);
+    redpandaContainer.addMountPoints({
+      containerPath: '/var/lib/redpanda/data',
+      sourceVolume: 'redpanda-data',
+      readOnly: false,
+    });
+  }
+}
 ```
 
-### Using Existing ECR Repository
+## Application Integration Patterns
 
+### Lambda Integration
 ```typescript
-// Utilize existing ECR repository from the stack
-const redpandaImage = ecs.ContainerImage.fromEcrRepository(
-    ecr.Repository.fromRepositoryArn(this, 'ExistingEcrRepo', 
-        cdk.Fn.importValue(SHASTA_CDK_ECR_REPO_URI)
-    ),
-    'redpanda:latest'
-);
-```
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as events from 'aws-cdk-lib/aws-events';
 
-## Environment Variables and Configuration
+export class RedpandaLambdaIntegration extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
 
-### Redpanda Configuration for CDK
-```typescript
-// Environment variables for Redpanda container
-const redpandaEnvVars = {
-    REDPANDA_ENVIRONMENT: 'production',
-    REDPANDA_ENABLE_IDEMPOTENCE: 'true',
-    REDPANDA_AUTO_CREATE_TOPICS_ENABLED: 'true',
-    REDPANDA_DEFAULT_TOPIC_PARTITIONS: '36',
-    REDPANDA_DEFAULT_TOPIC_REPLICATIONS: '3'
-};
-```
+    // Environment configuration
+    const redpandaConfig = {
+      REDPANDA_BROKERS: 'redpanda-cluster.internal:9092',
+      REDPANDA_SCHEMA_REGISTRY: 'http://redpanda-cluster.internal:8081',
+      REDPANDA_USERNAME: 'lambda-user',
+      REDPANDA_PASSWORD: 'lambda-password',
+    };
 
-### Integration with Existing Outputs
-```typescript
-// Update existing outputs to include Redpanda endpoints
-new cdk.CfnOutput(this, 'RedpandaBootstrapBrokers', {
-    value: `${service.serviceName}.${cluster.clusterName}:9092`,
-    description: 'Redpanda Bootstrap Brokers',
-    exportName: 'RedpandaBootstrapBrokers'
-});
+    // Producer Lambda
+    const producerFunction = new lambda.Function(this, 'RedpandaProducer', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'producer.handler',
+      code: lambda.Code.fromAsset('lambda/producer'),
+      environment: redpandaConfig,
+      timeout: Duration.seconds(30),
+    });
 
-new cdk.CfnOutput(this, 'RedpandaRestApiEndpoint', {
-    value: `${service.serviceName}.${cluster.clusterName}:8082`,
-    description: 'Redpanda REST API Endpoint',
-    exportName: 'RedpandaRestApiEndpoint'
-});
+    // Consumer Lambda
+    const consumerFunction = new lambda.Function(this, 'RedpandaConsumer', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'consumer.handler',
+      code: lambda.Code.fromAsset('lambda/consumer'),
+      environment: redpandaConfig,
+      timeout: Duration.seconds(300),
+    });
 
-new cdk.CfnOutput(this, 'RedpandaSchemaRegistryEndpoint', {
-    value: `${service.serviceName}.${cluster.clusterName}:8081`,
-    description: 'Redpanda Schema Registry Endpoint',
-    exportName: 'RedpandaSchemaRegistryEndpoint'
-});
-```
-
-## Lambda Integration
-
-### Lambda Function for Redpanda Management
-```typescript
-const redpandaManagerFunction = new lambda.Function(this, 'RedpandaManager', {
-    runtime: lambda.Runtime.PYTHON_3_9,
-    handler: 'index.handler',
-    code: lambda.Code.fromInline(`
-import json
-import boto3
-from kafka import KafkaProducer, KafkaConsumer
-
-def handler(event, context):
-    # Redpanda management logic
-    bootstrap_servers = event.get('bootstrap_servers', 'localhost:9092')
+    // Event Bridge integration
+    const eventBridge = new events.EventBridge(this, 'RedpandaEventBridge');
     
-    # Create producer
-    producer = KafkaProducer(
-        bootstrap_servers=bootstrap_servers,
-        value_serializer=lambda v: json.dumps(v).encode('utf-8')
-    )
+    // Schedule consumer to poll messages
+    new events.Rule(this, 'ConsumerSchedule', {
+      schedule: events.Schedule.rate(Duration.minutes(1)),
+      targets: [new targets.LambdaFunction(consumerFunction)],
+    });
+  }
+}
+```
+
+### API Gateway Integration
+```typescript
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+
+export class RedpandaApiGateway extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    const api = new apigateway.RestApi(this, 'RedpandaApi', {
+      restApiName: 'Redpanda Service',
+      description: 'API for Redpanda streaming operations',
+    });
+
+    // Proxy Lambda for Redpanda operations
+    const redpandaProxy = new lambda.Function(this, 'RedpandaProxy', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'proxy.handler',
+      code: lambda.Code.fromAsset('lambda/proxy'),
+      environment: {
+        REDPANDA_BROKERS: 'redpanda-cluster.internal:9092',
+        REDPANDA_SCHEMA_REGISTRY: 'http://redpanda-cluster.internal:8081',
+      },
+    });
+
+    // API Resources
+    const topics = api.root.addResource('topics');
+    const topic = topics.addResource('{topic}');
     
-    # Send test message
-    producer.send('test-topic', {'message': 'Hello from Lambda'})
-    producer.flush()
+    // Produce messages
+    topic.addResource('produce').addMethod('POST', 
+      new apigateway.LambdaIntegration(redpandaProxy)
+    );
     
-    return {
-        'statusCode': 200,
-        'body': json.dumps('Message sent successfully')
-    }
-    `),
-    environment: {
-        'REDPANDA_BROKERS': cdk.Fn.importValue('RedpandaBootstrapBrokers')
-    },
-    vpc: vpcInstance,
-    securityGroups: [securityGroupInstance]
-});
+    // Consume messages
+    topic.addResource('consume').addMethod('GET', 
+      new apigateway.LambdaIntegration(redpandaProxy)
+    );
+    
+    // Schema operations
+    const schemas = api.root.addResource('schemas');
+    schemas.addResource('{subject}').addMethod('GET', 
+      new apigateway.LambdaIntegration(redpandaProxy)
+    );
+  }
+}
+```
+
+## Configuration Management
+
+### Parameter Store Integration
+```typescript
+import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+
+export class RedpandaConfigConstruct extends Construct {
+  public readonly brokers: string;
+  public readonly schemaRegistry: string;
+  public readonly credentials: secretsmanager.Secret;
+
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    // Store configuration in Parameter Store
+    const brokersParameter = new ssm.StringParameter(this, 'RedpandaBrokers', {
+      parameterName: '/redpanda/brokers',
+      stringValue: 'redpanda-cluster.internal:9092',
+      description: 'Redpanda broker endpoints',
+    });
+
+    const schemaRegistryParameter = new ssm.StringParameter(this, 'RedpandaSchemaRegistry', {
+      parameterName: '/redpanda/schema-registry',
+      stringValue: 'http://redpanda-cluster.internal:8081',
+      description: 'Redpanda Schema Registry endpoint',
+    });
+
+    // Store credentials in Secrets Manager
+    this.credentials = new secretsmanager.Secret(this, 'RedpandaCredentials', {
+      secretName: 'redpanda-credentials',
+      description: 'Redpanda authentication credentials',
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({ username: 'admin' }),
+        generateStringKey: 'password',
+        excludeCharacters: '"@/\\',
+      },
+    });
+
+    this.brokers = brokersParameter.stringValue;
+    this.schemaRegistry = schemaRegistryParameter.stringValue;
+  }
+}
 ```
 
 ## Monitoring and Observability
 
 ### CloudWatch Integration
 ```typescript
-// CloudWatch dashboard for Redpanda metrics
-const dashboard = new cloudwatch.Dashboard(this, 'RedpandaDashboard', {
-    dashboardName: 'Redpanda-Metrics'
-});
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
-// Add ECS service metrics
-dashboard.addWidgets(
-    new cloudwatch.GraphWidget({
-        title: 'Redpanda CPU and Memory',
-        left: [service.metricCpuUtilization()],
-        right: [service.metricMemoryUtilization()]
-    })
-);
+export class RedpandaMonitoring extends Construct {
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    // CloudWatch Dashboard
+    const dashboard = new cloudwatch.Dashboard(this, 'RedpandaDashboard', {
+      dashboardName: 'Redpanda-Metrics',
+    });
+
+    // Custom metrics for Redpanda
+    const throughputMetric = new cloudwatch.Metric({
+      namespace: 'Redpanda',
+      metricName: 'MessageThroughput',
+      dimensionsMap: {
+        Cluster: 'redpanda-cluster',
+      },
+      statistic: 'Average',
+    });
+
+    const consumerLagMetric = new cloudwatch.Metric({
+      namespace: 'Redpanda',
+      metricName: 'ConsumerLag',
+      dimensionsMap: {
+        Cluster: 'redpanda-cluster',
+      },
+      statistic: 'Maximum',
+    });
+
+    // Add widgets to dashboard
+    dashboard.addWidgets(
+      new cloudwatch.GraphWidget({
+        title: 'Message Throughput',
+        left: [throughputMetric],
+        width: 12,
+        height: 6,
+      }),
+      new cloudwatch.GraphWidget({
+        title: 'Consumer Lag',
+        left: [consumerLagMetric],
+        width: 12,
+        height: 6,
+      })
+    );
+
+    // Alarms
+    new cloudwatch.Alarm(this, 'HighConsumerLag', {
+      metric: consumerLagMetric,
+      threshold: 10000,
+      evaluationPeriods: 2,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+    });
+
+    // Log insights queries
+    const logGroup = logs.LogGroup.fromLogGroupName(this, 'RedpandaLogs', '/aws/ecs/redpanda');
+    
+    new logs.QueryDefinition(this, 'ErrorsQuery', {
+      queryDefinitionName: 'Redpanda-Errors',
+      queryString: 'fields @timestamp, @message | filter @message like /ERROR/ | sort @timestamp desc',
+      logGroups: [logGroup],
+    });
+  }
+}
 ```
 
-### Custom Metrics Collection
+## Security Configurations
+
+### IAM Roles and Policies
 ```typescript
-// Lambda function for custom metrics
-const metricsCollector = new lambda.Function(this, 'RedpandaMetricsCollector', {
-    runtime: lambda.Runtime.PYTHON_3_9,
-    handler: 'metrics.handler',
-    code: lambda.Code.fromAsset('lambda/redpanda-metrics'),
-    environment: {
-        'REDPANDA_ADMIN_API': 'http://redpanda:9644'
-    }
-});
+import * as iam from 'aws-cdk-lib/aws-iam';
 
-// Schedule metrics collection
-new events.Rule(this, 'MetricsCollectionRule', {
-    schedule: events.Schedule.rate(Duration.minutes(5)),
-    targets: [new targets.LambdaFunction(metricsCollector)]
-});
+export class RedpandaIAMRoles extends Construct {
+  public readonly taskRole: iam.Role;
+  public readonly lambdaRole: iam.Role;
+
+  constructor(scope: Construct, id: string) {
+    super(scope, id);
+
+    // ECS Task Role
+    this.taskRole = new iam.Role(this, 'RedpandaTaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonECSTaskExecutionRolePolicy'),
+      ],
+    });
+
+    // Add S3 permissions for tiered storage
+    this.taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        's3:GetObject',
+        's3:PutObject',
+        's3:DeleteObject',
+        's3:ListBucket',
+      ],
+      resources: [
+        'arn:aws:s3:::my-redpanda-bucket',
+        'arn:aws:s3:::my-redpanda-bucket/*',
+      ],
+    }));
+
+    // Lambda execution role
+    this.lambdaRole = new iam.Role(this, 'RedpandaLambdaRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    });
+
+    // Add secrets manager permissions
+    this.lambdaRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'secretsmanager:GetSecretValue',
+        'ssm:GetParameter',
+      ],
+      resources: [
+        'arn:aws:secretsmanager:*:*:secret:redpanda-credentials*',
+        'arn:aws:ssm:*:*:parameter/redpanda/*',
+      ],
+    }));
+  }
+}
 ```
 
-## Best Practices for CDK Integration
+## Environment-Specific Configuration
 
-### 1. Resource Dependencies
+### Development Environment
 ```typescript
-// Ensure proper dependency ordering
-redpandaService.node.addDependency(vpcInstance);
-redpandaService.node.addDependency(securityGroupInstance);
+export class RedpandaDevStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
+
+    // Use rpk container for development
+    const redpandaContainer = new lambda.Function(this, 'DevRedpanda', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'dev-setup.handler',
+      code: lambda.Code.fromInline(`
+        const { exec } = require('child_process');
+        
+        exports.handler = async (event) => {
+          // Start Redpanda container for development
+          exec('rpk container start --memory 2G --cpus 2', (error, stdout, stderr) => {
+            if (error) {
+              console.error('Error starting Redpanda:', error);
+              return;
+            }
+            console.log('Redpanda started:', stdout);
+          });
+          
+          return { statusCode: 200, body: 'Redpanda dev environment started' };
+        };
+      `),
+      environment: {
+        REDPANDA_BROKERS: 'localhost:19092',
+        REDPANDA_SCHEMA_REGISTRY: 'http://localhost:18081',
+      },
+    });
+  }
+}
 ```
 
-### 2. Configuration Management
+### Production Environment
 ```typescript
-// Use Systems Manager Parameter Store for configuration
-const redpandaConfig = new ssm.StringParameter(this, 'RedpandaConfig', {
-    parameterName: '/redpanda/config',
-    stringValue: JSON.stringify({
-        kafkaApi: '9092',
-        adminApi: '9644',
-        schemaRegistry: '8081',
-        restApi: '8082'
-    })
-});
+export class RedpandaProdStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
+    super(scope, id, props);
+
+    // High-availability configuration
+    const redpandaCluster = new ecs.Cluster(this, 'RedpandaProdCluster', {
+      vpc: vpc,
+      capacity: {
+        minCapacity: 3,
+        maxCapacity: 9,
+        desiredCapacity: 3,
+      },
+    });
+
+    // Production-grade configuration
+    const prodConfig = {
+      REDPANDA_ENVIRONMENT: 'production',
+      REDPANDA_CLOUD_STORAGE_ENABLED: 'true',
+      REDPANDA_CLOUD_STORAGE_REGION: this.region,
+      REDPANDA_CLOUD_STORAGE_BUCKET: 'prod-redpanda-bucket',
+      REDPANDA_ENABLE_SASL: 'true',
+      REDPANDA_SASL_MECHANISM: 'SCRAM-SHA-256',
+    };
+  }
+}
 ```
 
-### 3. Health Checks
-```typescript
-// Application Load Balancer health check
-const healthCheck = {
-    path: '/v1/status/ready',
-    port: '9644',
-    protocol: elbv2.Protocol.HTTP,
-    healthyThresholdCount: 2,
-    unhealthyThresholdCount: 3,
-    timeout: Duration.seconds(5),
-    interval: Duration.seconds(30)
-};
-```
+## Best Practices for CDK + Redpanda
 
-### 4. Backup and Recovery
-```typescript
-// EFS for persistent storage
-const fileSystem = new efs.FileSystem(this, 'RedpandaStorage', {
-    vpc: vpcInstance,
-    securityGroup: securityGroupInstance,
-    performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
-    throughputMode: efs.ThroughputMode.BURSTING
-});
-```
-
-## Migration Strategy
-
-### Phase 1: Parallel Deployment
-1. Deploy Redpanda alongside existing MSK
-2. Configure dual-write to both systems
-3. Validate data consistency
-
-### Phase 2: Traffic Migration
-1. Gradually shift read traffic to Redpanda
-2. Monitor performance and error rates
-3. Implement fallback mechanisms
-
-### Phase 3: MSK Decommission
-1. Stop writes to MSK
-2. Remove MSK resources from CDK
-3. Update all client configurations
-description:
-globs:
-alwaysApply: false
----
+1. **Use Constructs**: Create reusable constructs for common Redpanda patterns
+2. **Environment Variables**: Store configuration in Parameter Store or Secrets Manager
+3. **Monitoring**: Set up CloudWatch dashboards and alarms
+4. **Security**: Use IAM roles with least-privilege principles
+5. **High Availability**: Deploy across multiple AZs
+6. **Data Persistence**: Use EFS or EBS for data storage
+7. **Networking**: Use VPC endpoints for secure communication
+8. **Scaling**: Implement auto-scaling policies for ECS services
+9. **Backup**: Configure S3 tiered storage for data retention
+10. **Testing**: Use rpk container for local development and testing
