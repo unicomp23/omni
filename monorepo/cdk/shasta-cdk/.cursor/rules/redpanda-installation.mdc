@@ -1,0 +1,102 @@
+# Redpanda Installation and Setup
+
+Redpanda is a streaming data platform that's Kafka API compatible, 10x faster, with no ZooKeeper or JVM dependencies.
+
+## Installation Methods
+
+### Debian/Ubuntu
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.deb.sh' \
+  | sudo -E bash
+
+sudo apt-get install redpanda
+```
+
+### Fedora/RedHat/Amazon Linux
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh' \
+  | sudo -E bash
+
+sudo yum install redpanda
+```
+
+### macOS
+```bash
+brew install redpanda-data/tap/redpanda && rpk container start
+```
+
+### Manual Installation from Archive
+For amd64:
+```bash
+curl -LO \
+  https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/raw/names/redpanda-amd64/versions/25.1.1/redpanda-25.1.1-amd64.tar.gz
+```
+
+For arm64:
+```bash
+curl -LO \
+  https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/raw/names/redpanda-arm64/versions/25.1.1/redpanda-25.1.1-arm64.tar.gz
+```
+
+## Building from Source
+
+### Prerequisites
+- Bazel build system (use bazelisk for version management)
+- System dependencies via install script
+
+### Build Commands
+```bash
+# Install bazelisk
+wget -O ~/bin/bazel https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 && chmod +x ~/bin/bazel
+
+# Install system dependencies
+sudo ./bazel/install-deps.sh
+
+# Build with release configuration
+bazel build --config=release //...
+```
+
+## Release Candidate Builds
+
+### RC on Debian/Ubuntu
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/E4xN1tVe3Xy60GTx/redpanda-unstable/setup.deb.sh' \
+  | sudo -E bash
+
+sudo apt-get install redpanda
+```
+
+### RC on Fedora/RedHat/Amazon Linux
+```bash
+curl -1sLf \
+  'https://dl.redpanda.com/E4xN1tVe3Xy60GTx/redpanda-unstable/setup.rpm.sh' \
+  | sudo -E bash
+
+sudo yum install redpanda
+```
+
+### RC on Docker
+```bash
+docker pull docker.redpanda.com/redpandadata/redpanda-unstable:v25.1.1-rc1
+```
+
+## Key Features
+- Apache Kafka® API compatible
+- No ZooKeeper™ dependency
+- No JVM requirements
+- Built-in tiered storage
+- Extensive connector ecosystem
+- Optimized for performance (10x faster than traditional Kafka)
+
+## Resources
+- Documentation: https://docs.redpanda.com/
+- Community Slack: https://redpanda.com/slack
+- GitHub Repository: https://github.com/redpanda-data/redpanda
+- Redpanda University: https://university.redpanda.com/
+description:
+globs:
+alwaysApply: false
+---

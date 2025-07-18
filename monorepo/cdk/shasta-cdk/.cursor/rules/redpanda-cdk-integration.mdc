@@ -1,0 +1,292 @@
+# Redpanda CDK Integration
+
+Integration patterns for using Redpanda with AWS CDK infrastructure, specifically for the Shasta CDK project.
+
+## Current Infrastructure Context
+
+Based on the existing [bin/shasta-cdk.ts](mdc:bin/shasta-cdk.ts) and [lib/shasta-cdk-stack.ts](mdc:lib/shasta-cdk-stack.ts), the project uses:
+- AWS MSK (Managed Streaming for Kafka) on port 9092
+- MemoryDB for Redis-compatible caching
+- VPC with public and private subnets
+- Security groups for service communication
+- ECR for container registry
+
+## Redpanda as MSK Alternative
+
+### Migration Considerations
+When migrating from MSK to Redpanda:
+
+1. **Port Compatibility**: Redpanda uses the same Kafka API on port 9092
+2. **Security Groups**: Existing security group rules will work
+3. **VPC Configuration**: Can reuse existing VPC and subnet configuration
+4. **Client Libraries**: Existing Kafka clients work without modification
+
+### EC2-based Redpanda Deployment
+
+```typescript
+// Add to existing security group configuration
+securityGroupInstance.addIngressRule(
+    ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
+    ec2.Port.tcp(8082),
+    'allow Redpanda REST API access within VPC'
+);
+securityGroupInstance.addIngressRule(
+    ec2.Peer.ipv4(vpcInstance.vpcCidrBlock),
+    ec2.Port.tcp(8081),
+    'allow Redpanda Schema Registry access within VPC'
+);
+```
+
+### Container-based Redpanda with ECS
+
+```typescript
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as logs from 'aws-cdk-lib/aws-logs';
+
+// ECS Cluster for Redpanda
+const cluster = new ecs.Cluster(this, 'RedpandaCluster', {
+    vpc: vpcInstance,
+    clusterName: 'redpanda-cluster'
+});
+
+// Task Definition
+const taskDefinition = new ecs.FargateTaskDefinition(this, 'RedpandaTaskDef', {
+    memoryLimitMiB: 4096,
+    cpu: 2048,
+});
+
+// Redpanda Container
+const redpandaContainer = taskDefinition.addContainer('redpanda', {
+    image: ecs.ContainerImage.fromRegistry('docker.redpanda.com/redpandadata/redpanda:latest'),
+    command: [
+        'redpanda', 'start',
+        '--smp', '1',
+        '--memory', '3G',
+        '--reserve-memory', '0M',
+        '--overprovisioned',
+        '--node-id', '0',
+        '--kafka-addr', 'PLAINTEXT://0.0.0.0:9092',
+        '--advertise-kafka-addr', 'PLAINTEXT://localhost:9092',
+        '--pandaproxy-addr', '0.0.0.0:8082',
+        '--schema-registry-addr', '0.0.0.0:8081'
+    ],
+    portMappings: [
+        { containerPort: 9092, protocol: ecs.Protocol.TCP },
+        { containerPort: 8082, protocol: ecs.Protocol.TCP },
+        { containerPort: 8081, protocol: ecs.Protocol.TCP },
+        { containerPort: 9644, protocol: ecs.Protocol.TCP }
+    ],
+    logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: 'redpanda',
+        logGroup: new logs.LogGroup(this, 'RedpandaLogGroup', {
+            logGroupName: '/ecs/redpanda',
+            removalPolicy: cdk.RemovalPolicy.DESTROY
+        })
+    })
+});
+
+// ECS Service
+const service = new ecs.FargateService(this, 'RedpandaService', {
+    cluster,
+    taskDefinition,
+    desiredCount: 1,
+    securityGroups: [securityGroupInstance],
+    vpcSubnets: {
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED
+    }
+});
+```
+
+### Using Existing ECR Repository
+
+```typescript
+// Utilize existing ECR repository from the stack
+const redpandaImage = ecs.ContainerImage.fromEcrRepository(
+    ecr.Repository.fromRepositoryArn(this, 'ExistingEcrRepo', 
+        cdk.Fn.importValue(SHASTA_CDK_ECR_REPO_URI)
+    ),
+    'redpanda:latest'
+);
+```
+
+## Environment Variables and Configuration
+
+### Redpanda Configuration for CDK
+```typescript
+// Environment variables for Redpanda container
+const redpandaEnvVars = {
+    REDPANDA_ENVIRONMENT: 'production',
+    REDPANDA_ENABLE_IDEMPOTENCE: 'true',
+    REDPANDA_AUTO_CREATE_TOPICS_ENABLED: 'true',
+    REDPANDA_DEFAULT_TOPIC_PARTITIONS: '36',
+    REDPANDA_DEFAULT_TOPIC_REPLICATIONS: '3'
+};
+```
+
+### Integration with Existing Outputs
+```typescript
+// Update existing outputs to include Redpanda endpoints
+new cdk.CfnOutput(this, 'RedpandaBootstrapBrokers', {
+    value: `${service.serviceName}.${cluster.clusterName}:9092`,
+    description: 'Redpanda Bootstrap Brokers',
+    exportName: 'RedpandaBootstrapBrokers'
+});
+
+new cdk.CfnOutput(this, 'RedpandaRestApiEndpoint', {
+    value: `${service.serviceName}.${cluster.clusterName}:8082`,
+    description: 'Redpanda REST API Endpoint',
+    exportName: 'RedpandaRestApiEndpoint'
+});
+
+new cdk.CfnOutput(this, 'RedpandaSchemaRegistryEndpoint', {
+    value: `${service.serviceName}.${cluster.clusterName}:8081`,
+    description: 'Redpanda Schema Registry Endpoint',
+    exportName: 'RedpandaSchemaRegistryEndpoint'
+});
+```
+
+## Lambda Integration
+
+### Lambda Function for Redpanda Management
+```typescript
+const redpandaManagerFunction = new lambda.Function(this, 'RedpandaManager', {
+    runtime: lambda.Runtime.PYTHON_3_9,
+    handler: 'index.handler',
+    code: lambda.Code.fromInline(`
+import json
+import boto3
+from kafka import KafkaProducer, KafkaConsumer
+
+def handler(event, context):
+    # Redpanda management logic
+    bootstrap_servers = event.get('bootstrap_servers', 'localhost:9092')
+    
+    # Create producer
+    producer = KafkaProducer(
+        bootstrap_servers=bootstrap_servers,
+        value_serializer=lambda v: json.dumps(v).encode('utf-8')
+    )
+    
+    # Send test message
+    producer.send('test-topic', {'message': 'Hello from Lambda'})
+    producer.flush()
+    
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Message sent successfully')
+    }
+    `),
+    environment: {
+        'REDPANDA_BROKERS': cdk.Fn.importValue('RedpandaBootstrapBrokers')
+    },
+    vpc: vpcInstance,
+    securityGroups: [securityGroupInstance]
+});
+```
+
+## Monitoring and Observability
+
+### CloudWatch Integration
+```typescript
+// CloudWatch dashboard for Redpanda metrics
+const dashboard = new cloudwatch.Dashboard(this, 'RedpandaDashboard', {
+    dashboardName: 'Redpanda-Metrics'
+});
+
+// Add ECS service metrics
+dashboard.addWidgets(
+    new cloudwatch.GraphWidget({
+        title: 'Redpanda CPU and Memory',
+        left: [service.metricCpuUtilization()],
+        right: [service.metricMemoryUtilization()]
+    })
+);
+```
+
+### Custom Metrics Collection
+```typescript
+// Lambda function for custom metrics
+const metricsCollector = new lambda.Function(this, 'RedpandaMetricsCollector', {
+    runtime: lambda.Runtime.PYTHON_3_9,
+    handler: 'metrics.handler',
+    code: lambda.Code.fromAsset('lambda/redpanda-metrics'),
+    environment: {
+        'REDPANDA_ADMIN_API': 'http://redpanda:9644'
+    }
+});
+
+// Schedule metrics collection
+new events.Rule(this, 'MetricsCollectionRule', {
+    schedule: events.Schedule.rate(Duration.minutes(5)),
+    targets: [new targets.LambdaFunction(metricsCollector)]
+});
+```
+
+## Best Practices for CDK Integration
+
+### 1. Resource Dependencies
+```typescript
+// Ensure proper dependency ordering
+redpandaService.node.addDependency(vpcInstance);
+redpandaService.node.addDependency(securityGroupInstance);
+```
+
+### 2. Configuration Management
+```typescript
+// Use Systems Manager Parameter Store for configuration
+const redpandaConfig = new ssm.StringParameter(this, 'RedpandaConfig', {
+    parameterName: '/redpanda/config',
+    stringValue: JSON.stringify({
+        kafkaApi: '9092',
+        adminApi: '9644',
+        schemaRegistry: '8081',
+        restApi: '8082'
+    })
+});
+```
+
+### 3. Health Checks
+```typescript
+// Application Load Balancer health check
+const healthCheck = {
+    path: '/v1/status/ready',
+    port: '9644',
+    protocol: elbv2.Protocol.HTTP,
+    healthyThresholdCount: 2,
+    unhealthyThresholdCount: 3,
+    timeout: Duration.seconds(5),
+    interval: Duration.seconds(30)
+};
+```
+
+### 4. Backup and Recovery
+```typescript
+// EFS for persistent storage
+const fileSystem = new efs.FileSystem(this, 'RedpandaStorage', {
+    vpc: vpcInstance,
+    securityGroup: securityGroupInstance,
+    performanceMode: efs.PerformanceMode.GENERAL_PURPOSE,
+    throughputMode: efs.ThroughputMode.BURSTING
+});
+```
+
+## Migration Strategy
+
+### Phase 1: Parallel Deployment
+1. Deploy Redpanda alongside existing MSK
+2. Configure dual-write to both systems
+3. Validate data consistency
+
+### Phase 2: Traffic Migration
+1. Gradually shift read traffic to Redpanda
+2. Monitor performance and error rates
+3. Implement fallback mechanisms
+
+### Phase 3: MSK Decommission
+1. Stop writes to MSK
+2. Remove MSK resources from CDK
+3. Update all client configurations
+description:
+globs:
+alwaysApply: false
+---
