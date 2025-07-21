@@ -9,6 +9,7 @@ echo "=== Post-Deployment RedPanda Cluster Setup ==="
 # Configuration
 AWS_REGION="${AWS_REGION:-us-east-1}"
 KEY_PAIR_NAME="${KEY_PAIR_NAME:-john.davis}"
+KEY_PAIR_PATH="${KEY_PAIR_PATH:-${KEY_PAIR_NAME}.pem}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -26,13 +27,13 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 check_prerequisites() {
     log_info "Checking prerequisites..."
     
-    if [[ ! -f "${KEY_PAIR_NAME}.pem" ]]; then
-        log_error "Key pair file '${KEY_PAIR_NAME}.pem' not found in current directory"
+    if [[ ! -f "${KEY_PAIR_PATH}" ]]; then
+        log_error "Key pair file '${KEY_PAIR_PATH}' not found in current directory"
         log_info "Please copy your key pair file here or update KEY_PAIR_NAME variable"
         exit 1
     fi
     
-    chmod 400 "${KEY_PAIR_NAME}.pem"
+    chmod 400 "${KEY_PAIR_PATH}"
     
     if [[ ! -f "scripts/install-redpanda.sh" ]] || [[ ! -f "scripts/setup-redpanda-cluster.sh" ]]; then
         log_error "Required scripts not found. Please ensure you're in the project root with scripts/ directory"
@@ -82,7 +83,7 @@ copy_scripts_to_instance() {
     
     log_info "Copying scripts to $instance_type ($instance_ip)..."
     
-    if scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_NAME}.pem" \
+    if scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_PATH}" \
         scripts/install-redpanda.sh \
         scripts/setup-redpanda-cluster.sh \
         ec2-user@"$instance_ip":~/; then
@@ -112,7 +113,7 @@ install_redpanda_on_node() {
     
     # Install RedPanda
     log_info "Running RedPanda installation on node $node_id..."
-    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_NAME}.pem" ec2-user@"$target_ip" \
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_PATH}" ec2-user@"$target_ip" \
         'chmod +x ~/install-redpanda.sh ~/setup-redpanda-cluster.sh && sudo ~/install-redpanda.sh'; then
         log_success "RedPanda installed on node $node_id"
     else
@@ -122,7 +123,7 @@ install_redpanda_on_node() {
     
     # Configure cluster
     log_info "Configuring RedPanda cluster on node $node_id..."
-    if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_NAME}.pem" ec2-user@"$target_ip" \
+    if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_PATH}" ec2-user@"$target_ip" \
         "NODE_ID=$node_id ~/setup-redpanda-cluster.sh"; then
         log_success "RedPanda configured on node $node_id"
     else
@@ -136,7 +137,7 @@ setup_load_testing() {
     log_info "Setting up load testing instance ($LOADTEST_IP)..."
     
     # Copy performance test script
-    if scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_NAME}.pem" \
+    if scp -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_PATH}" \
         scripts/redpanda-performance-tests.sh \
         ec2-user@"$LOADTEST_IP":~/; then
         log_success "Performance test script copied to load test instance"
@@ -151,7 +152,7 @@ setup_load_testing() {
     
     # Set up environment and test cluster connectivity
     log_info "Configuring load test environment..."
-    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_NAME}.pem" ec2-user@"$LOADTEST_IP" \
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_PATH}" ec2-user@"$LOADTEST_IP" \
         "chmod +x ~/redpanda-performance-tests.sh && echo 'export BOOTSTRAP_SERVERS=\"$bootstrap_brokers\"' >> ~/.bashrc"; then
         log_success "Load test instance configured"
     else
@@ -168,7 +169,7 @@ verify_cluster() {
     local redpanda_ips=$(echo "$REDPANDA_INSTANCES" | awk '{print $2}' | paste -sd ',')
     local bootstrap_brokers="${redpanda_ips//,/:9092,}:9092"
     
-    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_NAME}.pem" ec2-user@"$LOADTEST_IP" \
+    if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 -i "${KEY_PAIR_PATH}" ec2-user@"$LOADTEST_IP" \
         "timeout 60s bash -c 'until rpk cluster info --brokers $bootstrap_brokers &>/dev/null; do sleep 5; echo Waiting for cluster...; done; rpk cluster info --brokers $bootstrap_brokers'"; then
         log_success "RedPanda cluster is healthy and ready!"
         return 0
@@ -190,21 +191,21 @@ show_usage() {
     # Show RedPanda node access
     while IFS=$'\t' read -r node_id private_ip public_ip; do
         local target_ip="${public_ip:-$private_ip}"
-        echo "  RedPanda Node $node_id: ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$target_ip"
+        echo "  RedPanda Node $node_id: ssh -i ${KEY_PAIR_PATH} ec2-user@$target_ip"
     done <<< "$REDPANDA_INSTANCES"
     
-    echo "  Load Test Instance:   ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$LOADTEST_IP"
+    echo "  Load Test Instance:   ssh -i ${KEY_PAIR_PATH} ec2-user@$LOADTEST_IP"
     echo ""
     
     echo "Quick Commands:"
     echo "  # Check cluster status"
-    echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$LOADTEST_IP 'rpk cluster info --brokers \$BOOTSTRAP_SERVERS'"
+    echo "  ssh -i ${KEY_PAIR_PATH} ec2-user@$LOADTEST_IP 'rpk cluster info --brokers \$BOOTSTRAP_SERVERS'"
     echo ""
     echo "  # Run performance tests"
-    echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$LOADTEST_IP './redpanda-performance-tests.sh quick'"
+    echo "  ssh -i ${KEY_PAIR_PATH} ec2-user@$LOADTEST_IP './redpanda-performance-tests.sh quick'"
     echo ""
     echo "  # List topics"
-    echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$LOADTEST_IP 'rpk topic list --brokers \$BOOTSTRAP_SERVERS'"
+    echo "  ssh -i ${KEY_PAIR_PATH} ec2-user@$LOADTEST_IP 'rpk topic list --brokers \$BOOTSTRAP_SERVERS'"
 }
 
 # Function to run a quick test
@@ -214,7 +215,7 @@ run_quick_test() {
     local redpanda_ips=$(echo "$REDPANDA_INSTANCES" | awk '{print $2}' | paste -sd ',')
     local bootstrap_brokers="${redpanda_ips//,/:9092,}:9092"
     
-    if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_NAME}.pem" ec2-user@"$LOADTEST_IP" \
+    if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_PATH}" ec2-user@"$LOADTEST_IP" \
         "BOOTSTRAP_SERVERS=\"$bootstrap_brokers\" ./redpanda-performance-tests.sh quick"; then
         log_success "Quick performance test completed!"
     else

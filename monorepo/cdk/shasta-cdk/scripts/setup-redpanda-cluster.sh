@@ -24,6 +24,15 @@ PANDAPROXY_PORT="${PANDAPROXY_PORT:-8082}"
 PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
 echo "Node private IP: $PRIVATE_IP"
 
+# Set up hostname resolution for cluster nodes
+echo "Setting up hostname resolution..."
+sudo tee -a /etc/hosts > /dev/null <<EOF
+# RedPanda cluster nodes
+10.0.3.145 redpanda-0
+10.0.4.183 redpanda-1
+10.0.5.93 redpanda-2
+EOF
+
 # Seed servers configuration (assuming 3-node cluster)
 SEED_SERVERS=""
 for i in $(seq 0 $((CLUSTER_SIZE-1))); do

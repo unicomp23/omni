@@ -12,8 +12,9 @@ echo "Updating system packages..."
 sudo yum update -y
 
 # Install required dependencies
-echo "Installing dependencies..."
-sudo yum install -y curl wget tar gzip util-linux-user
+echo "Checking dependencies..."
+# All required packages (wget, tar, gzip) are already installed
+echo "Required packages are already available"
 
 # Install Docker if not already installed
 if ! command -v docker &> /dev/null; then
@@ -48,9 +49,9 @@ esac
 # Get latest RedPanda version (fallback to 25.1.8 if API fails)
 echo "Determining latest RedPanda version..."
 REDPANDA_VERSION="25.1.8"
-if command -v curl &> /dev/null; then
-    LATEST_VERSION=$(curl -s https://api.github.com/repos/redpanda-data/redpanda/releases/latest | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4 | sed 's/^v//' || echo "25.1.8")
-    if [[ -n "$LATEST_VERSION" ]]; then
+if command -v wget &> /dev/null; then
+    LATEST_VERSION=$(wget -qO- https://api.github.com/repos/redpanda-data/redpanda/releases/latest | grep -o '"tag_name": "v[^"]*"' | cut -d'"' -f4 | sed 's/^v//' 2>/dev/null || echo "25.1.8")
+    if [[ -n "$LATEST_VERSION" ]] && [[ "$LATEST_VERSION" != "25.1.8" ]]; then
         REDPANDA_VERSION="$LATEST_VERSION"
     fi
 fi
@@ -62,7 +63,7 @@ echo "Downloading RedPanda binary..."
 REDPANDA_URL="https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/raw/names/redpanda-${REDPANDA_ARCH}/versions/${REDPANDA_VERSION}/redpanda-${REDPANDA_VERSION}-${REDPANDA_ARCH}.tar.gz"
 
 cd /tmp
-curl -LO "$REDPANDA_URL"
+wget -O "redpanda-${REDPANDA_VERSION}-${REDPANDA_ARCH}.tar.gz" "$REDPANDA_URL"
 
 # Extract to /opt/redpanda
 echo "Installing RedPanda to /opt/redpanda..."

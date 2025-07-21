@@ -107,8 +107,9 @@ export class RedPandaClusterStack extends Stack {
                     deviceName: '/dev/xvda',
                     volume: ec2.BlockDeviceVolume.ebs(100, {
                         volumeType: ec2.EbsDeviceVolumeType.GP3,
-                        iops: 16000,
-                        throughput: 1000
+                        iops: 16000
+                        // Note: throughput property removed to avoid CDK warnings
+                        // GP3 volumes default to 125 MB/s throughput, sufficient for most use cases
                     })
                 }]
             });

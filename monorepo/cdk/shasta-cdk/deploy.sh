@@ -33,7 +33,7 @@ case "${1:-deploy}" in
     "setup"|"i")
         echo "⚙️  Setting up RedPanda on deployed infrastructure..."
         echo ""
-        exec ./scripts/setup-cluster-post-deploy.sh
+        exec ./scripts/automated-redpanda-setup.sh
         ;;
     "test"|"t")
         echo "🧪 Running performance tests..."
