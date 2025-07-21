@@ -130,8 +130,18 @@ install_redpanda_on_node() {
     log_info "Configuring RedPanda cluster on node $node_id..."
     
     if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_PATH}" ec2-user@"$target_ip" \
-        "NODE_ID=$node_id BOOTSTRAP_NODE_IP=$bootstrap_ip ~/setup-redpanda-cluster.sh"; then
+        "NODE_ID=$node_id CLUSTER_SIZE=3 BOOTSTRAP_NODE_IP=$bootstrap_ip ~/setup-redpanda-cluster.sh"; then
         log_success "RedPanda configured on node $node_id"
+        
+        # Verify container actually started
+        log_info "Verifying RedPanda container is running on node $node_id..."
+        if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_PATH}" ec2-user@"$target_ip" \
+            'docker ps | grep redpanda-node | grep -q "Up"'; then
+            log_success "Container verified running on node $node_id"
+        else
+            log_error "Container failed to start on node $node_id"
+            return 1
+        fi
     else
         log_error "Failed to configure RedPanda on node $node_id"
         return 1

@@ -153,6 +153,10 @@ install_redpanda_cluster() {
     local node_id=0
     local failed_nodes=()
     
+    # Get bootstrap node IP (first node in the array)
+    local bootstrap_ip="${REDPANDA_IP_ARRAY[0]}"
+    log_info "Bootstrap node IP: $bootstrap_ip"
+    
     for redpanda_ip in "${REDPANDA_IP_ARRAY[@]}"; do
         log_info "Installing RedPanda on node $node_id ($redpanda_ip)..."
         
@@ -201,8 +205,16 @@ fi
 # Configure RedPanda cluster
 echo "Configuring RedPanda cluster..."
 if ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=60 -i ~/redpanda-key.pem ec2-user@$redpanda_ip \
-    "NODE_ID=$node_id CLUSTER_SIZE=3 ~/setup-redpanda-cluster.sh"; then
+    "NODE_ID=$node_id CLUSTER_SIZE=3 BOOTSTRAP_NODE_IP=$bootstrap_ip ~/setup-redpanda-cluster.sh"; then
     echo "Failed to configure RedPanda cluster"
+    exit 1
+fi
+
+# Verify container actually started
+echo "Verifying RedPanda container is running..."
+if ! ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 -i ~/redpanda-key.pem ec2-user@$redpanda_ip \
+    'docker ps | grep redpanda-node | grep -q "Up"'; then
+    echo "ERROR: RedPanda container failed to start properly"
     exit 1
 fi
 
@@ -349,8 +361,23 @@ main() {
     setup_load_test_environment
     
     # Wait for cluster to stabilize
-    log_info "Waiting 90 seconds for cluster to stabilize..."
-    sleep 90
+    log_info "Waiting 60 seconds for cluster to stabilize..."
+    sleep 60
+    
+    # Verify all containers are actually running
+    log_info "Verifying all RedPanda containers are running..."
+    local containers_running=0
+    for redpanda_ip in "${REDPANDA_IP_ARRAY[@]}"; do
+        if ssh -o StrictHostKeyChecking=no -i "$KEY_PAIR_PATH" ec2-user@"$LOADTEST_IP" \
+            "ssh -i redpanda-key.pem -o StrictHostKeyChecking=no ec2-user@$redpanda_ip 'docker ps | grep redpanda-node | grep -q Up'" 2>/dev/null; then
+            ((containers_running++))
+            log_info "  ✅ Container running on $redpanda_ip"
+        else
+            log_warning "  ❌ Container not running on $redpanda_ip"
+        fi
+    done
+    
+    log_info "Containers running: $containers_running/${#REDPANDA_IP_ARRAY[@]}"
     
     # Try cluster health check with longer timeout for partial deployments
     local cluster_ready=false

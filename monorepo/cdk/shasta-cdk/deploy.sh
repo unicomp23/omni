@@ -31,7 +31,7 @@ case "${1:-deploy}" in
         exec ./scripts/aws-infrastructure-deploy.sh status
         ;;
     "setup"|"i")
-        echo "⚙️  Setting up RedPanda on deployed infrastructure..."
+        echo "⚙️  Setting up RedPanda on deployed infrastructure (FULLY AUTOMATED)..."
         echo ""
         exec ./scripts/automated-redpanda-setup.sh
         ;;
