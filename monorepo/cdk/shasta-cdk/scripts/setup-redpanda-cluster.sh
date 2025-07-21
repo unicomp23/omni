@@ -1,17 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-# RedPanda Cluster Setup Script
-# Sets up a 3-node RedPanda cluster for low-latency streaming
+# RedPanda Docker Cluster Setup Script
+# Sets up a RedPanda node using Docker containers for better compatibility
 
-echo "=== RedPanda Cluster Setup Script ==="
+echo "=== RedPanda Docker Cluster Setup Script ==="
 
 # Configuration parameters
 NODE_ID="${NODE_ID:-0}"
 CLUSTER_SIZE="${CLUSTER_SIZE:-3}"
 DATA_DIR="${DATA_DIR:-/var/lib/redpanda/data}"
 LOG_DIR="${LOG_DIR:-/var/log/redpanda}"
-CONFIG_FILE="${CONFIG_FILE:-/etc/redpanda/redpanda.yaml}"
+CONFIG_DIR="${CONFIG_DIR:-/etc/redpanda}"
 
 # Network configuration
 KAFKA_PORT="${KAFKA_PORT:-9092}"
@@ -20,252 +20,163 @@ RPC_PORT="${RPC_PORT:-33145}"
 SCHEMA_REGISTRY_PORT="${SCHEMA_REGISTRY_PORT:-8081}"
 PANDAPROXY_PORT="${PANDAPROXY_PORT:-8082}"
 
-# Get private IP address
-PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
+# Get private IP address (using IMDSv2)
+TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+PRIVATE_IP=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/local-ipv4)
 echo "Node private IP: $PRIVATE_IP"
 
-# Seed servers configuration (assuming 3-node cluster)
-SEED_SERVERS=""
-for i in $(seq 0 $((CLUSTER_SIZE-1))); do
-    if [[ $i -eq $NODE_ID ]]; then
-        continue
+echo "Configuring RedPanda Docker node $NODE_ID..."
+
+# Create directories with proper permissions
+sudo mkdir -p "$DATA_DIR" "$LOG_DIR" "$CONFIG_DIR"
+sudo chown -R 101:101 "$DATA_DIR" "$LOG_DIR" "$CONFIG_DIR"  # RedPanda Docker user
+
+# Stop any existing RedPanda container
+echo "Stopping any existing RedPanda container..."
+sudo docker stop redpanda-node 2>/dev/null || true
+sudo docker rm redpanda-node 2>/dev/null || true
+
+# Pull RedPanda Docker image
+REDPANDA_IMAGE="redpandadata/redpanda:v24.2.7"
+echo "Pulling RedPanda Docker image..."
+sudo docker pull "$REDPANDA_IMAGE"
+
+# Start RedPanda container with cluster configuration
+echo "Starting RedPanda Docker container..."
+
+# Determine if this is the first node (for bootstrap)
+if [[ $NODE_ID -eq 0 ]]; then
+    echo "Starting as bootstrap node (node 0)..."
+    sudo docker run -d \
+        --name redpanda-node \
+        --hostname "redpanda-${NODE_ID}" \
+        -p 9092:9092 \
+        -p 9644:9644 \
+        -p 33145:33145 \
+        -p 8081:8081 \
+        -p 8082:8082 \
+        -v "$DATA_DIR:/var/lib/redpanda/data:Z" \
+        -v "$LOG_DIR:/var/log/redpanda:Z" \
+        -v "$CONFIG_DIR:/etc/redpanda:Z" \
+        "$REDPANDA_IMAGE" \
+        redpanda start \
+        --node-id="$NODE_ID" \
+        --kafka-addr="0.0.0.0:9092" \
+        --advertise-kafka-addr="$PRIVATE_IP:9092" \
+        --pandaproxy-addr="0.0.0.0:8082" \
+        --advertise-pandaproxy-addr="$PRIVATE_IP:8082" \
+        --schema-registry-addr="0.0.0.0:8081" \
+        --rpc-addr="0.0.0.0:33145" \
+        --advertise-rpc-addr="$PRIVATE_IP:33145" \
+        --mode dev-container \
+        --smp 2 \
+        --reserve-memory 1G \
+        --check=false
+else
+    echo "Starting as cluster member (node $NODE_ID)..."
+    # Wait a bit for the bootstrap node to be ready
+    echo "Waiting 30 seconds for bootstrap node to be ready..."
+    sleep 30
+    
+    sudo docker run -d \
+        --name redpanda-node \
+        --hostname "redpanda-${NODE_ID}" \
+        -p 9092:9092 \
+        -p 9644:9644 \
+        -p 33145:33145 \
+        -p 8081:8081 \
+        -p 8082:8082 \
+        -v "$DATA_DIR:/var/lib/redpanda/data:Z" \
+        -v "$LOG_DIR:/var/log/redpanda:Z" \
+        -v "$CONFIG_DIR:/etc/redpanda:Z" \
+        "$REDPANDA_IMAGE" \
+        redpanda start \
+        --node-id="$NODE_ID" \
+        --kafka-addr="0.0.0.0:9092" \
+        --advertise-kafka-addr="$PRIVATE_IP:9092" \
+        --pandaproxy-addr="0.0.0.0:8082" \
+        --advertise-pandaproxy-addr="$PRIVATE_IP:8082" \
+        --schema-registry-addr="0.0.0.0:8081" \
+        --rpc-addr="0.0.0.0:33145" \
+        --advertise-rpc-addr="$PRIVATE_IP:33145" \
+        --seeds="${BOOTSTRAP_NODE_IP:-redpanda-0}:33145" \
+        --mode dev-container \
+        --smp 2 \
+        --reserve-memory 1G \
+        --check=false
+fi
+
+# Wait for container to start
+echo "Waiting for RedPanda container to start..."
+sleep 10
+
+# Check if container is running
+if sudo docker ps | grep -q redpanda-node; then
+    echo "✅ RedPanda container started successfully"
+else
+    echo "❌ RedPanda container failed to start"
+    echo "Container logs:"
+    sudo docker logs redpanda-node 2>/dev/null || echo "No logs available"
+    exit 1
+fi
+
+# Wait for RedPanda to be ready
+echo "Waiting for RedPanda to be ready..."
+for i in {1..30}; do
+    if curl -s "http://$PRIVATE_IP:$ADMIN_PORT/v1/status/ready" 2>/dev/null | grep -q "ready"; then
+        echo "✅ RedPanda is ready!"
+        break
     fi
-    if [[ -n "$SEED_SERVERS" ]]; then
-        SEED_SERVERS="$SEED_SERVERS,"
+    if [[ $i -eq 30 ]]; then
+        echo "❌ RedPanda failed to become ready after 5 minutes"
+        echo "Container status:"
+        sudo docker ps -a | grep redpanda-node || echo "Container not found"
+        echo "Container logs:"
+        sudo docker logs redpanda-node 2>/dev/null | tail -50 || echo "No logs available"
+        exit 1
     fi
-    SEED_SERVERS="${SEED_SERVERS}redpanda-${i}:${RPC_PORT}"
+    echo "Waiting for RedPanda to be ready... ($i/30)"
+    sleep 10
 done
 
-echo "Configuring RedPanda node $NODE_ID..."
-echo "Seed servers: $SEED_SERVERS"
-
-# Create directories
-sudo mkdir -p "$DATA_DIR" "$LOG_DIR" "$(dirname "$CONFIG_FILE")"
-sudo chown -R redpanda:redpanda "$DATA_DIR" "$LOG_DIR"
-
-# Generate RedPanda configuration
-echo "Creating RedPanda configuration..."
-sudo tee "$CONFIG_FILE" > /dev/null <<EOF
-# RedPanda Configuration - Node $NODE_ID
-# Generated by setup-redpanda-cluster.sh
-
-redpanda:
-  data_directory: $DATA_DIR
-  node_id: $NODE_ID
-  
-  # RPC Server Configuration
-  rpc_server:
-    address: 0.0.0.0
-    port: $RPC_PORT
-  
-  # Kafka API Configuration
-  kafka_api:
-    - address: 0.0.0.0
-      port: $KAFKA_PORT
-      name: internal
-    - address: $PRIVATE_IP
-      port: $KAFKA_PORT
-      name: external
-  
-  # Admin API Configuration
-  admin:
-    - address: 0.0.0.0
-      port: $ADMIN_PORT
-  
-  # Seed Servers
-  seed_servers:
-$(for i in $(seq 0 $((CLUSTER_SIZE-1))); do
-    echo "    - host: redpanda-$i"
-    echo "      port: $RPC_PORT"
-done)
-
-  # Performance and Tuning
-  developer_mode: false
-  auto_create_topics_enabled: true
-  
-  # Low-latency optimizations
-  enable_transactions: true
-  enable_idempotence: true
-  
-  # Log configuration
-  log_segment_size: 134217728  # 128MB
-  log_retention_ms: 604800000  # 7 days
-  
-  # Replication settings
-  default_topic_replications: 3
-  min_version: 2.8.0
-
-# RPK Configuration
-rpk:
-  enable_memory_locking: true
-  enable_usage_stats: false
-  overprovisioned: false
-  
-  # Tuners for low latency
-  tune_network: true
-  tune_disk_scheduler: true
-  tune_disk_nomerges: true
-  tune_disk_write_cache: true
-  tune_disk_irq: true
-  tune_cpu: true
-  tune_aio_events: true
-  tune_clocksource: true
-  tune_swappiness: true
-  tune_transparent_hugepages: true
-  tune_coredump: true
-  tune_ballast_file: true
-
-# Schema Registry Configuration
-schema_registry:
-  schema_registry_api:
-    - address: 0.0.0.0
-      port: $SCHEMA_REGISTRY_PORT
-
-# HTTP Proxy Configuration (PandaProxy)
-pandaproxy:
-  pandaproxy_api:
-    - address: 0.0.0.0
-      port: $PANDAPROXY_PORT
-
-# Cluster Configuration
-cluster_id: "redpanda-cluster-shasta"
-
-# Logging Configuration
-logger:
-  log_level: info
-  
-# Archival (S3) - disabled by default
-archival_storage_enabled: false
-
-# Metrics
-metrics_disabled: false
-EOF
-
-echo "Setting configuration file permissions..."
-sudo chown redpanda:redpanda "$CONFIG_FILE"
-sudo chmod 644 "$CONFIG_FILE"
-
-# Create systemd service file
-echo "Creating systemd service..."
+# Create systemd service for container management
+echo "Creating systemd service for RedPanda container..."
 sudo tee /etc/systemd/system/redpanda.service > /dev/null <<EOF
 [Unit]
-Description=RedPanda
-Documentation=https://docs.redpanda.com/
-Wants=network-online.target
-After=network-online.target
-AssertPathExists=$CONFIG_FILE
+Description=RedPanda Docker Container
+Requires=docker.service
+After=docker.service
+StartLimitIntervalSec=0
 
 [Service]
-Type=simple
-User=redpanda
-Group=redpanda
-ExecStart=/usr/local/bin/redpanda --config $CONFIG_FILE --logger-log-level=info
-Restart=always
-RestartSec=10s
-LimitNOFILE=262144
-LimitCORE=infinity
-TasksMax=infinity
-TimeoutStopSec=30s
-KillMode=control-group
-
-# Security settings
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=$DATA_DIR $LOG_DIR
-
-# Environment
-Environment="REDPANDA_ENVIRONMENT=production"
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/docker start redpanda-node
+ExecStop=/usr/bin/docker stop redpanda-node
+TimeoutStartSec=0
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-# Apply system tuning
-echo "Applying system tuning for low latency..."
-sudo rpk redpanda tune all --config "$CONFIG_FILE" || echo "Some tuning parameters may require reboot"
-
-# Set up log rotation
-echo "Configuring log rotation..."
-sudo tee /etc/logrotate.d/redpanda > /dev/null <<EOF
-$LOG_DIR/*.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    copytruncate
-}
-EOF
-
-# Create startup script for cluster initialization
-echo "Creating cluster initialization script..."
-sudo tee /usr/local/bin/init-redpanda-cluster.sh > /dev/null <<'EOF'
-#!/bin/bash
-# RedPanda cluster initialization script
-
-CONFIG_FILE=/etc/redpanda/redpanda.yaml
-MAX_RETRIES=30
-RETRY_INTERVAL=10
-
-echo "Initializing RedPanda cluster..."
-
-# Wait for RedPanda to be ready
-for i in $(seq 1 $MAX_RETRIES); do
-    if rpk cluster info --config $CONFIG_FILE &>/dev/null; then
-        echo "RedPanda is ready!"
-        break
-    fi
-    echo "Waiting for RedPanda to start... (attempt $i/$MAX_RETRIES)"
-    sleep $RETRY_INTERVAL
-done
-
-# Create default topics for testing
-echo "Creating default topics..."
-rpk topic create --config $CONFIG_FILE test-topic --partitions 12 --replicas 3 || true
-rpk topic create --config $CONFIG_FILE load-test --partitions 36 --replicas 3 || true
-rpk topic create --config $CONFIG_FILE high-throughput --partitions 48 --replicas 3 || true
-
-# Display cluster info
-echo "Cluster information:"
-rpk cluster info --config $CONFIG_FILE
-rpk topic list --config $CONFIG_FILE
-
-echo "✅ RedPanda cluster initialization completed!"
-EOF
-
-sudo chmod +x /usr/local/bin/init-redpanda-cluster.sh
-
-# Reload systemd and enable service
-echo "Enabling RedPanda service..."
 sudo systemctl daemon-reload
 sudo systemctl enable redpanda
 
-# Start RedPanda service
-echo "Starting RedPanda service..."
-sudo systemctl start redpanda
+# Show cluster status
+echo "Checking cluster status..."
+timeout 30s sudo docker exec redpanda-node rpk cluster info 2>/dev/null || {
+    echo "⚠️  Cluster not fully ready yet - this is normal during initial setup"
+}
 
-# Wait a moment for service to start
-sleep 5
-
-# Check service status
-echo "Checking RedPanda service status..."
-sudo systemctl status redpanda --no-pager -l
-
-# Initialize cluster (run in background)
-echo "Scheduling cluster initialization..."
-nohup sudo /usr/local/bin/init-redpanda-cluster.sh > /var/log/redpanda-init.log 2>&1 &
-
-echo "✅ RedPanda cluster setup completed!"
+echo "✅ RedPanda Docker node $NODE_ID setup completed!"
 echo ""
-echo "Service status: $(sudo systemctl is-active redpanda)"
-echo "Configuration file: $CONFIG_FILE"
-echo "Data directory: $DATA_DIR"
-echo "Log directory: $LOG_DIR"
+echo "Node Information:"
+echo "  Private IP: $PRIVATE_IP"
+echo "  Kafka API: $PRIVATE_IP:$KAFKA_PORT"
+echo "  Admin API: $PRIVATE_IP:$ADMIN_PORT"
+echo "  RPC: $PRIVATE_IP:$RPC_PORT"
+echo "  Container: redpanda-node"
 echo ""
-echo "Useful commands:"
-echo "  sudo systemctl status redpanda     # Check service status"
-echo "  sudo journalctl -u redpanda -f    # Follow service logs"
-echo "  rpk cluster info                   # Show cluster information"
-echo "  rpk topic list                     # List topics" 
+echo "Use 'docker ps' to check container status"
+echo "Use 'docker logs redpanda-node -f' to follow logs"
+echo "Use 'systemctl status redpanda' to check systemd service" 

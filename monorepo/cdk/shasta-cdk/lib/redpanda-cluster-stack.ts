@@ -86,23 +86,24 @@ export class RedPandaClusterStack extends Stack {
         const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.I4I, ec2.InstanceSize.XLARGE2);
         const machineImage = ec2.MachineImage.latestAmazonLinux2023();
 
-        // Get private subnets for RedPanda cluster (one per AZ)
-        const privateSubnets = vpc.selectSubnets({subnetType: ec2.SubnetType.PRIVATE_ISOLATED}).subnets;
+        // Get public subnets for RedPanda cluster (one per AZ) - need public IPs for direct access
         const publicSubnets = vpc.selectSubnets({subnetType: ec2.SubnetType.PUBLIC}).subnets;
         
         // Create RedPanda instances (one per AZ)
         const redpandaIPs: string[] = [];
-        const azCount = Math.min(3, privateSubnets.length);
+        const redpandaPublicIPs: string[] = [];
+        const azCount = Math.min(3, publicSubnets.length);
         
         for (let i = 0; i < azCount; i++) {
             const redpandaInstance = new ec2.Instance(this, `RedPandaNode${i}`, {
                 vpc,
-                vpcSubnets: { subnets: [privateSubnets[i]] },
+                vpcSubnets: { subnets: [publicSubnets[i]] },
                 instanceType: redpandaInstanceType,
                 machineImage,
                 securityGroup: redpandaSecurityGroup,
                 keyPair: ec2.KeyPair.fromKeyPairName(this, `RedPandaKeyPair${i}`, RedPandaClusterStack.keyName),
                 role,
+                associatePublicIpAddress: true,
                 blockDevices: [{
                     deviceName: '/dev/xvda',
                     volume: ec2.BlockDeviceVolume.ebs(100, {
@@ -123,6 +124,7 @@ export class RedPandaClusterStack extends Stack {
             
             this.redpandaInstances.push(redpandaInstance);
             redpandaIPs.push(redpandaInstance.instancePrivateIp);
+            redpandaPublicIPs.push(redpandaInstance.instancePublicIp);
         }
 
         // Create load testing instance in public subnet
@@ -160,8 +162,14 @@ export class RedPandaClusterStack extends Stack {
 
         new cdk.CfnOutput(this, REDPANDA_CLUSTER_IPS, {
             value: redpandaIPs.join(','),
-            description: 'RedPanda cluster node IP addresses',
+            description: 'RedPanda cluster node private IP addresses',
             exportName: REDPANDA_CLUSTER_IPS
+        });
+
+        new cdk.CfnOutput(this, 'RedPandaClusterPublicIPs', {
+            value: redpandaPublicIPs.join(','),
+            description: 'RedPanda cluster node public IP addresses',
+            exportName: 'RedPandaClusterPublicIPs'
         });
 
         new cdk.CfnOutput(this, LOAD_TEST_INSTANCE_IP, {
