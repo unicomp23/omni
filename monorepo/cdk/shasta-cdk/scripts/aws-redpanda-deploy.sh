@@ -9,6 +9,7 @@ echo "=== AWS RedPanda Deployment Script ==="
 # Configuration
 AWS_REGION="${AWS_REGION:-us-east-1}"
 KEY_PAIR_NAME="${KEY_PAIR_NAME:-john.davis}"
+KEY_PAIR_PATH="${KEY_PAIR_PATH:-/data/.ssh/john.davis.pem}"
 STACK_PREFIX="${STACK_PREFIX:-ShastaCdk}"
 DEPLOYMENT_TIMEOUT="${DEPLOYMENT_TIMEOUT:-1800}"  # 30 minutes
 
@@ -199,7 +200,7 @@ test_cluster_connectivity() {
     log_info "Testing connectivity from load test instance ($loadtest_ip)..."
     
     # Test SSH connectivity and run cluster check
-    if ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i "${KEY_PAIR_NAME}.pem" ec2-user@"$loadtest_ip" \
+    if ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no -i "$KEY_PAIR_PATH" ec2-user@"$loadtest_ip" \
         'timeout 30s bash -c "until rpk cluster info --brokers \$KAFKA_BROKERS &>/dev/null; do sleep 5; done; rpk cluster info --brokers \$KAFKA_BROKERS"' 2>/dev/null; then
         log_success "Cluster connectivity test passed"
         return 0
@@ -228,10 +229,10 @@ run_performance_tests() {
     log_info "Running quick performance test on $loadtest_ip..."
     
     # Copy performance test script and run it
-    if scp -o StrictHostKeyChecking=no -i "${KEY_PAIR_NAME}.pem" \
+    if scp -o StrictHostKeyChecking=no -i "$KEY_PAIR_PATH" \
         scripts/redpanda-performance-tests.sh ec2-user@"$loadtest_ip":/tmp/; then
         
-        ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_NAME}.pem" ec2-user@"$loadtest_ip" \
+        ssh -o StrictHostKeyChecking=no -i "$KEY_PAIR_PATH" ec2-user@"$loadtest_ip" \
             'chmod +x /tmp/redpanda-performance-tests.sh && /tmp/redpanda-performance-tests.sh quick'
         
         log_success "Performance tests completed"
@@ -267,13 +268,13 @@ show_connection_info() {
         echo "Connection Examples:"
         echo "===================="
         echo "SSH to load test instance:"
-        echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$loadtest_ip"
+        echo "  ssh -i $KEY_PAIR_PATH ec2-user@$loadtest_ip"
         echo ""
         echo "Run performance tests:"
-        echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$loadtest_ip 'cd ~/load-test-scripts && ./kafka-perf-test.sh'"
+        echo "  ssh -i $KEY_PAIR_PATH ec2-user@$loadtest_ip 'cd ~/load-test-scripts && ./kafka-perf-test.sh'"
         echo ""
         echo "Check cluster status:"
-        echo "  ssh -i ${KEY_PAIR_NAME}.pem ec2-user@$loadtest_ip 'rpk cluster info --brokers \$KAFKA_BROKERS'"
+        echo "  ssh -i $KEY_PAIR_PATH ec2-user@$loadtest_ip 'rpk cluster info --brokers \$KAFKA_BROKERS'"
     fi
     
     # SSM connection info

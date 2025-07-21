@@ -9,7 +9,7 @@ echo "=== Post-Deployment RedPanda Cluster Setup ==="
 # Configuration
 AWS_REGION="${AWS_REGION:-us-east-1}"
 KEY_PAIR_NAME="${KEY_PAIR_NAME:-john.davis}"
-KEY_PAIR_PATH="${KEY_PAIR_PATH:-${KEY_PAIR_NAME}.pem}"
+KEY_PAIR_PATH="${KEY_PAIR_PATH:-/data/.ssh/john.davis.pem}"
 
 # Colors for output
 RED='\033[0;31m'
