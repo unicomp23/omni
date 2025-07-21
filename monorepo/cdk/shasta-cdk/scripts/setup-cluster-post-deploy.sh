@@ -100,9 +100,14 @@ install_redpanda_on_node() {
     local node_id="$1"
     local private_ip="$2"
     local public_ip="$3"
+    local bootstrap_ip="$4"
     
-    # Use public IP if available, otherwise private IP (for VPC access)
-    local target_ip="${public_ip:-$private_ip}"
+    # Use public IP if available and not null, otherwise private IP (for VPC access)
+    if [[ "$public_ip" != "null" ]] && [[ -n "$public_ip" ]]; then
+        local target_ip="$public_ip"
+    else
+        local target_ip="$private_ip"
+    fi
     
     log_info "Installing RedPanda on node $node_id ($target_ip)..."
     
@@ -123,8 +128,9 @@ install_redpanda_on_node() {
     
     # Configure cluster
     log_info "Configuring RedPanda cluster on node $node_id..."
+    
     if ssh -o StrictHostKeyChecking=no -i "${KEY_PAIR_PATH}" ec2-user@"$target_ip" \
-        "NODE_ID=$node_id ~/setup-redpanda-cluster.sh"; then
+        "NODE_ID=$node_id BOOTSTRAP_NODE_IP=$bootstrap_ip ~/setup-redpanda-cluster.sh"; then
         log_success "RedPanda configured on node $node_id"
     else
         log_error "Failed to configure RedPanda on node $node_id"
@@ -190,7 +196,11 @@ show_usage() {
     
     # Show RedPanda node access
     while IFS=$'\t' read -r node_id private_ip public_ip; do
-        local target_ip="${public_ip:-$private_ip}"
+        if [[ "$public_ip" != "null" ]] && [[ -n "$public_ip" ]]; then
+            local target_ip="$public_ip"
+        else
+            local target_ip="$private_ip"
+        fi
         echo "  RedPanda Node $node_id: ssh -i ${KEY_PAIR_PATH} ec2-user@$target_ip"
     done <<< "$REDPANDA_INSTANCES"
     
@@ -232,13 +242,20 @@ main() {
     
     log_info "Starting RedPanda installation on all nodes..."
     
-    # Install RedPanda on each node
+    # Install RedPanda on each node (bootstrap node first)
     local install_failed=false
+    
+    # Sort instances by node ID to ensure bootstrap node (0) goes first
+    local sorted_instances=$(echo "$REDPANDA_INSTANCES" | sort -k1,1n)
+    
+    # Get bootstrap node IP (node 0's private IP)
+    local bootstrap_ip=$(echo "$sorted_instances" | awk '$1=="0" {print $2}')
+    
     while IFS=$'\t' read -r node_id private_ip public_ip; do
-        if ! install_redpanda_on_node "$node_id" "$private_ip" "$public_ip"; then
+        if ! install_redpanda_on_node "$node_id" "$private_ip" "$public_ip" "$bootstrap_ip"; then
             install_failed=true
         fi
-    done <<< "$REDPANDA_INSTANCES"
+    done <<< "$sorted_instances"
     
     if [[ "$install_failed" == "true" ]]; then
         log_error "Some RedPanda installations failed. Please check the logs above."
