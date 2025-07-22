@@ -1,9 +1,9 @@
 import {Duration, Stack, StackProps} from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cdk from 'aws-cdk-lib';
 import {Construct} from 'constructs';
-import * as layer1 from './shasta-cdk-stack';
 
 export const REDPANDA_BOOTSTRAP_BROKERS = 'RedPandaBootstrapBrokers';
 export const REDPANDA_CLUSTER_IPS = 'RedPandaClusterIPs';
@@ -16,16 +16,44 @@ export class RedPandaClusterStack extends Stack {
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, props);
 
-        // Import VPC from Layer 1
-        const vpc = ec2.Vpc.fromLookup(this, 'ImportedVPC', {
-            isDefault: false,
-            vpcName: layer1.SHASTA_VPC_NAME
+        // Create dedicated VPC for RedPanda cluster
+        const vpc = new ec2.Vpc(this, 'RedPandaVpc', {
+            vpcName: 'RedPandaVpc',
+            ipAddresses: ec2.IpAddresses.cidr('10.1.0.0/16'),
+            maxAzs: 3,
+            subnetConfiguration: [
+                {
+                    subnetType: ec2.SubnetType.PUBLIC,
+                    name: 'RedPandaPublic',
+                    cidrMask: 24,
+                },
+                {
+                    subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+                    name: 'RedPandaPrivate',
+                    cidrMask: 24,
+                },
+            ],
+            natGateways: 1, // Single NAT Gateway for cost optimization
+            enableDnsHostnames: true,
+            enableDnsSupport: true,
         });
 
-        // Import security group from Layer 1
-        const securityGroupIdToken = cdk.Fn.importValue(layer1.SHASTA_SECURITY_GROUP_ID);
-        const securityGroupId = cdk.Token.asString(securityGroupIdToken);
-        const baseSecurityGroup = ec2.SecurityGroup.fromSecurityGroupId(this, "baseSecurityGroup", securityGroupId);
+        // Add VPC endpoints for AWS services (optional but recommended for private subnet access)
+        vpc.addInterfaceEndpoint('S3Endpoint', {
+            service: ec2.InterfaceVpcEndpointAwsService.S3,
+        });
+
+        vpc.addInterfaceEndpoint('SsmEndpoint', {
+            service: ec2.InterfaceVpcEndpointAwsService.SSM,
+        });
+
+        vpc.addInterfaceEndpoint('SsmMessagesEndpoint', {
+            service: ec2.InterfaceVpcEndpointAwsService.SSM_MESSAGES,
+        });
+
+        vpc.addInterfaceEndpoint('Ec2MessagesEndpoint', {
+            service: ec2.InterfaceVpcEndpointAwsService.EC2_MESSAGES,
+        });
 
         // Create RedPanda-specific security group
         const redpandaSecurityGroup = new ec2.SecurityGroup(this, 'RedPandaSecurityGroup', {
@@ -78,9 +106,77 @@ export class RedPandaClusterStack extends Stack {
             'Internal cluster communication'
         );
 
-        // Import IAM role from Layer 1
-        const roleArn = cdk.Fn.importValue(layer1.SHASTA_CDK_EC2_INSTANCE_ROLE_ARN);
-        const role = iam.Role.fromRoleArn(this, 'ImportedRole', roleArn);
+        // Add EC2 Instance Connect Endpoint support (optional but recommended)
+        redpandaSecurityGroup.addIngressRule(
+            ec2.Peer.prefixList('pl-02cd2c6b'),  // EC2 Instance Connect service prefix list for us-east-1
+            ec2.Port.tcp(22),
+            'EC2 Instance Connect service access'
+        );
+        
+        // Alternative: More secure approach - restrict SSH from anywhere to specific IP ranges if needed
+        // Comment out the "SSH access from anywhere" rule above and use this instead:
+        // redpandaSecurityGroup.addIngressRule(
+        //     ec2.Peer.ipv4('YOUR_IP_RANGE/32'),  // Replace with your IP
+        //     ec2.Port.tcp(22),
+        //     'SSH access from specific IP'
+        // );
+
+        // Create dedicated IAM role for RedPanda cluster
+        const role = new iam.Role(this, 'RedPandaInstanceRole', {
+            assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
+            description: 'IAM role for RedPanda cluster instances',
+        });
+
+        // Add basic EC2 permissions
+        role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
+
+        // Add EC2 Instance Connect permissions
+        role.addToPolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                'ec2-instance-connect:SendSSHPublicKey',
+                'ec2:DescribeInstances',
+                'ec2:DescribeInstanceAttribute',
+                'ec2:DescribeInstanceTypes'
+            ],
+            resources: ['*']
+        }));
+
+        // Add CloudWatch logging permissions
+        role.addToPolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                'logs:CreateLogGroup',
+                'logs:CreateLogStream',
+                'logs:PutLogEvents',
+                'logs:DescribeLogStreams'
+            ],
+            resources: ['*']
+        }));
+
+        // Add S3 permissions for load test bucket
+        role.addToPolicy(new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: [
+                's3:GetObject',
+                's3:PutObject',
+                's3:DeleteObject',
+                's3:ListBucket'
+            ],
+            resources: ['*'] // Will be restricted to specific bucket below
+        }));
+
+        // Create S3 bucket for load test scripts
+        const loadTestBucket = new s3.Bucket(this, 'LoadTestBucket', {
+            bucketName: `redpanda-load-test-${cdk.Aws.ACCOUNT_ID}-${cdk.Aws.REGION}`,
+            removalPolicy: cdk.RemovalPolicy.DESTROY,
+            autoDeleteObjects: true,
+            blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+            versioned: false,
+        });
+
+        // Grant bucket access to the role
+        loadTestBucket.grantReadWrite(role);
 
         // High-performance instance type for low latency
         const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.I4I, ec2.InstanceSize.XLARGE2);
@@ -177,6 +273,18 @@ export class RedPandaClusterStack extends Stack {
             value: loadTestInstance.instancePublicIp,
             description: 'Load test instance public IP',
             exportName: LOAD_TEST_INSTANCE_IP
+        });
+
+        new cdk.CfnOutput(this, 'LoadTestS3Bucket', {
+            value: loadTestBucket.bucketName,
+            description: 'S3 bucket for load test scripts and results',
+            exportName: 'LoadTestS3Bucket'
+        });
+
+        new cdk.CfnOutput(this, 'RedPandaVpcId', {
+            value: vpc.vpcId,
+            description: 'RedPanda VPC ID',
+            exportName: 'RedPandaVpcId'
         });
     }
 
