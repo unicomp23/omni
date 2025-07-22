@@ -73,7 +73,7 @@ func main() {
 	config := &ClusterConfig{
 		StackName:       getEnvOrDefault("STACK_NAME", "RedPandaClusterStack"),
 		Region:          getEnvOrDefault("AWS_DEFAULT_REGION", "us-east-1"),
-		KeyPath:         getEnvOrDefault("KEY_PATH", os.ExpandEnv("$HOME/.ssh/john.davis.pem")),
+		KeyPath:         getEnvOrDefault("KEY_PATH", "/data/.ssh/john.davis.pem"),
 		RedPandaVersion: getEnvOrDefault("REDPANDA_VERSION", "latest"),
 	}
 
@@ -114,21 +114,16 @@ func main() {
 		}
 	}
 
-	// Wait for cluster to stabilize
-	fmt.Println("\nWaiting for cluster to stabilize...")
-	time.Sleep(30 * time.Second)
-
-	// Verify cluster health
+	// Verify cluster health with polling
 	fmt.Println("\n=== Verifying Cluster Health ===")
 	if err := verifyClusterHealth(config); err != nil {
-		log.Printf("Cluster health check failed: %v", err)
-	} else {
-		fmt.Println("✅ RedPanda cluster is healthy!")
+		log.Fatalf("Cluster health check failed: %v", err)
 	}
 
 	fmt.Println("\n=== Setup Complete ===")
-	fmt.Println("RedPanda cluster is ready!")
+	fmt.Println("🎉 RedPanda cluster is healthy and ready!")
 	fmt.Printf("Bootstrap brokers: %s\n", getBootstrapBrokers(config.Nodes))
+	fmt.Println("✅ All systems operational!")
 }
 
 func getEnvOrDefault(envVar, defaultValue string) string {
@@ -409,6 +404,8 @@ func uploadFile(client *ssh.Client, content []byte, remotePath string) error {
 }
 
 func verifyClusterHealth(config *ClusterConfig) error {
+	fmt.Println("🔍 Polling cluster status until healthy...")
+	
 	// Connect to first node to check cluster status
 	client, err := createSSHClient(config.Nodes[0].PublicIP, config.KeyPath)
 	if err != nil {
@@ -416,18 +413,78 @@ func verifyClusterHealth(config *ClusterConfig) error {
 	}
 	defer client.Close()
 
-	// Check if RedPanda is responding
-	healthChecks := []string{
-		"sudo docker exec redpanda rpk cluster info",
-		"sudo docker exec redpanda rpk topic list",
-	}
-
-	for _, cmd := range healthChecks {
-		if err := executeSSHCommand(client, cmd); err != nil {
-			return fmt.Errorf("health check failed: %s", cmd)
+	expectedBrokers := len(config.Nodes)
+	maxAttempts := 60 // 5 minutes with 5-second intervals
+	
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		fmt.Printf("  Attempt %d/%d: Checking cluster health...\n", attempt, maxAttempts)
+		
+		// Check if cluster is responding
+		session, err := client.NewSession()
+		if err != nil {
+			fmt.Printf("  ❌ SSH session failed: %v\n", err)
+			time.Sleep(5 * time.Second)
+			continue
 		}
+		
+		output, err := session.CombinedOutput("sudo docker exec redpanda rpk cluster info --brokers localhost:9092")
+		session.Close()
+		
+		if err != nil {
+			fmt.Printf("  ⏳ Cluster not ready yet: %v\n", err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		
+		outputStr := string(output)
+		fmt.Printf("  📊 Cluster info:\n%s\n", outputStr)
+		
+		// Parse cluster info to check broker count
+		if strings.Contains(outputStr, fmt.Sprintf("cluster.brokers:  %d", expectedBrokers)) {
+			fmt.Printf("  ✅ All %d brokers are healthy!\n", expectedBrokers)
+			
+			// Additional health checks
+			if err := performAdditionalHealthChecks(client); err != nil {
+				fmt.Printf("  ⚠️  Additional health check failed: %v\n", err)
+				time.Sleep(5 * time.Second)
+				continue
+			}
+			
+			return nil
+		}
+		
+		fmt.Printf("  ⏳ Waiting for all brokers to join (found in output, expecting %d)...\n", expectedBrokers)
+		time.Sleep(5 * time.Second)
+	}
+	
+	return fmt.Errorf("cluster failed to become healthy after %d attempts", maxAttempts)
+}
+
+func performAdditionalHealthChecks(client *ssh.Client) error {
+	healthChecks := []struct {
+		name string
+		cmd  string
+	}{
+		{"Broker list", "sudo docker exec redpanda rpk redpanda admin brokers list --brokers localhost:9092"},
+		{"Topic operations", "sudo docker exec redpanda rpk topic list --brokers localhost:9092"},
 	}
 
+	for _, check := range healthChecks {
+		session, err := client.NewSession()
+		if err != nil {
+			return fmt.Errorf("%s check - session failed: %v", check.name, err)
+		}
+		
+		output, err := session.CombinedOutput(check.cmd)
+		session.Close()
+		
+		if err != nil {
+			return fmt.Errorf("%s check failed: %v, output: %s", check.name, err, string(output))
+		}
+		
+		fmt.Printf("    ✅ %s: OK\n", check.name)
+	}
+	
 	return nil
 }
 

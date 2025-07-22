@@ -7,7 +7,7 @@ set -e
 # Configuration
 STACK_NAME="${STACK_NAME:-RedPandaClusterStack}"
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
-KEY_PATH="${KEY_PATH:-$HOME/.ssh/john.davis.pem}"
+KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.pem}"
 
 # Colors for output
 RED='\033[0;31m'
