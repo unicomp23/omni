@@ -161,23 +161,15 @@ func createTopic(admin *kadm.Client, config *Config) error {
 	}
 
 	// Create topic
-	req := kadm.TopicConfig{
-		Topic:             config.topic,
-		NumPartitions:     int32(config.partitions),
-		ReplicationFactor: int16(config.replication),
-		Configs: map[string]*string{
-			"cleanup.policy": stringPtr("delete"),
-			"retention.ms":   stringPtr("604800000"), // 7 days
-		},
-	}
-
-	results, err := admin.CreateTopics(ctx, req)
+	results, err := admin.CreateTopics(ctx, int32(config.partitions), int16(config.replication), map[string]*string{
+		"cleanup.policy": stringPtr("delete"),
+		"retention.ms":   stringPtr("604800000"), // 7 days
+	}, config.topic)
 	if err != nil {
 		return fmt.Errorf("failed to create topic: %w", err)
 	}
 
-	if len(results) > 0 {
-		result := results[0]
+	if result, ok := results[config.topic]; ok {
 		if result.Err != nil {
 			return fmt.Errorf("failed to create topic %s: %w", config.topic, result.Err)
 		}

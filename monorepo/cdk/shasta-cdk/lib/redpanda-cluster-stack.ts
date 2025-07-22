@@ -39,8 +39,8 @@ export class RedPandaClusterStack extends Stack {
         });
 
         // Add VPC endpoints for AWS services (optional but recommended for private subnet access)
-        vpc.addInterfaceEndpoint('S3Endpoint', {
-            service: ec2.InterfaceVpcEndpointAwsService.S3,
+        vpc.addGatewayEndpoint('S3Endpoint', {
+            service: ec2.GatewayVpcEndpointAwsService.S3,
         });
 
         vpc.addInterfaceEndpoint('SsmEndpoint', {

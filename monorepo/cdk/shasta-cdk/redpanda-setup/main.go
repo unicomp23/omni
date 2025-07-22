@@ -7,7 +7,6 @@ import (
 	"log"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -218,7 +217,8 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 	commands := []string{
 		// Create directories
 		"sudo mkdir -p /opt/redpanda/conf /opt/redpanda/data",
-		"sudo chown -R ec2-user:ec2-user /opt/redpanda",
+		"sudo chown -R ec2-user:ec2-user /opt/redpanda/conf",
+		"sudo chown -R 101:101 /opt/redpanda/data", // RedPanda runs as user 101:101 inside container
 		
 		// Stop any existing containers
 		"sudo docker stop redpanda || true",
