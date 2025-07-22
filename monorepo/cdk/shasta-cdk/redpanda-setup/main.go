@@ -440,7 +440,34 @@ func verifyClusterHealth(config *ClusterConfig) error {
 		fmt.Printf("  📊 Cluster info:\n%s\n", outputStr)
 		
 		// Parse cluster info to check broker count
-		if strings.Contains(outputStr, fmt.Sprintf("cluster.brokers:  %d", expectedBrokers)) {
+		// Count broker lines in the BROKERS section
+		lines := strings.Split(outputStr, "\n")
+		brokerCount := 0
+		inBrokersSection := false
+		
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.Contains(line, "BROKERS") {
+				inBrokersSection = true
+				continue
+			}
+			if inBrokersSection && strings.Contains(line, "=======") {
+				continue // Skip separator line
+			}
+			if inBrokersSection && line != "" && !strings.Contains(line, "ID") && !strings.Contains(line, "HOST") {
+				// This is a broker line if it has the format: ID HOST PORT
+				parts := strings.Fields(line)
+				if len(parts) >= 3 {
+					brokerCount++
+				}
+			}
+			// Stop counting if we hit an empty line after brokers section
+			if inBrokersSection && line == "" {
+				break
+			}
+		}
+		
+		if brokerCount == expectedBrokers {
 			fmt.Printf("  ✅ All %d brokers are healthy!\n", expectedBrokers)
 			
 			// Additional health checks
@@ -453,7 +480,7 @@ func verifyClusterHealth(config *ClusterConfig) error {
 			return nil
 		}
 		
-		fmt.Printf("  ⏳ Waiting for all brokers to join (found in output, expecting %d)...\n", expectedBrokers)
+		fmt.Printf("  ⏳ Found %d brokers, expecting %d. Waiting for full cluster...\n", brokerCount, expectedBrokers)
 		time.Sleep(5 * time.Second)
 	}
 	
