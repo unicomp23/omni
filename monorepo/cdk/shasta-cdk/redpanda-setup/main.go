@@ -427,7 +427,7 @@ func verifyClusterHealth(config *ClusterConfig) error {
 			continue
 		}
 		
-		output, err := session.CombinedOutput("sudo docker exec redpanda rpk cluster info --brokers localhost:9092")
+		output, err := session.CombinedOutput(fmt.Sprintf("sudo docker exec redpanda rpk cluster info --brokers %s:9092", config.Nodes[0].PrivateIP))
 		session.Close()
 		
 		if err != nil {
@@ -444,7 +444,7 @@ func verifyClusterHealth(config *ClusterConfig) error {
 			fmt.Printf("  ✅ All %d brokers are healthy!\n", expectedBrokers)
 			
 			// Additional health checks
-			if err := performAdditionalHealthChecks(client); err != nil {
+			if err := performAdditionalHealthChecks(client, config); err != nil {
 				fmt.Printf("  ⚠️  Additional health check failed: %v\n", err)
 				time.Sleep(5 * time.Second)
 				continue
@@ -460,13 +460,13 @@ func verifyClusterHealth(config *ClusterConfig) error {
 	return fmt.Errorf("cluster failed to become healthy after %d attempts", maxAttempts)
 }
 
-func performAdditionalHealthChecks(client *ssh.Client) error {
+func performAdditionalHealthChecks(client *ssh.Client, config *ClusterConfig) error {
 	healthChecks := []struct {
 		name string
 		cmd  string
 	}{
-		{"Broker list", "sudo docker exec redpanda rpk redpanda admin brokers list --brokers localhost:9092"},
-		{"Topic operations", "sudo docker exec redpanda rpk topic list --brokers localhost:9092"},
+		{"Broker list", "sudo docker exec redpanda rpk redpanda admin brokers list"},
+		{"Topic operations", fmt.Sprintf("sudo docker exec redpanda rpk topic list --brokers %s:9092", config.Nodes[0].PrivateIP)},
 	}
 
 	for _, check := range healthChecks {
