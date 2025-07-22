@@ -247,15 +247,6 @@ func RunLoadTest(config *LoadTestConfig) (*LoadTestResults, error) {
 func testBrokerConnectivity(bootstrapServers string) error {
 	log.Printf("🔍 Testing connectivity to brokers: %s", bootstrapServers)
 	
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(bootstrapServers),
-		kgo.WithLogger(kgo.BasicLogger(log.Writer(), kgo.LogLevelInfo, nil)),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create test client: %v", err)
-	}
-	defer client.Close()
-
 	// Parse bootstrap servers properly
 	brokers := strings.Split(bootstrapServers, ",")
 	for i, broker := range brokers {
@@ -263,7 +254,7 @@ func testBrokerConnectivity(bootstrapServers string) error {
 	}
 	log.Printf("🔍 Parsed brokers: %v", brokers)
 	
-	// Try to list topics to verify connectivity
+	// Try to connect to verify connectivity
 	log.Printf("🔍 Testing connection by creating test client...")
 	testClient, err := kgo.NewClient(
 		kgo.SeedBrokers(brokers...),
@@ -289,8 +280,14 @@ func createTopic(bootstrapServers, topic string) error {
 func runProducer(ctx context.Context, config *LoadTestConfig, producerID int, latencyChan chan<- time.Duration) (int64, error) {
 	log.Printf("🔧 Producer %d: Creating client with brokers: %s", producerID, config.BootstrapServers)
 	
+	// Parse bootstrap servers properly
+	brokers := strings.Split(config.BootstrapServers, ",")
+	for i, broker := range brokers {
+		brokers[i] = strings.TrimSpace(broker)
+	}
+	
 	client, err := kgo.NewClient(
-		kgo.SeedBrokers(config.BootstrapServers),
+		kgo.SeedBrokers(brokers...),
 		kgo.WithLogger(kgo.BasicLogger(log.Writer(), kgo.LogLevelWarn, nil)),
 		kgo.RequestTimeoutOverhead(10*time.Second),
 		kgo.ProduceRequestTimeout(30*time.Second),
@@ -364,8 +361,14 @@ func runProducer(ctx context.Context, config *LoadTestConfig, producerID int, la
 func runConsumer(ctx context.Context, config *LoadTestConfig, consumerID int) (int64, error) {
 	log.Printf("🔧 Consumer %d: Creating client for topic '%s' with brokers: %s", consumerID, config.Topic, config.BootstrapServers)
 	
+	// Parse bootstrap servers properly
+	brokers := strings.Split(config.BootstrapServers, ",")
+	for i, broker := range brokers {
+		brokers[i] = strings.TrimSpace(broker)
+	}
+	
 	client, err := kgo.NewClient(
-		kgo.SeedBrokers(config.BootstrapServers),
+		kgo.SeedBrokers(brokers...),
 		kgo.ConsumeTopics(config.Topic),
 		kgo.ConsumerGroup(fmt.Sprintf("test-consumer-group-%d", consumerID)),
 		kgo.WithLogger(kgo.BasicLogger(log.Writer(), kgo.LogLevelWarn, nil)),

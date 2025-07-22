@@ -13,11 +13,11 @@ import (
 
 type ClusterStatusChecker struct {
 	keyPath   string
-	nodes     []NodeInfo
+	nodes     []ClusterNodeInfo
 	sshClient map[string]*ssh.Client
 }
 
-type NodeInfo struct {
+type ClusterNodeInfo struct {
 	ID        int
 	PublicIP  string
 	PrivateIP string
@@ -42,16 +42,36 @@ type ClusterHealth struct {
 	ClusterUUID                string
 }
 
-func NewClusterStatusChecker(keyPath string) *ClusterStatusChecker {
-	return &ClusterStatusChecker{
-		keyPath: keyPath,
-		nodes: []NodeInfo{
-			{ID: 0, PublicIP: "54.237.232.219", PrivateIP: "10.0.0.62", Name: "Node 0"},
-			{ID: 1, PublicIP: "44.200.162.222", PrivateIP: "10.0.1.15", Name: "Node 1"},
-			{ID: 2, PublicIP: "54.234.45.204", PrivateIP: "10.0.2.154", Name: "Node 2"},
-		},
-		sshClient: make(map[string]*ssh.Client),
+func NewClusterStatusChecker(keyPath string) (*ClusterStatusChecker, error) {
+	// Get configuration from CDK stack - no fallbacks
+	config, err := GetStackConfigWithoutFallback("us-east-1", "RedPandaClusterStack")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CDK stack configuration: %v\n"+
+			"Please ensure:\n"+
+			"  - AWS credentials are configured (aws configure or IAM role)\n"+
+			"  - CDK stack 'RedPandaClusterStack' is deployed\n"+
+			"  - AWS CLI is installed and accessible", err)
 	}
+	
+	log.Println("📡 Successfully loaded configuration from CDK stack outputs")
+	
+	var nodes []ClusterNodeInfo
+	nodeInfos := config.GetNodesInfo()
+	
+	for _, nodeInfo := range nodeInfos {
+		nodes = append(nodes, ClusterNodeInfo{
+			ID:        nodeInfo.ID,
+			PublicIP:  nodeInfo.PublicIP,
+			PrivateIP: nodeInfo.PrivateIP,
+			Name:      fmt.Sprintf("Node %d", nodeInfo.ID),
+		})
+	}
+	
+	return &ClusterStatusChecker{
+		keyPath:   keyPath,
+		nodes:     nodes,
+		sshClient: make(map[string]*ssh.Client),
+	}, nil
 }
 
 func (c *ClusterStatusChecker) Connect() error {
@@ -325,7 +345,10 @@ func main() {
 	fmt.Println("🔍 RedPanda Cluster Status Checker")
 	fmt.Println("==================================")
 
-	checker := NewClusterStatusChecker(*keyPath)
+	checker, err := NewClusterStatusChecker(*keyPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to initialize cluster status checker: %v", err)
+	}
 	defer checker.Close()
 
 	// Step 1: Connect to nodes

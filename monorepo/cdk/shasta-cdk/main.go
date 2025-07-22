@@ -25,20 +25,32 @@ func main() {
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.Println("Starting RedPanda Cluster Automation...")
+	log.Println("🚀 Starting RedPanda Cluster Automation...")
 
 	// Validate key file exists
 	if _, err := os.Stat(*keyPath); os.IsNotExist(err) {
 		log.Fatalf("SSH key file not found: %s", *keyPath)
 	}
 
-	// Create cluster instance
-	cluster := NewRedPandaCluster(*keyPath)
+	// Create cluster instance (now reads from CDK outputs with fallback)
+	cluster, err := NewRedPandaCluster(*keyPath)
+	if err != nil {
+		log.Fatalf("❌ Failed to initialize cluster configuration: %v", err)
+	}
 	defer cluster.Close()
+	
+	// Log the configuration being used
+	log.Printf("📋 Cluster Configuration:")
+	log.Printf("   Load Test Instance: %s", cluster.LoadTestIP)
+	log.Printf("   Bootstrap Servers: %s", cluster.GetBootstrapServers())
+	log.Printf("   Nodes: %d", len(cluster.Nodes))
+	for _, node := range cluster.Nodes {
+		log.Printf("     Node %d: %s (private: %s)", node.ID, node.PublicIP, node.PrivateIP)
+	}
 
 	// Set up cluster if requested
 	if *setupCluster && !*skipClusterSetup {
-		log.Println("Setting up RedPanda cluster...")
+		log.Println("🔧 Setting up RedPanda cluster...")
 		
 		// Connect to nodes
 		if err := cluster.ConnectToNodes(); err != nil {
@@ -52,7 +64,7 @@ func main() {
 		
 		log.Println("✅ RedPanda cluster setup completed successfully!")
 	} else if *skipClusterSetup {
-		log.Println("Skipping cluster setup (using existing cluster)")
+		log.Println("⏭️  Skipping cluster setup (using existing cluster)")
 		// Still need to connect for health checks
 		if err := cluster.ConnectToNodes(); err != nil {
 			log.Fatalf("Failed to connect to nodes: %v", err)
@@ -61,7 +73,7 @@ func main() {
 
 	// Run load test if requested
 	if *runTest {
-		log.Println("Starting load test...")
+		log.Println("🧪 Starting load test...")
 		
 		// Configure load test
 		config := &LoadTestConfig{

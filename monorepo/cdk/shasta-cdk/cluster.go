@@ -25,17 +25,36 @@ type RedPandaCluster struct {
 	LoadTestIP  string
 }
 
-// NewRedPandaCluster creates a new cluster instance
-func NewRedPandaCluster(keyPath string) *RedPandaCluster {
-	return &RedPandaCluster{
-		KeyPath: keyPath,
-		Nodes: []*ClusterNode{
-			{ID: 0, PublicIP: "54.237.232.219", PrivateIP: "10.0.0.62"},
-			{ID: 1, PublicIP: "44.200.162.222", PrivateIP: "10.0.1.15"},
-			{ID: 2, PublicIP: "54.234.45.204", PrivateIP: "10.0.2.154"},
-		},
-		LoadTestIP: "54.173.123.191",
+// NewRedPandaCluster creates a new cluster instance, reading from CDK stack outputs
+func NewRedPandaCluster(keyPath string) (*RedPandaCluster, error) {
+	// Try to read from CDK stack outputs
+	config, err := GetStackConfigWithoutFallback("us-east-1", "RedPandaClusterStack")
+	if err != nil {
+		return nil, fmt.Errorf("failed to read CDK stack configuration: %v\n"+
+			"Please ensure:\n"+
+			"  - AWS credentials are configured (aws configure or IAM role)\n"+
+			"  - CDK stack 'RedPandaClusterStack' is deployed\n"+
+			"  - AWS CLI is installed and accessible", err)
 	}
+	
+	log.Println("📡 Successfully loaded configuration from CDK stack outputs")
+	
+	var nodes []*ClusterNode
+	nodeInfos := config.GetNodesInfo()
+	
+	for _, nodeInfo := range nodeInfos {
+		nodes = append(nodes, &ClusterNode{
+			ID:        nodeInfo.ID,
+			PublicIP:  nodeInfo.PublicIP,
+			PrivateIP: nodeInfo.PrivateIP,
+		})
+	}
+	
+	return &RedPandaCluster{
+		KeyPath:    keyPath,
+		Nodes:      nodes,
+		LoadTestIP: config.LoadTestIP,
+	}, nil
 }
 
 // ConnectToNodes establishes SSH connections to all nodes

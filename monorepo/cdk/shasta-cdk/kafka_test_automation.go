@@ -109,6 +109,9 @@ func (k *KafkaTestAutomation) DeployTestScript() error {
 	log.Println("📝 Deploying test script to load test instance...")
 	
 	testScript := k.generateTestScript()
+	if testScript == "" {
+		return fmt.Errorf("failed to generate test script - CDK configuration not available")
+	}
 	
 	// Create the test script on load test instance
 	cmd := fmt.Sprintf(`cat > /home/ec2-user/kafka_automation.go << 'EOF'
@@ -154,6 +157,21 @@ go run kafka_automation.go '%s' %d %d
 }
 
 func (k *KafkaTestAutomation) generateTestScript() string {
+	// Get bootstrap servers from CDK config - no fallbacks
+	config, err := GetStackConfigWithoutFallback("us-east-1", "RedPandaClusterStack")
+	if err != nil {
+		log.Printf("❌ Warning: Could not read CDK config for test script: %v", err)
+		return ""
+	}
+	
+	// Convert comma-separated string to Go slice format
+	servers := strings.Split(config.BootstrapServers, ",")
+	var formattedServers []string
+	for _, server := range servers {
+		formattedServers = append(formattedServers, fmt.Sprintf(`"%s"`, strings.TrimSpace(server)))
+	}
+	bootstrapServersStr := fmt.Sprintf("[]string{%s}", strings.Join(formattedServers, ", "))
+
 	return fmt.Sprintf(`package main
 
 import (
@@ -177,7 +195,7 @@ func main() {
 	messages, _ := strconv.Atoi(os.Args[2])
 	timeout, _ := strconv.Atoi(os.Args[3])
 	
-	bootstrapServers := []string{"10.0.0.62:9092", "10.0.1.15:9092", "10.0.2.154:9092"}
+	bootstrapServers := %s
 	
 	log.Printf("🚀 Starting automated test: topic=%%s, messages=%%d, timeout=%%ds", topic, messages, timeout)
 	
@@ -308,7 +326,7 @@ func main() {
 	if successRate < 90.0 {
 		log.Printf("⚠️  Success rate below 90%%%%, consider investigating cluster health")
 	}
-}`)
+}`, bootstrapServersStr)
 }
 
 func (k *KafkaTestAutomation) Close() {
@@ -321,19 +339,33 @@ func (k *KafkaTestAutomation) Close() {
 }
 
 func main() {
+	// Get configuration from CDK stack - no fallbacks
+	config, err := GetStackConfigWithoutFallback("us-east-1", "RedPandaClusterStack")
+	if err != nil {
+		log.Fatalf("❌ Failed to read CDK stack configuration: %v\n"+
+			"Please ensure:\n"+
+			"  - AWS credentials are configured (aws configure or IAM role)\n"+
+			"  - CDK stack 'RedPandaClusterStack' is deployed\n"+
+			"  - AWS CLI is installed and accessible", err)
+	}
+	
+	// Use CDK outputs for default values
+	defaultRedPandaNode := config.ClusterPublicIPs[0]
+	defaultLoadTestInstance := config.LoadTestIP
+
 	var (
 		topic            = flag.String("topic", fmt.Sprintf("auto-test-%d", time.Now().Unix()), "Kafka topic name")
 		messages         = flag.Int("messages", 10, "Number of messages to send")
 		timeoutSeconds   = flag.Int("timeout", 30, "Test timeout in seconds")
 		keyPath          = flag.String("key", "/data/.ssh/john.davis.pem", "Path to SSH private key")
-		redPandaNode     = flag.String("redpanda", "54.237.232.219", "RedPanda node IP address")
-		loadTestInstance = flag.String("loadtest", "54.173.123.191", "Load test instance IP address")
+		redPandaNode     = flag.String("redpanda", defaultRedPandaNode, "RedPanda node IP address")
+		loadTestInstance = flag.String("loadtest", defaultLoadTestInstance, "Load test instance IP address")
 	)
 	flag.Parse()
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	
-	config := &KafkaTestConfig{
+	kafkaConfig := &KafkaTestConfig{
 		Topic:             *topic,
 		Messages:          *messages,
 		TimeoutSeconds:    *timeoutSeconds,
@@ -343,10 +375,13 @@ func main() {
 	}
 
 	log.Println("🚀 Starting automated Kafka test automation...")
-	log.Printf("📋 Configuration: topic=%s, messages=%d, timeout=%ds", 
-		config.Topic, config.Messages, config.TimeoutSeconds)
+	log.Printf("📡 Using CDK configuration: Bootstrap Servers: %s", config.BootstrapServers)
+	log.Printf("📋 Test Configuration: topic=%s, messages=%d, timeout=%ds", 
+		kafkaConfig.Topic, kafkaConfig.Messages, kafkaConfig.TimeoutSeconds)
+	log.Printf("🔗 RedPanda Node: %s", kafkaConfig.RedPandaNode)
+	log.Printf("🧪 Load Test Instance: %s", kafkaConfig.LoadTestInstance)
 
-	automation := NewKafkaTestAutomation(config)
+	automation := NewKafkaTestAutomation(kafkaConfig)
 	defer automation.Close()
 
 	// Step 1: Connect to instances
