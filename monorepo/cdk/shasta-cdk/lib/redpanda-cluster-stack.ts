@@ -115,7 +115,7 @@ export class RedPandaClusterStack extends Stack {
                 }]
             });
 
-            // Basic system setup only - RedPanda installation will be done manually
+            // Docker setup only - other tools will be installed manually
             const basicConfig = this.generateBasicUserData(i);
             redpandaInstance.addUserData(...basicConfig);
 
@@ -145,7 +145,7 @@ export class RedPandaClusterStack extends Stack {
             }]
         });
 
-        // Basic system setup only - tools installation will be done manually
+        // Docker setup only - other tools will be installed manually
         const loadTestConfig = this.generateBasicLoadTestUserData();
         loadTestInstance.addUserData(...loadTestConfig);
         
@@ -183,66 +183,24 @@ export class RedPandaClusterStack extends Stack {
     private generateBasicUserData(nodeId: number): string[] {
         return [
             '#!/bin/bash',
-            'yum update -y',
-            'yum install -y curl wget tar gzip git htop iotop nvme-cli util-linux-user',
-            
-            // Install SSM agent
-            'yum install -y amazon-ssm-agent',
-            'systemctl start amazon-ssm-agent',
-            'systemctl enable amazon-ssm-agent',
             
             // Install Docker
             'yum install -y docker',
             'systemctl enable docker',
             'systemctl start docker',
-            'usermod -a -G docker ec2-user',
-            
-            // Set hostname for cluster discovery
-            `hostnamectl set-hostname redpanda-${nodeId}`,
-            
-            // Create environment variables for later use
-            'su - ec2-user -c "touch ~/.bashrc"',
-            `su - ec2-user -c "echo export NODE_ID=${nodeId} >> ~/.bashrc"`,
-            'su - ec2-user -c "echo export CLUSTER_SIZE=3 >> ~/.bashrc"',
-            
-            // Create directory for scripts
-            'mkdir -p /home/ec2-user/scripts',
-            'chown ec2-user:ec2-user /home/ec2-user/scripts'
+            'usermod -a -G docker ec2-user'
         ];
     }
 
     private generateBasicLoadTestUserData(): string[] {
         return [
             '#!/bin/bash',
-            'yum update -y',
-            'yum install -y curl wget tar gzip git htop iotop nvme-cli java-11-amazon-corretto python3 python3-pip',
-            
-            // Install SSM agent
-            'yum install -y amazon-ssm-agent',
-            'systemctl start amazon-ssm-agent',
-            'systemctl enable amazon-ssm-agent',
             
             // Install Docker
             'yum install -y docker',
             'systemctl enable docker',
             'systemctl start docker',
-            'usermod -a -G docker ec2-user',
-            
-            // Install Kafka CLI tools for later use
-            'cd /opt',
-            'wget https://archive.apache.org/dist/kafka/2.13-3.5.0/kafka_2.13-3.5.0.tgz',
-            'tar -xzf kafka_2.13-3.5.0.tgz',
-            'mv kafka_2.13-3.5.0 kafka',
-            'chown -R ec2-user:ec2-user /opt/kafka',
-            
-            // Set up basic environment
-            'su - ec2-user -c "touch ~/.bashrc"',
-            'su - ec2-user -c "echo export KAFKA_HOME=/opt/kafka >> ~/.bashrc"',
-            'su - ec2-user -c "echo export PATH=$PATH:/opt/kafka/bin >> ~/.bashrc"',
-            
-            // Create directories for scripts and tests
-            'mkdir -p /home/ec2-user/scripts /home/ec2-user/load-test-scripts',
-            'chown -R ec2-user:ec2-user /home/ec2-user/scripts /home/ec2-user/load-test-scripts'
+            'usermod -a -G docker ec2-user'
         ];
     }
 } 
