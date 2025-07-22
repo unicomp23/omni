@@ -1,0 +1,27 @@
+# Build artifacts
+redpanda-setup
+*.exe
+
+# Go module cache
+go.sum
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# SSH keys (security)
+*.pem
+*.key
+
+# Log files
+*.log
+
+# Temporary files
+*.tmp
+*.temp 
