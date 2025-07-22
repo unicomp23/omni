@@ -2,7 +2,7 @@
 set -e
 
 echo "=========================================="
-echo "RedPanda Load Test with franz-go"
+echo "RedPanda Load Test with franz-go & UUID Topics"
 echo "=========================================="
 
 # Source environment variables
@@ -36,8 +36,10 @@ CONSUMERS=${CONSUMERS:-6}
 MESSAGE_SIZE=${MESSAGE_SIZE:-1024}
 DURATION=${DURATION:-300s}
 COMPRESSION=${COMPRESSION:-snappy}
-TOPIC=${TOPIC:-load-test-topic}
+TOPIC=${TOPIC:-}  # Leave empty to auto-generate UUID topic
 PARTITIONS=${PARTITIONS:-12}
+CLEANUP_OLD_TOPICS=${CLEANUP_OLD_TOPICS:-true}
+WARMUP_MESSAGES=${WARMUP_MESSAGES:-1000}
 
 # Parse command line flags
 while [[ $# -gt 0 ]]; do
@@ -70,6 +72,14 @@ while [[ $# -gt 0 ]]; do
             PARTITIONS="$2"
             shift 2
             ;;
+        --no-cleanup)
+            CLEANUP_OLD_TOPICS=false
+            shift
+            ;;
+        --warmup-messages)
+            WARMUP_MESSAGES="$2"
+            shift 2
+            ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS]"
             echo ""
@@ -79,17 +89,24 @@ while [[ $# -gt 0 ]]; do
             echo "  --message-size N    Message size in bytes (default: 1024)"
             echo "  --duration D        Test duration (default: 300s)"
             echo "  --compression TYPE  Compression type: none, gzip, snappy, lz4, zstd (default: snappy)"
-            echo "  --topic NAME        Topic name (default: load-test-topic)"
+            echo "  --topic NAME        Topic name (default: auto-generate with UUID)"
             echo "  --partitions N      Number of topic partitions (default: 12)"
+            echo "  --no-cleanup        Skip cleanup of old test topics"
+            echo "  --warmup-messages N Number of messages to skip for warm-up (default: 1000)"
             echo ""
             echo "Environment Variables:"
             echo "  REDPANDA_BROKERS    Comma-separated broker addresses"
             echo ""
+            echo "🆔 NEW: Each test run creates a unique topic with UUID"
+            echo "🗑️  OLD test topics are automatically cleaned up"
+            echo ""
             echo "Examples:"
-            echo "  $0                                    # Run with defaults"
+            echo "  $0                                    # Run with defaults (UUID topic)"
             echo "  $0 --producers 10 --consumers 5      # Custom producer/consumer counts"
             echo "  $0 --message-size 4096 --duration 10m # Larger messages, longer test"
             echo "  $0 --compression zstd                 # Use zstd compression"
+            echo "  $0 --topic my-specific-topic         # Use specific topic name"
+            echo "  $0 --no-cleanup                      # Skip old topic cleanup"
             exit 0
             ;;
         *)
@@ -103,13 +120,19 @@ done
 echo ""
 echo "Configuration:"
 echo "  Brokers: $REDPANDA_BROKERS"
-echo "  Topic: $TOPIC"
+if [ -n "$TOPIC" ]; then
+    echo "  Topic: $TOPIC (user-specified)"
+else
+    echo "  Topic: [auto-generated UUID topic]"
+fi
 echo "  Producers: $PRODUCERS"
 echo "  Consumers: $CONSUMERS"
 echo "  Message Size: $MESSAGE_SIZE bytes"
 echo "  Duration: $DURATION"
 echo "  Compression: $COMPRESSION"
 echo "  Partitions: $PARTITIONS"
+echo "  Cleanup old topics: $CLEANUP_OLD_TOPICS"
+echo "  Warm-up messages: $WARMUP_MESSAGES (excluded from latency percentiles)"
 echo ""
 
 # Wait for user confirmation
@@ -127,15 +150,28 @@ if [ ! -f "./load-test" ]; then
     echo ""
 fi
 
+# Build command arguments
+CMD_ARGS=(
+    "-brokers=$REDPANDA_BROKERS"
+    "-producers=$PRODUCERS"
+    "-consumers=$CONSUMERS"
+    "-message-size=$MESSAGE_SIZE"
+    "-duration=$DURATION"
+    "-compression=$COMPRESSION"
+    "-partitions=$PARTITIONS"
+    "-batch-size=100"
+    "-print-interval=10s"
+    "-cleanup-old-topics=$CLEANUP_OLD_TOPICS"
+    "-warmup-messages=$WARMUP_MESSAGES"
+)
+
+# Add topic if specified, otherwise let the binary generate UUID
+if [ -n "$TOPIC" ]; then
+    CMD_ARGS+=("-topic=$TOPIC")
+fi
+
+echo "🚀 Executing: ./load-test ${CMD_ARGS[*]}"
+echo ""
+
 # Run the load test
-exec ./load-test \
-    -brokers="$REDPANDA_BROKERS" \
-    -topic="$TOPIC" \
-    -producers="$PRODUCERS" \
-    -consumers="$CONSUMERS" \
-    -message-size="$MESSAGE_SIZE" \
-    -duration="$DURATION" \
-    -compression="$COMPRESSION" \
-    -partitions="$PARTITIONS" \
-    -batch-size=100 \
-    -print-interval=10s 
+exec ./load-test "${CMD_ARGS[@]}" 

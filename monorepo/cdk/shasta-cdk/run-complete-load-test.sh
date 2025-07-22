@@ -2,12 +2,13 @@
 
 # Complete RedPanda Load Test Automation Script
 # This script automates the entire process: setup, deployment, and execution
+# NEW: Includes UUID-based unique topics and automatic cleanup
 
 set -e
 
-echo "=================================================="
-echo "RedPanda Complete Load Test Automation"
-echo "=================================================="
+echo "========================================================="
+echo "RedPanda Complete Load Test Automation with UUID Topics"
+echo "========================================================="
 
 # Configuration
 export AWS_PROFILE="${AWS_PROFILE:-358474168551_admin}"
@@ -22,104 +23,115 @@ echo "  Stack: $STACK_NAME"
 echo "  Key Path: $KEY_PATH"
 echo ""
 
-# Step 1: Get cluster information
-echo "🔍 Step 1: Getting cluster information..."
-BOOTSTRAP_BROKERS=$(aws --profile $AWS_PROFILE cloudformation describe-stacks \
-    --region $AWS_DEFAULT_REGION --stack-name $STACK_NAME \
-    --query "Stacks[0].Outputs[?OutputKey=='RedPandaBootstrapBrokers'].OutputValue" \
-    --output text 2>/dev/null)
-
-LOAD_TEST_IP=$(aws --profile $AWS_PROFILE cloudformation describe-stacks \
-    --region $AWS_DEFAULT_REGION --stack-name $STACK_NAME \
-    --query "Stacks[0].Outputs[?OutputKey=='LoadTestInstanceIP'].OutputValue" \
-    --output text 2>/dev/null)
-
-if [ -z "$BOOTSTRAP_BROKERS" ] || [ -z "$LOAD_TEST_IP" ]; then
-    echo "❌ ERROR: Could not get cluster information from CloudFormation"
-    echo "Please ensure your RedPandaClusterStack is deployed and accessible"
-    exit 1
-fi
-
-echo "✅ Found RedPanda cluster:"
-echo "  Bootstrap Brokers: $BOOTSTRAP_BROKERS"
-echo "  Load Test Instance: $LOAD_TEST_IP"
-echo ""
-
-# Step 2: Copy load test files to instance
-echo "📦 Step 2: Copying load test files to instance..."
-cd load-test
-scp -i $KEY_PATH -o StrictHostKeyChecking=no \
-    *.go *.sh *.mod go.sum \
-    ec2-user@$LOAD_TEST_IP:~/
-echo "✅ Files copied successfully"
-echo ""
-
-# Step 3: Setup Go and build binary on target instance
-echo "🔨 Step 3: Installing Go and building load test binary..."
-ssh -i $KEY_PATH -o StrictHostKeyChecking=no ec2-user@$LOAD_TEST_IP << 'EOF'
-# Install Go if not already installed
-if ! which go > /dev/null 2>&1; then
-    echo "Installing Go..."
-    sudo yum install -y go
-    echo "✅ Go installed successfully"
-else
-    echo "✅ Go already installed: $(go version)"
-fi
-
-# Build the load test binary
-echo "Building load test binary..."
-cd ~
-go build -o load-test main.go
-echo "✅ Binary built successfully"
-
-# Make scripts executable
-chmod +x *.sh
-echo "✅ Scripts made executable"
-EOF
-echo ""
-
-# Step 4: Run load test with configurable parameters
-echo "🚀 Step 4: Running load test..."
+# Load test parameters (can be overridden by environment variables)
 PRODUCERS="${PRODUCERS:-2}"
-CONSUMERS="${CONSUMERS:-2}" 
+CONSUMERS="${CONSUMERS:-2}"
 DURATION="${DURATION:-30s}"
 MESSAGE_SIZE="${MESSAGE_SIZE:-1024}"
 COMPRESSION="${COMPRESSION:-snappy}"
+PARTITIONS="${PARTITIONS:-6}"
+CLEANUP_OLD_TOPICS="${CLEANUP_OLD_TOPICS:-true}"
+WARMUP_MESSAGES="${WARMUP_MESSAGES:-1000}"
 
-echo "Load test configuration:"
+echo "Load Test Configuration:"
 echo "  Producers: $PRODUCERS"
 echo "  Consumers: $CONSUMERS"
 echo "  Duration: $DURATION"
 echo "  Message Size: $MESSAGE_SIZE bytes"
 echo "  Compression: $COMPRESSION"
+echo "  Partitions: $PARTITIONS"
+echo "  Cleanup old topics: $CLEANUP_OLD_TOPICS"
+echo "  Warm-up messages: $WARMUP_MESSAGES (excluded from latency percentiles)"
+echo "  Topic: [auto-generated UUID]"
 echo ""
 
-# Run the actual load test
-ssh -i $KEY_PATH -o StrictHostKeyChecking=no ec2-user@$LOAD_TEST_IP << EOF
-export REDPANDA_BROKERS='$BOOTSTRAP_BROKERS'
-echo "Starting load test with RedPanda brokers: \$REDPANDA_BROKERS"
+# Step 1: Get cluster IPs from CloudFormation
+echo "🔍 Step 1: Auto-discovering RedPanda cluster..."
+PRIVATE_IPS=$(aws --profile $AWS_PROFILE cloudformation describe-stacks \
+    --region $AWS_DEFAULT_REGION --stack-name $STACK_NAME \
+    --query 'Stacks[0].Outputs[?OutputKey==`RedPandaClusterIPs`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
+if [ -z "$PRIVATE_IPS" ]; then
+    echo "❌ ERROR: Could not find RedPanda cluster IPs from CloudFormation"
+    echo "Please ensure $STACK_NAME is deployed in $AWS_DEFAULT_REGION"
+    exit 1
+fi
+
+BOOTSTRAP_BROKERS=$(echo $PRIVATE_IPS | tr ',' '\n' | sed 's/$/:9092/' | tr '\n' ',' | sed 's/,$//')
+echo "✅ Found RedPanda brokers: $BOOTSTRAP_BROKERS"
+
+# Step 2: Get load test instance IP
+echo ""
+echo "🔍 Step 2: Finding load test instance..."
+LOAD_TEST_IP=$(aws --profile $AWS_PROFILE cloudformation describe-stacks \
+    --region $AWS_DEFAULT_REGION --stack-name $STACK_NAME \
+    --query 'Stacks[0].Outputs[?OutputKey==`LoadTestInstanceIP`].OutputValue' \
+    --output text 2>/dev/null || echo "")
+
+if [ -z "$LOAD_TEST_IP" ]; then
+    echo "❌ ERROR: Could not find load test instance IP from CloudFormation"
+    exit 1
+fi
+
+echo "✅ Found load test instance: $LOAD_TEST_IP"
+
+# Step 3: Copy load test files
+echo ""
+echo "📁 Step 3: Copying enhanced load test files..."
+scp -i "$KEY_PATH" -o StrictHostKeyChecking=no -r load-test/* ec2-user@$LOAD_TEST_IP:~/
+
+echo "✅ Files copied successfully"
+
+# Step 4: Install dependencies and run test
+echo ""
+echo "🚀 Step 4: Running enhanced load test with UUID topic..."
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no ec2-user@$LOAD_TEST_IP << EOF
+# Install Go if needed
+if ! which go > /dev/null 2>&1; then
+    echo "📦 Installing Go..."
+    sudo yum install -y go
+fi
+
+# Build the enhanced load test binary
+echo "🔨 Building enhanced load test binary..."
+go build -o load-test main.go
+
+# Export RedPanda brokers
+export REDPANDA_BROKERS="$BOOTSTRAP_BROKERS"
+
+echo ""
+echo "🎯 Starting load test with enhanced features:"
+echo "   • UUID-based unique topic creation"
+echo "   • Automatic cleanup of old test topics"  
+echo "   • Detailed latency percentiles including p99.99"
+echo "   • Warm-up period exclusion ($WARMUP_MESSAGES messages)"
+echo "   • Enhanced final results display"
 echo ""
 
-# Run load test with parameters, automatically answering the prompt
-echo '' | ./run.sh \
-    --producers $PRODUCERS \
-    --consumers $CONSUMERS \
-    --duration $DURATION \
-    --message-size $MESSAGE_SIZE \
-    --compression $COMPRESSION
+# Run the load test with all parameters
+./load-test \\
+    -brokers="$BOOTSTRAP_BROKERS" \\
+    -producers="$PRODUCERS" \\
+    -consumers="$CONSUMERS" \\
+    -message-size="$MESSAGE_SIZE" \\
+    -duration="$DURATION" \\
+    -compression="$COMPRESSION" \\
+    -partitions="$PARTITIONS" \\
+    -cleanup-old-topics="$CLEANUP_OLD_TOPICS" \\
+    -warmup-messages="$WARMUP_MESSAGES" \\
+    -batch-size=100 \\
+    -print-interval=5s
 EOF
 
 echo ""
-echo "=================================================="
-echo "🎉 Load test completed successfully!"
+echo "🎉 Complete automation finished!"
 echo ""
-echo "To run again with different parameters:"
-echo "  PRODUCERS=4 CONSUMERS=4 DURATION=60s $0"
+echo "✨ Enhanced Features Used:"
+echo "   🆔 Unique UUID topic created for this run"
+echo "   🗑️  Old test topics cleaned up automatically"
+echo "   📊 Detailed latency percentiles displayed"
+echo "   🔥 Warm-up messages excluded from percentiles"
+echo "   ⭐ p99.99 latency measurement included"
 echo ""
-echo "Available parameters:"
-echo "  PRODUCERS=N     # Number of producer threads"
-echo "  CONSUMERS=N     # Number of consumer threads" 
-echo "  DURATION=Xs     # Test duration (e.g., 30s, 5m)"
-echo "  MESSAGE_SIZE=N  # Message size in bytes"
-echo "  COMPRESSION=X   # none, gzip, snappy, lz4, zstd"
-echo "==================================================" 
+echo "🔄 Next run will create a new UUID topic and clean up this one!" 

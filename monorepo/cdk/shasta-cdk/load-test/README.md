@@ -84,6 +84,47 @@ Options:
 ./run.sh --producers 1 --consumers 1 --message-size 128
 ```
 
+## Enhanced Latency Analysis 🆕
+
+The load test now includes **comprehensive latency percentile analysis** in the final results:
+
+### Detailed Percentiles
+- **Min/Max**: Absolute bounds of latency measurements
+- **p50 (Median)**: Half of requests complete faster than this time
+- **p90**: 90% of requests complete faster than this time  
+- **p95**: 95% of requests complete faster than this time
+- **p99**: 99% of requests complete faster than this time
+- **p99.9**: 99.9% of requests complete faster than this time
+- **p99.99**: 99.99% of requests complete faster than this time ⭐
+- **Average**: Mean latency across all samples
+
+### Example Output
+```
+Latency Percentiles (Total samples: 50000):
+  - Min:    500µs
+  - p50:    2.979ms
+  - p90:    5ms
+  - p95:    14ms
+  - p99:    64ms
+  - p99.9:  108ms
+  - p99.99: 927ms
+  - Max:    1.939s
+  - Average: 4.995372ms
+```
+
+### Why p99.99 Matters
+The p99.99 percentile is **critical for production systems** because:
+- **Tail Latency Impact**: Even rare slow requests affect user experience
+- **SLA Compliance**: Most strict SLAs require sub-second p99.99 performance
+- **Load Balancer Decisions**: High tail latencies can trigger failovers
+- **System Capacity**: Helps identify when systems approach limits
+
+### Latency Tracking Implementation
+- **Real-time Collection**: Measures actual producer→consumer latency
+- **Timestamp Headers**: Uses nanosecond-precision timestamps in message headers
+- **Memory Efficient**: Samples up to 500k latency measurements
+- **High Precision**: Tracks latencies down to microsecond resolution
+
 ## Environment Variables
 
 - `REDPANDA_BROKERS`: Comma-separated broker addresses (auto-discovered if not set)

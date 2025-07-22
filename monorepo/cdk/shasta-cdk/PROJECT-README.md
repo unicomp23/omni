@@ -152,6 +152,7 @@ ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-instance-ip}
 ### Load Testing Features
 - **High Performance**: franz-go client (fastest Kafka client for Go)
 - **Comprehensive Metrics**: Throughput, latency, consumer lag
+- **Detailed Percentiles**: p50, p90, p95, p99, p99.9, p99.99 latency analysis ⭐
 - **Flexible Configuration**: Multiple producers/consumers, message sizes
 - **Compression Support**: All major algorithms (gzip, snappy, lz4, zstd)
 - **Auto-discovery**: Finds RedPanda brokers automatically

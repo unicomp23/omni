@@ -23,7 +23,6 @@ import (
 type Config struct {
 	brokers        string
 	topic          string
-	topicPrefix    string
 	producers      int
 	consumers      int
 	messageSize    int
@@ -33,8 +32,6 @@ type Config struct {
 	partitions     int
 	replication    int
 	printInterval  time.Duration
-	cleanupOldTopics bool
-	warmupMessages int  // Number of messages to skip for warm-up
 }
 
 type Metrics struct {
@@ -47,13 +44,9 @@ type Metrics struct {
 	lastPrintTime    time.Time
 	lastSent         int64
 	lastReceived     int64
-	// Latency tracking with channels (no mutex needed!)
-	latencyChan      chan time.Duration
+	// Latency tracking
 	latencies        []time.Duration
-	latencyCollectorDone chan struct{}
-	// Warm-up tracking
-	warmupComplete   int64  // Atomic flag: 0 = warming up, 1 = complete
-	messagesProcessed int64 // Total messages processed (for warm-up tracking)
+	latenciesMutex   sync.Mutex
 }
 
 func main() {
@@ -66,7 +59,6 @@ func main() {
 	log.Printf("Message Size: %d bytes", config.messageSize)
 	log.Printf("Duration: %v", config.duration)
 	log.Printf("Compression: %s", config.compression)
-	log.Printf("Warm-up Messages: %d (excluded from latency percentiles)", config.warmupMessages)
 
 	// Create admin client to manage topics
 	adminClient, err := kgo.NewClient(
@@ -79,29 +71,17 @@ func main() {
 
 	admin := kadm.NewClient(adminClient)
 	
-	// Clean up old test topics first
-	if config.cleanupOldTopics {
-		if err := cleanupOldTopics(admin, config); err != nil {
-			log.Printf("Warning: Failed to cleanup old topics: %v", err)
-		}
-	}
-	
 	// Create topic if it doesn't exist
 	if err := createTopic(admin, config); err != nil {
 		log.Fatalf("Failed to create topic: %v", err)
 	}
 
-	// Initialize metrics with channels
+	// Initialize metrics
 	metrics := &Metrics{
-		startTime:            time.Now(),
-		lastPrintTime:        time.Now(),
-		latencies:            make([]time.Duration, 0, 500000), // Increased capacity for more samples
-		latencyChan:          make(chan time.Duration, 10000),  // Buffered channel for latency measurements
-		latencyCollectorDone: make(chan struct{}),
+		startTime:     time.Now(),
+		lastPrintTime: time.Now(),
+		latencies:     make([]time.Duration, 0, 100000), // Pre-allocate for performance
 	}
-
-	// Start latency collector goroutine (no mutex needed!)
-	go collectLatencies(metrics)
 
 	// Setup signal handling
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -125,71 +105,31 @@ func main() {
 		go runProducer(ctx, &wg, config, metrics, i)
 	}
 
-	// Start metrics printer
+	// Start metrics reporter
 	wg.Add(1)
-	go printMetrics(ctx, &wg, config, metrics)
+	go metricsReporter(ctx, &wg, config, metrics)
 
-	// Wait for duration or signal
+	// Wait for specified duration or signal
 	select {
 	case <-ctx.Done():
-		log.Printf("Received shutdown signal")
+		log.Println("Received signal, shutting down...")
 	case <-time.After(config.duration):
-		log.Printf("Test duration completed")
+		log.Println("Duration completed, shutting down...")
 		cancel()
 	}
-
-	log.Printf("Shutting down...")
 
 	// Wait for all goroutines to finish
 	wg.Wait()
 
-	// Close latency channel and wait for collector to finish
-	close(metrics.latencyChan)
-	<-metrics.latencyCollectorDone
-
 	// Print final results
 	printFinalResults(config, metrics)
-	
-	log.Printf("✅ Load test completed successfully!")
-	log.Printf("🗑️  Topic %s will be cleaned up on next run", config.topic)
-}
-
-// generateUUID creates a simple UUID-like string for topic naming
-func generateUUID() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		// Fallback to timestamp-based ID
-		return fmt.Sprintf("%d", time.Now().UnixNano())
-	}
-	return fmt.Sprintf("%x-%x-%x-%x-%x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
-}
-
-// collectLatencies runs in its own goroutine and collects latency measurements
-// from the channel, eliminating the need for mutex synchronization
-func collectLatencies(metrics *Metrics) {
-	defer close(metrics.latencyCollectorDone)
-	
-	for latency := range metrics.latencyChan {
-		// Only one goroutine modifies the slice - no mutex needed!
-		if len(metrics.latencies) < cap(metrics.latencies) {
-			metrics.latencies = append(metrics.latencies, latency)
-		}
-		// If slice is full, we drop additional samples (same behavior as before)
-	}
 }
 
 func parseFlags() *Config {
 	config := &Config{}
 	
-	// Generate unique topic name with UUID
-	uuid := generateUUID()
-	defaultTopic := fmt.Sprintf("load-test-%s", uuid)
-	
 	flag.StringVar(&config.brokers, "brokers", getEnvOrDefault("REDPANDA_BROKERS", "localhost:9092"), "Comma-separated list of broker addresses")
-	flag.StringVar(&config.topic, "topic", defaultTopic, "Topic name for load testing (auto-generated with UUID)")
-	flag.StringVar(&config.topicPrefix, "topic-prefix", "load-test-", "Prefix for identifying test topics to cleanup")
+	flag.StringVar(&config.topic, "topic", "load-test-topic", "Topic name for load testing")
 	flag.IntVar(&config.producers, "producers", 3, "Number of producer goroutines")
 	flag.IntVar(&config.consumers, "consumers", 3, "Number of consumer goroutines")
 	flag.IntVar(&config.messageSize, "message-size", 1024, "Message size in bytes")
@@ -199,13 +139,8 @@ func parseFlags() *Config {
 	flag.IntVar(&config.partitions, "partitions", 12, "Number of topic partitions")
 	flag.IntVar(&config.replication, "replication", 3, "Replication factor")
 	flag.DurationVar(&config.printInterval, "print-interval", 10*time.Second, "Metrics print interval")
-	flag.BoolVar(&config.cleanupOldTopics, "cleanup-old-topics", true, "Clean up old test topics before starting")
-	flag.IntVar(&config.warmupMessages, "warmup-messages", 1000, "Number of messages to skip for warm-up (excluded from latency percentiles)")
 	
 	flag.Parse()
-	
-	log.Printf("🆔 Generated unique topic: %s", config.topic)
-	
 	return config
 }
 
@@ -216,67 +151,9 @@ func getEnvOrDefault(envVar, defaultValue string) string {
 	return defaultValue
 }
 
-// cleanupOldTopics removes old load test topics to keep cluster clean
-func cleanupOldTopics(admin *kadm.Client, config *Config) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-
-	log.Printf("🗑️  Cleaning up old test topics with prefix '%s'...", config.topicPrefix)
-
-	// List all topics
-	topics, err := admin.ListTopics(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list topics: %w", err)
-	}
-
-	// Find topics that match our test prefix and are not the current topic
-	var topicsToDelete []string
-	for topicName := range topics {
-		if strings.HasPrefix(topicName, config.topicPrefix) && topicName != config.topic {
-			topicsToDelete = append(topicsToDelete, topicName)
-		}
-	}
-
-	if len(topicsToDelete) == 0 {
-		log.Printf("✅ No old test topics found to cleanup")
-		return nil
-	}
-
-	log.Printf("🗑️  Found %d old test topics to cleanup: %v", len(topicsToDelete), topicsToDelete)
-
-	// Delete old topics
-	results, err := admin.DeleteTopics(ctx, topicsToDelete...)
-	if err != nil {
-		return fmt.Errorf("failed to delete topics: %w", err)
-	}
-
-	// Check results
-	deletedCount := 0
-	for topicName, result := range results {
-		if result.Err != nil {
-			log.Printf("⚠️  Failed to delete topic %s: %v", topicName, result.Err)
-		} else {
-			deletedCount++
-			log.Printf("✅ Deleted old topic: %s", topicName)
-		}
-	}
-
-	log.Printf("🗑️  Cleanup complete: deleted %d/%d topics", deletedCount, len(topicsToDelete))
-	
-	// Wait a moment for deletions to propagate
-	if deletedCount > 0 {
-		log.Printf("⏳ Waiting for topic deletions to propagate...")
-		time.Sleep(5 * time.Second)
-	}
-
-	return nil
-}
-
 func createTopic(admin *kadm.Client, config *Config) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-
-	log.Printf("📋 Creating topic: %s", config.topic)
 
 	// Check if topic exists
 	topics, err := admin.ListTopics(ctx)
@@ -285,17 +162,14 @@ func createTopic(admin *kadm.Client, config *Config) error {
 	}
 
 	if _, exists := topics[config.topic]; exists {
-		log.Printf("✅ Topic %s already exists", config.topic)
+		log.Printf("Topic %s already exists", config.topic)
 		return nil
 	}
 
-	// Create topic with optimized settings for load testing
+	// Create topic
 	results, err := admin.CreateTopics(ctx, int32(config.partitions), int16(config.replication), map[string]*string{
-		"cleanup.policy":     stringPtr("delete"),
-		"retention.ms":       stringPtr("3600000"),    // 1 hour (short retention for test topics)
-		"segment.ms":         stringPtr("300000"),     // 5 minutes
-		"min.insync.replicas": stringPtr("1"),         // Relaxed for testing
-		"unclean.leader.election.enable": stringPtr("false"), // Prevent data loss
+		"cleanup.policy": stringPtr("delete"),
+		"retention.ms":   stringPtr("604800000"), // 7 days
 	}, config.topic)
 	if err != nil {
 		return fmt.Errorf("failed to create topic: %w", err)
@@ -307,12 +181,9 @@ func createTopic(admin *kadm.Client, config *Config) error {
 		}
 	}
 
-	log.Printf("✅ Successfully created topic: %s with %d partitions", config.topic, config.partitions)
+	log.Printf("Created topic %s with %d partitions and replication factor %d", 
+		config.topic, config.partitions, config.replication)
 	return nil
-}
-
-func stringPtr(s string) *string {
-	return &s
 }
 
 func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metrics *Metrics, id int) {
@@ -425,34 +296,21 @@ func runConsumer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 					atomic.AddInt64(&metrics.messagesReceived, 1)
 					atomic.AddInt64(&metrics.bytesReceived, int64(len(record.Value)))
 
-					// Track total messages processed for warm-up
-					processed := atomic.AddInt64(&metrics.messagesProcessed, 1)
-					
-					// Check if warm-up just completed
-					if processed == int64(config.warmupMessages) && atomic.CompareAndSwapInt64(&metrics.warmupComplete, 0, 1) {
-						log.Printf("🔥 Warm-up complete! %d messages processed. Now collecting latency data for percentiles.", config.warmupMessages)
-					}
-					
-					// Only collect latency data after warm-up is complete
-					isWarmupComplete := atomic.LoadInt64(&metrics.warmupComplete) == 1
-					if isWarmupComplete {
-						// Calculate latency from timestamp header
-						for _, header := range record.Headers {
-							if string(header.Key) == "timestamp" {
-								if sendTimeNano, err := strconv.ParseInt(string(header.Value), 10, 64); err == nil {
-									sendTime := time.Unix(0, sendTimeNano)
-									latency := receiveTime.Sub(sendTime)
-									
-									// Send latency to collector goroutine (no mutex needed!)
-									select {
-									case metrics.latencyChan <- latency:
-										// Successfully sent latency measurement
-									default:
-										// Channel buffer is full, drop this sample (non-blocking)
-									}
+					// Calculate latency from timestamp header
+					for _, header := range record.Headers {
+						if string(header.Key) == "timestamp" {
+							if sendTimeNano, err := strconv.ParseInt(string(header.Value), 10, 64); err == nil {
+								sendTime := time.Unix(0, sendTimeNano)
+								latency := receiveTime.Sub(sendTime)
+								
+								// Store latency (with sampling to avoid memory issues)
+								metrics.latenciesMutex.Lock()
+								if len(metrics.latencies) < 500000 { // Cap at 500k samples
+									metrics.latencies = append(metrics.latencies, latency)
 								}
-								break
+								metrics.latenciesMutex.Unlock()
 							}
+							break
 						}
 					}
 				}
@@ -461,7 +319,7 @@ func runConsumer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 	}
 }
 
-func printMetrics(ctx context.Context, wg *sync.WaitGroup, config *Config, metrics *Metrics) {
+func metricsReporter(ctx context.Context, wg *sync.WaitGroup, config *Config, metrics *Metrics) {
 	defer wg.Done()
 
 	ticker := time.NewTicker(config.printInterval)
@@ -472,12 +330,12 @@ func printMetrics(ctx context.Context, wg *sync.WaitGroup, config *Config, metri
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			printCurrentMetrics(config, metrics)
+			printMetrics(config, metrics)
 		}
 	}
 }
 
-func printCurrentMetrics(config *Config, metrics *Metrics) {
+func printMetrics(config *Config, metrics *Metrics) {
 	now := time.Now()
 	elapsed := now.Sub(metrics.startTime)
 	intervalElapsed := now.Sub(metrics.lastPrintTime)
@@ -495,21 +353,11 @@ func printCurrentMetrics(config *Config, metrics *Metrics) {
 	avgReceivedRate := float64(received) / elapsed.Seconds()
 
 	// Calculate throughput in MB/s
-	sentThroughput := float64(bytesSent) / elapsed.Seconds() / (1024*1024)
+	sentThroughput := float64(bytesSent-atomic.LoadInt64(&metrics.bytesSent)) / intervalElapsed.Seconds() / (1024*1024)
 	receivedThroughput := float64(bytesReceived) / elapsed.Seconds() / (1024*1024)
 
-	// Check warm-up status
-	processed := atomic.LoadInt64(&metrics.messagesProcessed)
-	isWarmupComplete := atomic.LoadInt64(&metrics.warmupComplete) == 1
-	
 	fmt.Printf("\n=== Load Test Metrics (Elapsed: %v) ===\n", elapsed.Truncate(time.Second))
-	fmt.Printf("Topic: %s\n", config.topic)
 	fmt.Printf("Messages: Sent=%d, Received=%d, Errors=%d\n", sent, received, errors)
-	if !isWarmupComplete {
-		fmt.Printf("🔥 Warm-up: %d/%d messages (latency data collection paused)\n", processed, config.warmupMessages)
-	} else {
-		fmt.Printf("✅ Warm-up: Complete (%d messages excluded from percentiles)\n", config.warmupMessages)
-	}
 	fmt.Printf("Current Rate: Sent=%.0f/s, Received=%.0f/s\n", sentRate, receivedRate)
 	fmt.Printf("Average Rate: Sent=%.0f/s, Received=%.0f/s\n", avgSentRate, avgReceivedRate)
 	fmt.Printf("Throughput: Sent=%.2f MB/s, Received=%.2f MB/s\n", sentThroughput, receivedThroughput)
@@ -570,55 +418,61 @@ func printFinalResults(config *Config, metrics *Metrics) {
 	bytesReceived := atomic.LoadInt64(&metrics.bytesReceived)
 	errors := atomic.LoadInt64(&metrics.errors)
 
-	// Calculate rates
-	avgSentRate := float64(sent) / elapsed.Seconds()
-	avgReceivedRate := float64(received) / elapsed.Seconds()
-	sentThroughput := float64(bytesSent) / elapsed.Seconds() / (1024*1024)
-	receivedThroughput := float64(bytesReceived) / elapsed.Seconds() / (1024*1024)
+	fmt.Printf("\n" + strings.Repeat("=", 70) + "\n")
+	fmt.Printf("FINAL LOAD TEST RESULTS\n")
+	fmt.Printf(strings.Repeat("=", 70) + "\n")
+	fmt.Printf("Duration: %v\n", elapsed.Truncate(time.Second))
+	fmt.Printf("Configuration:\n")
+	fmt.Printf("  - Producers: %d, Consumers: %d\n", config.producers, config.consumers)
+	fmt.Printf("  - Message Size: %d bytes\n", config.messageSize)
+	fmt.Printf("  - Compression: %s\n", config.compression)
+	fmt.Printf("  - Topic Partitions: %d\n", config.partitions)
+	fmt.Printf("\nResults:\n")
+	fmt.Printf("  - Messages Sent: %d\n", sent)
+	fmt.Printf("  - Messages Received: %d\n", received)
+	fmt.Printf("  - Message Loss: %d (%.2f%%)\n", sent-received, float64(sent-received)/float64(sent)*100)
+	fmt.Printf("  - Errors: %d\n", errors)
+	fmt.Printf("  - Data Sent: %.2f MB\n", float64(bytesSent)/(1024*1024))
+	fmt.Printf("  - Data Received: %.2f MB\n", float64(bytesReceived)/(1024*1024))
+	fmt.Printf("\nThroughput:\n")
+	fmt.Printf("  - Send Rate: %.0f messages/sec\n", float64(sent)/elapsed.Seconds())
+	fmt.Printf("  - Receive Rate: %.0f messages/sec\n", float64(received)/elapsed.Seconds())
+	fmt.Printf("  - Send Throughput: %.2f MB/sec\n", float64(bytesSent)/elapsed.Seconds()/(1024*1024))
+	fmt.Printf("  - Receive Throughput: %.2f MB/sec\n", float64(bytesReceived)/elapsed.Seconds()/(1024*1024))
 
-	fmt.Printf("\n" + strings.Repeat("=", 50) + "\n")
-	fmt.Printf("📊 FINAL RESULTS\n")
-	fmt.Printf(strings.Repeat("=", 50) + "\n")
-	fmt.Printf("Duration: %v\n", elapsed.Truncate(time.Millisecond))
-	fmt.Printf("Topic: %s\n", config.topic)
-	fmt.Printf("Messages: Sent=%d, Received=%d, Errors=%d\n", sent, received, errors)
-	fmt.Printf("Overall Rates: %.0f msg/s sent, %.0f msg/s received\n", avgSentRate, avgReceivedRate)
-	fmt.Printf("Data Throughput: %.2f MB/s sent, %.2f MB/s received\n", sentThroughput, receivedThroughput)
-	fmt.Printf("Final Consumer Lag: %d messages\n", sent-received)
+	// Calculate and display latency percentiles
+	metrics.latenciesMutex.Lock()
+	latencies := make([]time.Duration, len(metrics.latencies))
+	copy(latencies, metrics.latencies)
+	metrics.latenciesMutex.Unlock()
 
-	// Get final latency measurements (no mutex needed - collection is complete)
-	latenciesCopy := make([]time.Duration, len(metrics.latencies))
-	copy(latenciesCopy, metrics.latencies)
-
-	if len(latenciesCopy) > 0 {
-		fmt.Printf("\n🎯 Latency Percentiles (Total samples: %d, %d warm-up messages excluded):\n", len(latenciesCopy), config.warmupMessages)
-		percentiles := calculatePercentiles(latenciesCopy)
+	if len(latencies) > 0 {
+		percentiles := calculatePercentiles(latencies)
 		
-		// Calculate average
-		var total time.Duration
-		for _, latency := range latenciesCopy {
-			total += latency
-		}
-		average := total / time.Duration(len(latenciesCopy))
-		
+		fmt.Printf("\nLatency Percentiles (Total samples: %d):\n", len(latencies))
 		fmt.Printf("  - Min:    %v\n", percentiles["min"])
 		fmt.Printf("  - p50:    %v\n", percentiles["p50"])
 		fmt.Printf("  - p90:    %v\n", percentiles["p90"])
 		fmt.Printf("  - p95:    %v\n", percentiles["p95"])
 		fmt.Printf("  - p99:    %v\n", percentiles["p99"])
 		fmt.Printf("  - p99.9:  %v\n", percentiles["p99.9"])
-		fmt.Printf("  - p99.99: %v ⭐\n", percentiles["p99.99"])
+		fmt.Printf("  - p99.99: %v\n", percentiles["p99.99"])
 		fmt.Printf("  - Max:    %v\n", percentiles["max"])
-		fmt.Printf("  - Average: %v\n", average)
-		fmt.Printf("\n💡 Note: First %d messages excluded from percentiles (warm-up period)\n", config.warmupMessages)
-	} else {
-		processed := atomic.LoadInt64(&metrics.messagesProcessed)
-		if processed < int64(config.warmupMessages) {
-			fmt.Printf("\n⚠️ No latency data collected - test ended during warm-up period (%d/%d messages)\n", processed, config.warmupMessages)
-		} else {
-			fmt.Printf("\n⚠️ No latency data collected after warm-up period\n")
+		
+		// Calculate average latency
+		var total time.Duration
+		for _, latency := range latencies {
+			total += latency
 		}
+		avg := total / time.Duration(len(latencies))
+		fmt.Printf("  - Average: %v\n", avg)
+	} else {
+		fmt.Printf("\nLatency Percentiles: No latency data collected\n")
 	}
 
-	fmt.Printf("\n" + strings.Repeat("=", 50) + "\n")
+	fmt.Printf(strings.Repeat("=", 70) + "\n")
+}
+
+func stringPtr(s string) *string {
+	return &s
 } 
