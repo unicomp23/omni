@@ -303,6 +303,29 @@ cd redpanda-setup
 ./cluster-utils.sh info
 ```
 
+## Load Testing
+
+⚠️ **Critical**: Load tests run on AWS EC2, not locally! Files must be deployed first.
+
+### Automated Load Testing (Recommended)
+```bash
+# This script handles everything: deployment + execution
+DURATION=10s ./run-complete-load-test.sh
+```
+
+### Manual Load Testing Process
+```bash
+# Option 1: Use deployment helper script
+./deploy-load-test.sh
+ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-ip}
+./run.sh --duration=10s
+
+# Option 2: Manual deployment
+scp -i /data/.ssh/john.davis.pem -r load-test/* ec2-user@{load-test-ip}:~/
+ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-ip}
+./load-test -duration=10s -rate-per-producer=1000
+```
+
 ## 📚 Further Reading
 
 - [RedPanda Documentation](https://docs.redpanda.com/)

@@ -77,11 +77,16 @@ fi
 echo "✅ Found load test instance: $LOAD_TEST_IP"
 
 # Step 3: Copy load test files
+# ⚠️ CRITICAL: Load tests must run on the EC2 instance, not locally!
+# This step deploys the Go binary and source code to the remote instance
 echo ""
 echo "📁 Step 3: Copying enhanced load test files..."
+echo "   🚚 Deploying load test binary and source to EC2 instance..."
+echo "   📍 Target: ec2-user@$LOAD_TEST_IP:~/"
 scp -i "$KEY_PATH" -o StrictHostKeyChecking=no -r load-test/* ec2-user@$LOAD_TEST_IP:~/
 
 echo "✅ Files copied successfully"
+echo "   💡 Load test will now run ON the EC2 instance (required for network access to RedPanda)"
 
 # Step 4: Install dependencies and run test
 echo ""

@@ -35,6 +35,7 @@ type Config struct {
 	printInterval  time.Duration
 	cleanupOldTopics bool
 	warmupMessages int  // Number of messages to skip for warm-up
+	ratePerProducer int // Messages per second per producer (0 = unlimited)
 }
 
 type Metrics struct {
@@ -66,6 +67,7 @@ func main() {
 	log.Printf("Message Size: %d bytes", config.messageSize)
 	log.Printf("Duration: %v", config.duration)
 	log.Printf("Compression: %s", config.compression)
+	log.Printf("Rate per Producer: %d messages/second", config.ratePerProducer)
 	log.Printf("Warm-up Messages: %d (excluded from latency percentiles)", config.warmupMessages)
 
 	// Create admin client to manage topics
@@ -201,6 +203,7 @@ func parseFlags() *Config {
 	flag.DurationVar(&config.printInterval, "print-interval", 10*time.Second, "Metrics print interval")
 	flag.BoolVar(&config.cleanupOldTopics, "cleanup-old-topics", true, "Clean up old test topics before starting")
 	flag.IntVar(&config.warmupMessages, "warmup-messages", 1000, "Number of messages to skip for warm-up (excluded from latency percentiles)")
+	flag.IntVar(&config.ratePerProducer, "rate-per-producer", 1000, "Messages per second per producer (0 = unlimited, but not recommended)")
 	
 	flag.Parse()
 	
@@ -356,12 +359,26 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 
 	log.Printf("Producer %d started", id)
 
+	// Rate limiting: aim for sustainable throughput
+	var ticker *time.Ticker
+	if config.ratePerProducer > 0 {
+		interval := time.Second / time.Duration(config.ratePerProducer)
+		ticker = time.NewTicker(interval)
+		defer ticker.Stop()
+		log.Printf("Producer %d rate limited to %d messages/second", id, config.ratePerProducer)
+	} else {
+		// Unlimited rate - use small delay to prevent overwhelming
+		ticker = time.NewTicker(100 * time.Microsecond)
+		defer ticker.Stop()
+		log.Printf("Producer %d running at unlimited rate (with 100µs safety delay)", id)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			log.Printf("Producer %d shutting down", id)
 			return
-		default:
+		case <-ticker.C:
 			record := &kgo.Record{
 				Topic: config.topic,
 				Value: payload,
@@ -371,7 +388,7 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 				},
 			}
 
-			// Produce message
+			// Produce message with rate limiting
 			client.Produce(ctx, record, func(_ *kgo.Record, err error) {
 				if err != nil {
 					atomic.AddInt64(&metrics.errors, 1)

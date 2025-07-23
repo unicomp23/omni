@@ -1,8 +1,11 @@
 #!/bin/bash
+# ⚠️ WARNING: This script must run ON the EC2 load test instance!
+# Files must be copied to the instance first (run-complete-load-test.sh does this automatically)
 set -e
 
 echo "=========================================="
 echo "RedPanda Load Test with franz-go & UUID Topics"
+echo "⚠️  Running on EC2 load test instance"
 echo "=========================================="
 
 # Source environment variables

@@ -1,5 +1,11 @@
 # RedPanda Load Test with franz-go
 
+⚠️ **IMPORTANT: Load Test Instance Deployment Required** ⚠️
+**The load test code must be copied to the AWS EC2 load test instance before running!**
+- Use `../run-complete-load-test.sh` for automatic deployment and execution
+- Or manually copy files: `scp -i ~/.ssh/john.davis.pem -r * ec2-user@{load-test-ip}:~/`
+- The load test runs ON the EC2 instance, not locally
+
 High-performance load testing tool for RedPanda clusters using the franz-go Kafka client library.
 
 ## Features
