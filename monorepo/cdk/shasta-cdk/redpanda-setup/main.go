@@ -229,19 +229,36 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 		}
 	}
 
+	// Apply ultra-low latency network optimizations
+	fmt.Printf("⚡ Applying ultra-low latency network optimizations on node %d...\n", node.ID)
+	if err := applyNetworkOptimizations(client); err != nil {
+		fmt.Printf("⚠️  Warning: Failed to apply network optimizations on node %d: %v\n", node.ID, err)
+		// Continue anyway - this is not critical for basic functionality
+	}
+
 	// Upload configuration file
 	configPath := "/opt/redpanda/conf/redpanda.yaml"
 	if err := uploadFile(client, configYAML, configPath); err != nil {
 		return fmt.Errorf("failed to upload config: %w", err)
 	}
 
-	// Start RedPanda container
+	// Start RedPanda container with ultra-low latency optimizations
 	dockerCmd := fmt.Sprintf(`sudo docker run -d \
 		--name redpanda \
 		--hostname %s \
 		--network host \
+		--ipc host \
+		--pid host \
+		--privileged \
+		--cpuset-cpus="0-3" \
+		--memory="8g" \
+		--memory-swappiness=1 \
+		--ulimit nofile=1048576:1048576 \
+		--ulimit memlock=-1:-1 \
 		-v /opt/redpanda/data:/var/lib/redpanda/data \
 		-v /opt/redpanda/conf:/etc/redpanda \
+		-v /sys:/sys \
+		-v /proc:/proc \
 		--restart unless-stopped \
 		redpandadata/redpanda:%s \
 		redpanda start --config /etc/redpanda/redpanda.yaml`,
@@ -521,4 +538,60 @@ func getBootstrapBrokers(nodes []NodeConfig) string {
 		brokers = append(brokers, fmt.Sprintf("%s:9092", node.PrivateIP))
 	}
 	return strings.Join(brokers, ",")
+}
+
+func applyNetworkOptimizations(client *ssh.Client) error {
+	// Network optimization script content
+	optimizationScript := `#!/bin/bash
+# Ultra-Low Latency Network Optimizations for RedPanda
+set -e
+
+# Create optimized sysctl configuration
+sudo tee /etc/sysctl.d/99-redpanda-latency.conf > /dev/null << 'EOF'
+# Ultra-Low Latency Network Optimizations for RedPanda
+net.core.rmem_default = 262144
+net.core.rmem_max = 134217728
+net.core.wmem_default = 262144
+net.core.wmem_max = 134217728
+net.core.netdev_max_backlog = 5000
+net.core.netdev_budget = 600
+net.ipv4.tcp_rmem = 4096 87380 134217728
+net.ipv4.tcp_wmem = 4096 65536 134217728
+net.ipv4.tcp_congestion_control = bbr
+net.core.default_qdisc = fq
+net.ipv4.tcp_low_latency = 1
+net.ipv4.tcp_no_delay_ack = 1
+net.core.busy_read = 50
+net.core.busy_poll = 50
+vm.swappiness = 1
+vm.dirty_ratio = 15
+vm.dirty_background_ratio = 5
+EOF
+
+# Apply settings
+sudo sysctl -p /etc/sysctl.d/99-redpanda-latency.conf >/dev/null 2>&1
+
+# Set CPU governor to performance
+echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor >/dev/null 2>&1 || true
+
+echo "Network optimizations applied"
+`
+
+	// Upload and execute the optimization script
+	if err := uploadFile(client, []byte(optimizationScript), "/tmp/optimize-network.sh"); err != nil {
+		return fmt.Errorf("failed to upload optimization script: %w", err)
+	}
+
+	if err := executeSSHCommand(client, "chmod +x /tmp/optimize-network.sh"); err != nil {
+		return fmt.Errorf("failed to make script executable: %w", err)
+	}
+
+	if err := executeSSHCommand(client, "/tmp/optimize-network.sh"); err != nil {
+		return fmt.Errorf("failed to execute optimization script: %w", err)
+	}
+
+	// Clean up the script
+	executeSSHCommand(client, "rm -f /tmp/optimize-network.sh")
+
+	return nil
 } 

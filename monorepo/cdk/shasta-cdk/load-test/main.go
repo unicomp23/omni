@@ -6,8 +6,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	mathrand "math/rand"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
@@ -58,9 +61,15 @@ type Metrics struct {
 }
 
 func main() {
+	// Ultra-low latency GC tuning to minimize tail latency spikes
+	debug.SetGCPercent(800)              // Less frequent GC vs default 100
+	runtime.GOMAXPROCS(runtime.NumCPU()) // Use all CPU cores  
+	runtime.GC()                         // Force GC now before test starts
+	
 	config := parseFlags()
 	
 	log.Printf("Starting RedPanda Load Test with franz-go")
+	log.Printf("🚀 GC optimized: GOMAXPROCS=%d, GCPercent=800%%", runtime.GOMAXPROCS(0))
 	log.Printf("Brokers: %s", config.brokers)
 	log.Printf("Topic: %s", config.topic)
 	log.Printf("Producers: %d, Consumers: %d", config.producers, config.consumers)
@@ -196,7 +205,7 @@ func parseFlags() *Config {
 	flag.IntVar(&config.consumers, "consumers", 3, "Number of consumer goroutines")
 	flag.IntVar(&config.messageSize, "message-size", 1024, "Message size in bytes")
 	flag.DurationVar(&config.duration, "duration", 5*time.Minute, "Test duration")
-	flag.IntVar(&config.batchSize, "batch-size", 100, "Producer batch size")
+	flag.IntVar(&config.batchSize, "batch-size", 1, "Producer batch size (IGNORED - zero batching for latency)")
 	flag.StringVar(&config.compression, "compression", "snappy", "Compression type (none, gzip, snappy, lz4, zstd)")
 	flag.IntVar(&config.partitions, "partitions", 12, "Number of topic partitions")
 	flag.IntVar(&config.replication, "replication", 3, "Replication factor")
@@ -321,28 +330,28 @@ func stringPtr(s string) *string {
 func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metrics *Metrics, id int) {
 	defer wg.Done()
 
-	// Configure compression
-	var compression kgo.CompressionCodec
-	switch strings.ToLower(config.compression) {
-	case "gzip":
-		compression = kgo.GzipCompression()
-	case "snappy":
-		compression = kgo.SnappyCompression()
-	case "lz4":
-		compression = kgo.Lz4Compression()
-	case "zstd":
-		compression = kgo.ZstdCompression()
-	default:
-		compression = kgo.NoCompression()
-	}
+	// Force no compression for ultra-low latency (ignore config.compression)
+	log.Printf("Producer %d: Using zero compression, zero batching, and immediate flush for absolute minimum latency", id)
 
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(strings.Split(config.brokers, ",")...),
 		kgo.DefaultProduceTopic(config.topic),
-		kgo.ProducerBatchMaxBytes(int32(config.batchSize*config.messageSize)),
-		kgo.ProducerBatchCompression(compression),
+		
+		// ZERO BATCHING with immediate flush for absolute minimum latency
+		kgo.ProducerBatchMaxBytes(2048),                   // Minimum size that works (1 message + headers)
+		kgo.ProducerLinger(0),                             // Send immediately, no batching delay
+		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for zero latency
 		kgo.RequiredAcks(kgo.AllISRAcks()),
-		kgo.DisableIdempotentWrite(), // For maximum throughput
+		kgo.DisableIdempotentWrite(),                      // For maximum throughput
+		
+		// Timeout optimizations for fast failure
+		kgo.ProduceRequestTimeout(5*time.Second),          // Faster than default 30s but reasonable
+		kgo.RequestTimeoutOverhead(1*time.Second),         // Minimum allowed vs default 10s  
+		kgo.ConnIdleTimeout(30*time.Second),               // Keep connections alive
+		kgo.RequestRetries(1),                             // Fail fast vs default 5 retries
+		
+		// Connection optimizations
+		kgo.ClientID(fmt.Sprintf("ultra-low-latency-producer-%d", id)),
 	)
 	if err != nil {
 		log.Printf("Producer %d failed to create client: %v", id, err)
@@ -359,13 +368,24 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 
 	log.Printf("Producer %d started", id)
 
-	// Rate limiting: aim for sustainable throughput
+	// Rate limiting with jitter to prevent thundering herd and smooth traffic
 	var ticker *time.Ticker
 	if config.ratePerProducer > 0 {
 		interval := time.Second / time.Duration(config.ratePerProducer)
-		ticker = time.NewTicker(interval)
+		
+		// Add jitter (up to 10% of interval) to prevent thundering herd
+		jitterRange := interval / 10
+		jitter := time.Duration(mathrand.Int63n(int64(jitterRange)))
+		smoothedInterval := interval + jitter
+		
+		// Also add small initial delay per producer to spread start times
+		initialDelay := time.Duration(id) * time.Millisecond * 10
+		time.Sleep(initialDelay)
+		
+		ticker = time.NewTicker(smoothedInterval)
 		defer ticker.Stop()
-		log.Printf("Producer %d rate limited to %d messages/second", id, config.ratePerProducer)
+		log.Printf("Producer %d rate limited to %d messages/second (jittered interval: %v)", 
+			id, config.ratePerProducer, smoothedInterval)
 	} else {
 		// Unlimited rate - use small delay to prevent overwhelming
 		ticker = time.NewTicker(100 * time.Microsecond)
@@ -388,7 +408,7 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 				},
 			}
 
-			// Produce message with rate limiting
+			// Produce message with ZERO batching - flush immediately after each send
 			client.Produce(ctx, record, func(_ *kgo.Record, err error) {
 				if err != nil {
 					atomic.AddInt64(&metrics.errors, 1)
@@ -398,6 +418,9 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 					atomic.AddInt64(&metrics.bytesSent, int64(config.messageSize))
 				}
 			})
+			
+			// FLUSH IMMEDIATELY after each message for absolute minimum latency
+			client.Flush(ctx)
 		}
 	}
 }
@@ -410,9 +433,22 @@ func runConsumer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 		kgo.ConsumeTopics(config.topic),
 		kgo.ConsumerGroup(fmt.Sprintf("load-test-group-%d", id)),
 		kgo.AutoCommitMarks(),
-		kgo.FetchMaxBytes(10*1024*1024), // 10MB
-		kgo.FetchMinBytes(1024),         // 1KB
-		kgo.FetchMaxWait(100*time.Millisecond),
+		
+		// MINIMAL BATCHING consumer optimizations (prioritize latency over throughput)
+		kgo.FetchMaxBytes(4096),            // Small fetch: 4KB vs 64KB (enough for few messages)
+		kgo.FetchMinBytes(1),               // Don't wait for batching
+		kgo.FetchMaxWait(10*time.Millisecond), // Minimum allowed vs 100ms
+		
+		// Consumer timeout optimizations
+		kgo.RequestTimeoutOverhead(1*time.Second),         // Minimum allowed
+		kgo.ConnIdleTimeout(30*time.Second),
+		kgo.RequestRetries(1),              // Fail fast
+		
+		// Session optimizations for faster rebalancing
+		kgo.SessionTimeout(6*time.Second),  // vs default 10s
+		kgo.HeartbeatInterval(2*time.Second), // vs default 3s
+		
+		kgo.ClientID(fmt.Sprintf("ultra-low-latency-consumer-%d", id)),
 	)
 	if err != nil {
 		log.Printf("Consumer %d failed to create client: %v", id, err)
