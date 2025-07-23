@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	mathrand "math/rand"
 	"os"
 	"os/signal"
 	"runtime"
@@ -368,30 +367,10 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 
 	log.Printf("Producer %d started", id)
 
-	// Rate limiting with jitter to prevent thundering herd and smooth traffic
-	var ticker *time.Ticker
-	if config.ratePerProducer > 0 {
-		interval := time.Second / time.Duration(config.ratePerProducer)
-		
-		// Add jitter (up to 10% of interval) to prevent thundering herd
-		jitterRange := interval / 10
-		jitter := time.Duration(mathrand.Int63n(int64(jitterRange)))
-		smoothedInterval := interval + jitter
-		
-		// Also add small initial delay per producer to spread start times
-		initialDelay := time.Duration(id) * time.Millisecond * 10
-		time.Sleep(initialDelay)
-		
-		ticker = time.NewTicker(smoothedInterval)
-		defer ticker.Stop()
-		log.Printf("Producer %d rate limited to %d messages/second (jittered interval: %v)", 
-			id, config.ratePerProducer, smoothedInterval)
-	} else {
-		// Unlimited rate - use small delay to prevent overwhelming
-		ticker = time.NewTicker(100 * time.Microsecond)
-		defer ticker.Stop()
-		log.Printf("Producer %d running at unlimited rate (with 100µs safety delay)", id)
-	}
+	// Simple 1ms spacing between sends (no rate limiting)
+	ticker := time.NewTicker(1 * time.Millisecond)
+	defer ticker.Stop()
+	log.Printf("Producer %d sending with 1ms spacing (1000 msg/s)", id)
 
 	for {
 		select {
