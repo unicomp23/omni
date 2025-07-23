@@ -344,11 +344,11 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 		kgo.RequiredAcks(kgo.AllISRAcks()),
 		kgo.DisableIdempotentWrite(),                      // For maximum throughput
 		
-		// Timeout optimizations for fast failure
-		kgo.ProduceRequestTimeout(5*time.Second),          // Faster than default 30s but reasonable
+		// Ultra-fast failure for absolute minimum latency (fail fast vs long waits)
+		kgo.ProduceRequestTimeout(100*time.Millisecond),   // 100ms max vs 5s (fail fast for latency)
 		kgo.RequestTimeoutOverhead(1*time.Second),         // Minimum allowed vs default 10s  
 		kgo.ConnIdleTimeout(30*time.Second),               // Keep connections alive
-		kgo.RequestRetries(1),                             // Fail fast vs default 5 retries
+		kgo.RequestRetries(0),                             // Zero retries - fail immediately
 		
 		// Connection optimizations
 		kgo.ClientID(fmt.Sprintf("ultra-low-latency-producer-%d", id)),
@@ -431,7 +431,7 @@ func runConsumer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 	client, err := kgo.NewClient(
 		kgo.SeedBrokers(strings.Split(config.brokers, ",")...),
 		kgo.ConsumeTopics(config.topic),
-		kgo.ConsumerGroup(fmt.Sprintf("load-test-group-%d", id)),
+		kgo.ConsumerGroup("load-test-group"),                    // Single group for load balancing
 		kgo.AutoCommitMarks(),
 		
 		// MINIMAL BATCHING consumer optimizations (prioritize latency over throughput)
