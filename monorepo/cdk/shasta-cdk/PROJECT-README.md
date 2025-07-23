@@ -1,25 +1,22 @@
-# RedPanda Cluster & Load Testing on AWS
+# Shasta CDK Project
 
-Complete solution for deploying and load testing RedPanda clusters on AWS using CDK, Docker containers, and franz-go.
+Complete solution for deploying and load testing RedPanda clusters on AWS using CDK, native RPM packages, and franz-go.
 
-## 🏗️ Architecture Overview
+## Quick Overview
 
-This project provides:
-1. **CDK Stack**: AWS infrastructure (EC2, VPC, Security Groups, S3)
-2. **RedPanda Setup**: Automated cluster deployment using Docker
-3. **Load Testing**: High-performance testing using franz-go
-4. **Complete Automation**: End-to-end scripts for full workflow
-5. **Management Tools**: Cluster monitoring and maintenance utilities
+This project provides a complete infrastructure-as-code solution for:
+1. **AWS Infrastructure**: VPC, EC2, Security Groups using CDK
+2. **RedPanda Setup**: Automated cluster deployment using native installation
+3. **Load Testing**: High-performance testing using franz-go client
 
 ```
-┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐
-│   CDK Deployment    │    │  RedPanda Setup     │    │   Load Testing      │
-│                     │    │                     │    │                     │
-│ • EC2 Instances     │───▶│ • Docker Containers │───▶│ • franz-go Client   │
-│ • VPC & Networking  │    │ • Cluster Config    │    │ • Producer/Consumer │
-│ • Security Groups   │    │ • Health Checks     │    │ • Performance Metrics│
-│ • S3 Bucket        │    │ • Management Utils  │    │ • Multiple Scenarios │
-└─────────────────────┘    └─────────────────────┘    └─────────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ • CDK Deploy    │───▶│ • Native RPM    │───▶│ • franz-go Client│
+│ • VPC Setup     │    │ • systemd svc   │    │ • Go Load Test  │
+│ • EC2 Instances │───▶│ • systemd svc   │───▶│ • Go Load Test  │
+│ • Security Grps │    │ • systemd svc   │    │ • Metrics       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+    Infrastructure         RedPanda Cluster       Load Testing
 ```
 
 ## 🚀 Quick Start (Complete Automated Workflow)
@@ -143,11 +140,12 @@ ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-instance-ip}
 - **Error Handling**: Robust error checking and user feedback
 
 ### RedPanda Setup Features
-- **Docker-based**: Uses official RedPanda images
-- **Auto-configuration**: Generates proper cluster configs
-- **CDK Integration**: Reads instance IPs from CloudFormation
-- **SSH Automation**: Handles all remote setup tasks
-- **Health Verification**: Validates cluster after setup
+- **Multi-AZ Deployment**: 3 nodes across different availability zones
+- **High-Performance Instances**: c5.4xlarge with GP3 storage  
+- **Native Installation**: RPM packages with systemd service management
+- **Production Configuration**: Proper replication, persistence, monitoring
+- **Network Optimized**: Host networking, TCP tuning, CPU pinning
+- **Management Tools**: Built-in utilities for cluster operations
 
 ### Load Testing Features
 - **High Performance**: franz-go client (fastest Kafka client for Go)
@@ -277,60 +275,16 @@ aws ec2 describe-vpcs --filters "Name=tag:Name,Values=ShastaVPC"
 # Check SSH connectivity
 ssh -i /data/.ssh/john.davis.pem ec2-user@{node-ip} 'echo "SSH OK"'
 
-# Verify Docker is running
-ssh -i /data/.ssh/john.davis.pem ec2-user@{node-ip} 'sudo docker --version'
+# Verify RedPanda cluster
+ssh -i /data/.ssh/john.davis.pem ec2-user@{node-ip} 'rpk cluster info'
+
+# Test topic operations  
+ssh -i /data/.ssh/john.davis.pem ec2-user@{node-ip} 'rpk topic create test-topic -p 3 -r 3'
+
+# Check service status
+ssh -i /data/.ssh/john.davis.pem ec2-user@{node-ip} 'sudo systemctl status redpanda'
 ```
 
 ## 🔄 Complete Workflow Example
 
-```bash
-# 1. Deploy infrastructure
-cdk deploy RedPandaClusterStack
-
-# 2. Setup RedPanda cluster  
-cd redpanda-setup && ./setup-cluster.sh
-
-# 3. Run automated load test (ONE COMMAND!)
-cd .. && ./run-complete-load-test.sh
-
-# 4. Run different scenarios
-PRODUCERS=8 CONSUMERS=8 DURATION=10m ./run-complete-load-test.sh
-MESSAGE_SIZE=8192 COMPRESSION=zstd ./run-complete-load-test.sh
-
-# 5. Monitor and manage
-cd redpanda-setup
-./cluster-utils.sh status
-./cluster-utils.sh info
 ```
-
-## Load Testing
-
-⚠️ **Critical**: Load tests run on AWS EC2, not locally! Files must be deployed first.
-
-### Automated Load Testing (Recommended)
-```bash
-# This script handles everything: deployment + execution
-DURATION=10s ./run-complete-load-test.sh
-```
-
-### Manual Load Testing Process
-```bash
-# Option 1: Use deployment helper script
-./deploy-load-test.sh
-ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-ip}
-./run.sh --duration=10s
-
-# Option 2: Manual deployment
-scp -i /data/.ssh/john.davis.pem -r load-test/* ec2-user@{load-test-ip}:~/
-ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-ip}
-./load-test -duration=10s -rate-per-producer=1000
-```
-
-## 📚 Further Reading
-
-- [RedPanda Documentation](https://docs.redpanda.com/)
-- [franz-go Client Library](https://github.com/twmb/franz-go)
-- [AWS CDK TypeScript Guide](https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html)
-- [Kafka Performance Testing Best Practices](https://kafka.apache.org/documentation/#bestpractices)
-
-This project provides a **complete, production-ready RedPanda testing environment** with **full automation** and **proven high-performance results**! 🎯 ⚡ 

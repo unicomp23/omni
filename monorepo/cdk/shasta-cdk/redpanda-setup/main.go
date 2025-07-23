@@ -90,13 +90,19 @@ func main() {
 		fmt.Printf("  Node %d: %s (public: %s)\n", node.ID, node.PrivateIP, node.PublicIP)
 	}
 
-	// Confirm before proceeding
-	fmt.Print("\nProceed with RedPanda cluster setup? (y/N): ")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	if strings.ToLower(scanner.Text()) != "y" {
-		fmt.Println("Setup cancelled.")
-		return
+	// Confirm before proceeding (unless non-interactive mode)
+	nonInteractive := strings.ToLower(getEnvOrDefault("NON_INTERACTIVE", "false")) == "true"
+	
+	if !nonInteractive {
+		fmt.Print("\nProceed with RedPanda cluster setup? (y/N): ")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		if strings.ToLower(scanner.Text()) != "y" {
+			fmt.Println("Setup cancelled.")
+			return
+		}
+	} else {
+		fmt.Println("\nRunning in non-interactive mode, proceeding with setup...")
 	}
 
 	// Setup each node
@@ -208,19 +214,19 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 		return fmt.Errorf("failed to marshal RedPanda config: %w", err)
 	}
 
-	// Setup commands
+	// Setup commands for native installation
 	commands := []string{
-		// Create directories
-		"sudo mkdir -p /opt/redpanda/conf /opt/redpanda/data",
-		"sudo chown -R ec2-user:ec2-user /opt/redpanda/conf",
-		"sudo chown -R 101:101 /opt/redpanda/data", // RedPanda runs as user 101:101 inside container
+		// Ensure Redpanda is stopped before configuration
+		"sudo systemctl stop redpanda || true",
 		
-		// Stop any existing containers
-		"sudo docker stop redpanda || true",
-		"sudo docker rm redpanda || true",
+		// Create directories (should already exist from package installation)
+		"sudo mkdir -p /etc/redpanda /var/lib/redpanda/data",
+		"sudo chown -R redpanda:redpanda /var/lib/redpanda/data",
+		"sudo chown -R redpanda:redpanda /etc/redpanda",
 		
-		// Pull RedPanda image
-		fmt.Sprintf("sudo docker pull redpandadata/redpanda:%s", config.RedPandaVersion),
+		// Set proper permissions
+		"sudo chmod 755 /var/lib/redpanda/data",
+		"sudo chmod 755 /etc/redpanda",
 	}
 
 	for _, cmd := range commands {
@@ -236,47 +242,38 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 		// Continue anyway - this is not critical for basic functionality
 	}
 
-	// Upload configuration file
-	configPath := "/opt/redpanda/conf/redpanda.yaml"
+	// Upload configuration file to the native config location
+	configPath := "/etc/redpanda/redpanda.yaml"
 	if err := uploadFile(client, configYAML, configPath); err != nil {
 		return fmt.Errorf("failed to upload config: %w", err)
 	}
 
-	// Start RedPanda container with ultra-low latency optimizations
-	dockerCmd := fmt.Sprintf(`sudo docker run -d \
-		--name redpanda \
-		--hostname %s \
-		--network host \
-		--ipc host \
-		--pid host \
-		--privileged \
-		--cpuset-cpus="0-3" \
-		--memory="8g" \
-		--memory-swappiness=1 \
-		--ulimit nofile=1048576:1048576 \
-		--ulimit memlock=-1:-1 \
-		-v /opt/redpanda/data:/var/lib/redpanda/data \
-		-v /opt/redpanda/conf:/etc/redpanda \
-		-v /sys:/sys \
-		-v /proc:/proc \
-		--restart unless-stopped \
-		redpandadata/redpanda:%s \
-		redpanda start --config /etc/redpanda/redpanda.yaml`,
-		node.Hostname, config.RedPandaVersion)
-
-	if err := executeSSHCommand(client, dockerCmd); err != nil {
-		return fmt.Errorf("failed to start RedPanda container: %w", err)
+	// Set proper ownership and permissions for config file
+	if err := executeSSHCommand(client, "sudo chown redpanda:redpanda /etc/redpanda/redpanda.yaml"); err != nil {
+		return fmt.Errorf("failed to set config file ownership: %w", err)
 	}
 
-	// Wait for container to start
+	// Start and enable Redpanda service
+	if err := executeSSHCommand(client, "sudo systemctl start redpanda"); err != nil {
+		return fmt.Errorf("failed to start RedPanda service: %w", err)
+	}
+
+	if err := executeSSHCommand(client, "sudo systemctl enable redpanda"); err != nil {
+		return fmt.Errorf("failed to enable RedPanda service: %w", err)
+	}
+
+	// Wait for service to start
 	time.Sleep(10 * time.Second)
 
-	// Check container status
-	if err := executeSSHCommand(client, "sudo docker ps | grep redpanda"); err != nil {
-		return fmt.Errorf("RedPanda container is not running: %w", err)
+	// Check service status
+	if err := executeSSHCommand(client, "sudo systemctl is-active redpanda"); err != nil {
+		// Get more detailed status information
+		executeSSHCommand(client, "sudo systemctl status redpanda")
+		executeSSHCommand(client, "sudo journalctl -u redpanda --lines=20 --no-pager")
+		return fmt.Errorf("RedPanda service is not running: %w", err)
 	}
 
-	fmt.Printf("RedPanda container started on node %d\n", node.ID)
+	fmt.Printf("RedPanda service started on node %d\n", node.ID)
 	return nil
 }
 
@@ -444,7 +441,7 @@ func verifyClusterHealth(config *ClusterConfig) error {
 			continue
 		}
 		
-		output, err := session.CombinedOutput(fmt.Sprintf("sudo docker exec redpanda rpk cluster info --brokers %s:9092", config.Nodes[0].PrivateIP))
+		output, err := session.CombinedOutput(fmt.Sprintf("rpk cluster info --brokers %s:9092", config.Nodes[0].PrivateIP))
 		session.Close()
 		
 		if err != nil {
@@ -509,8 +506,9 @@ func performAdditionalHealthChecks(client *ssh.Client, config *ClusterConfig) er
 		name string
 		cmd  string
 	}{
-		{"Broker list", "sudo docker exec redpanda rpk redpanda admin brokers list"},
-		{"Topic operations", fmt.Sprintf("sudo docker exec redpanda rpk topic list --brokers %s:9092", config.Nodes[0].PrivateIP)},
+		{"Broker list", "rpk redpanda admin brokers list"},
+		{"Topic operations", fmt.Sprintf("rpk topic list --brokers %s:9092", config.Nodes[0].PrivateIP)},
+		{"Service status", "sudo systemctl is-active redpanda"},
 	}
 
 	for _, check := range healthChecks {

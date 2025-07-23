@@ -211,7 +211,7 @@ export class RedPandaClusterStack extends Stack {
                 }]
             });
 
-            // Docker setup only - other tools will be installed manually
+            // Native Redpanda setup - tools will be installed by RPM packages
             const basicConfig = this.generateBasicUserData(i);
             redpandaInstance.addUserData(...basicConfig);
 
@@ -241,7 +241,7 @@ export class RedPandaClusterStack extends Stack {
             }]
         });
 
-        // Docker setup only - other tools will be installed manually
+        // Native Redpanda setup for load testing - Go and monitoring tools
         const loadTestConfig = this.generateBasicLoadTestUserData();
         loadTestInstance.addUserData(...loadTestConfig);
         
@@ -291,24 +291,45 @@ export class RedPandaClusterStack extends Stack {
     private generateBasicUserData(nodeId: number): string[] {
         return [
             '#!/bin/bash',
-            
-            // Install Docker
-            'yum install -y docker',
-            'systemctl enable docker',
-            'systemctl start docker',
-            'usermod -a -G docker ec2-user'
+            'set -e',
+            '',
+            '# Install Redpanda natively',
+            'curl -1sLf \\',
+            '  "https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh" \\',
+            '  | sudo -E bash',
+            '',
+            'sudo yum install -y redpanda',
+            '',
+            '# Create Redpanda directories',
+            'sudo mkdir -p /opt/redpanda/conf /var/lib/redpanda/data',
+            'sudo chown -R redpanda:redpanda /var/lib/redpanda/data',
+            'sudo chown -R redpanda:redpanda /opt/redpanda/conf',
+            '',
+            '# Enable but don\'t start the service yet (will be configured by setup tool)',
+            'sudo systemctl enable redpanda',
+            '',
+            '# Install additional tools',
+            'sudo yum install -y htop iotop sysstat'
         ];
     }
 
     private generateBasicLoadTestUserData(): string[] {
         return [
             '#!/bin/bash',
-            
-            // Install Docker
-            'yum install -y docker',
-            'systemctl enable docker',
-            'systemctl start docker',
-            'usermod -a -G docker ec2-user'
+            'set -e',
+            '',
+            '# Install Go for load testing',
+            'sudo yum install -y golang git',
+            '',
+            '# Install additional monitoring tools',
+            'sudo yum install -y htop iotop sysstat',
+            '',
+            '# Install Redpanda client tools (rpk)',
+            'curl -1sLf \\',
+            '  "https://dl.redpanda.com/nzc4ZYQK3WRGd9sy/redpanda/cfg/setup/bash.rpm.sh" \\',
+            '  | sudo -E bash',
+            '',
+            'sudo yum install -y redpanda'
         ];
     }
 } 

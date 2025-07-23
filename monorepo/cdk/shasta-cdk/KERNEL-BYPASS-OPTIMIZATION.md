@@ -49,7 +49,7 @@ echo 'net.core.bpf_jit_harden = 0' >> /etc/sysctl.conf
 ### Phase 1: Enhanced Kernel Optimization (✅ Implemented)
 ```bash
 # Current optimizations already provide significant improvements
-- Host networking (no Docker bridge overhead)
+- Native host networking (direct system access)
 - CPU affinity and NUMA awareness  
 - Optimized TCP/IP stack parameters
 - Enhanced NIC interrupt handling

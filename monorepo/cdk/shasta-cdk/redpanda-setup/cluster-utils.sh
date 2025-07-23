@@ -99,31 +99,31 @@ show_usage() {
 # Show cluster status
 show_status() {
     log "Checking cluster status..."
-    execute_on_all_nodes "sudo docker ps | grep redpanda || echo 'RedPanda container not running'" "Container Status"
+    execute_on_all_nodes "sudo systemctl is-active redpanda && echo 'RedPanda service is running' || echo 'RedPanda service is not running'" "Service Status"
     
     echo ""
     log "Checking cluster health..."
-    execute_on_first_node "sudo docker exec redpanda rpk cluster info" || warn "Cluster info failed"
+    execute_on_first_node "rpk cluster info" || warn "Cluster info failed"
 }
 
 # Show detailed cluster info
 show_info() {
     log "Cluster Information:"
-    execute_on_first_node "sudo docker exec redpanda rpk cluster info"
+    execute_on_first_node "rpk cluster info"
     
     echo ""
     log "Broker Information:"
-    execute_on_first_node "sudo docker exec redpanda rpk redpanda admin brokers list"
+    execute_on_first_node "rpk redpanda admin brokers list"
     
     echo ""
     log "Partition Information:"
-    execute_on_first_node "sudo docker exec redpanda rpk cluster partitions"
+    execute_on_first_node "rpk cluster partitions"
 }
 
 # List topics
 list_topics() {
     log "Topics in cluster:"
-    execute_on_first_node "sudo docker exec redpanda rpk topic list"
+    execute_on_first_node "rpk topic list"
 }
 
 # Create test topic
@@ -133,36 +133,36 @@ create_test_topic() {
     local replication=3
     
     log "Creating test topic: $topic_name"
-    execute_on_first_node "sudo docker exec redpanda rpk topic create $topic_name -p $partitions -r $replication"
+    execute_on_first_node "rpk topic create $topic_name -p $partitions -r $replication"
     
     log "Topic created successfully!"
-    execute_on_first_node "sudo docker exec redpanda rpk topic describe $topic_name"
+    execute_on_first_node "rpk topic describe $topic_name"
 }
 
-# Restart containers
+# Restart services
 restart_containers() {
-    log "Restarting RedPanda containers..."
-    execute_on_all_nodes "sudo docker restart redpanda" "Restarting containers"
+    log "Restarting RedPanda services..."
+    execute_on_all_nodes "sudo systemctl restart redpanda" "Restarting services"
     
-    log "Waiting for containers to stabilize..."
+    log "Waiting for services to stabilize..."
     sleep 10
     
     log "Checking status after restart..."
     show_status
 }
 
-# Stop containers
+# Stop services
 stop_containers() {
-    warn "Stopping RedPanda containers..."
-    execute_on_all_nodes "sudo docker stop redpanda" "Stopping containers"
+    warn "Stopping RedPanda services..."
+    execute_on_all_nodes "sudo systemctl stop redpanda" "Stopping services"
 }
 
-# Start containers
+# Start services
 start_containers() {
-    log "Starting RedPanda containers..."
-    execute_on_all_nodes "sudo docker start redpanda" "Starting containers"
+    log "Starting RedPanda services..."
+    execute_on_all_nodes "sudo systemctl start redpanda" "Starting services"
     
-    log "Waiting for containers to stabilize..."
+    log "Waiting for services to stabilize..."
     sleep 15
     
     log "Checking status after start..."
@@ -172,7 +172,7 @@ start_containers() {
 # Show logs
 show_logs() {
     log "Recent RedPanda logs from all nodes:"
-    execute_on_all_nodes "sudo docker logs --tail 50 redpanda" "Container Logs"
+    execute_on_all_nodes "sudo journalctl -u redpanda --lines=50 --no-pager" "Service Logs"
 }
 
 # SSH to first node
@@ -202,15 +202,15 @@ show_brokers() {
 # Cleanup (destructive)
 cleanup_cluster() {
     warn "⚠️  DESTRUCTIVE OPERATION ⚠️"
-    warn "This will remove all RedPanda containers and data!"
+    warn "This will stop RedPanda services and remove all data!"
     
     read -p "Are you sure you want to continue? Type 'DELETE' to confirm: " confirm
     
     if [ "$confirm" = "DELETE" ]; then
-        error "Removing RedPanda containers and data..."
-        execute_on_all_nodes "sudo docker stop redpanda || true" "Stopping containers"
-        execute_on_all_nodes "sudo docker rm redpanda || true" "Removing containers" 
-        execute_on_all_nodes "sudo rm -rf /opt/redpanda/data/*" "Removing data"
+        error "Stopping RedPanda services and removing data..."
+        execute_on_all_nodes "sudo systemctl stop redpanda || true" "Stopping services"
+        execute_on_all_nodes "sudo systemctl disable redpanda || true" "Disabling services" 
+        execute_on_all_nodes "sudo rm -rf /var/lib/redpanda/data/*" "Removing data"
         log "Cleanup complete"
     else
         log "Cleanup cancelled"

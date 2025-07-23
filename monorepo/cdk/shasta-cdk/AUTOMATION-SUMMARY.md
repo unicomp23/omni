@@ -7,7 +7,7 @@ Successfully created a **complete end-to-end automation** for RedPanda load test
 ### ✅ **Completed Tasks**
 
 1. **🏗️ Infrastructure**: RedPanda 3-node cluster + load test instance deployed
-2. **🔧 Cluster Setup**: All nodes configured with Docker containers
+2. **🔧 Cluster Setup**: All nodes configured with native RedPanda services
 3. **🚀 Load Test Success**: Achieved **291K+ messages/sec** throughput 
 4. **🤖 Complete Automation**: One-command workflow from zero to results
 5. **📚 Documentation**: Updated all scripts and README files

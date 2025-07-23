@@ -12,12 +12,14 @@ export STACK_NAME="${STACK_NAME:-RedPandaClusterStack}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
 export KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.pem}"
 export REDPANDA_VERSION="${REDPANDA_VERSION:-v23.3.3}"
+export NON_INTERACTIVE="${NON_INTERACTIVE:-false}"
 
 echo "Configuration:"
 echo "  Stack Name: $STACK_NAME"
 echo "  AWS Region: $AWS_DEFAULT_REGION"
 echo "  Key Path: $KEY_PATH"
 echo "  RedPanda Version: $REDPANDA_VERSION"
+echo "  Non-Interactive: $NON_INTERACTIVE"
 echo ""
 
 # Check if key file exists
@@ -52,8 +54,10 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "Next steps:"
     echo "1. Test the cluster with your load testing tool"
-    echo "2. Create topics: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo docker exec redpanda rpk topic create test-topic -p 12'"
+    echo "2. Create topics: ssh -i $KEY_PATH ec2-user@<node-ip> 'rpk topic create test-topic -p 12'"
     echo "3. Run load tests: cd ../load-test && ./run.sh"
+    echo "4. Check service status: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo systemctl status redpanda'"
+    echo "5. View logs: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo journalctl -u redpanda --lines=50'"
     echo ""
     echo "The cluster is healthy and ready for use! 🚀"
 else
@@ -64,6 +68,8 @@ else
     echo "1. Check the error messages above"
     echo "2. Verify all EC2 instances are running: aws ec2 describe-instances"
     echo "3. Check SSH connectivity: ssh -i $KEY_PATH ec2-user@<node-ip>"
-    echo "4. View container logs: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo docker logs redpanda'"
+    echo "4. Check service status: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo systemctl status redpanda'"
+    echo "5. View service logs: ssh -i $KEY_PATH ec2-user@<node-ip> 'sudo journalctl -u redpanda --lines=50'"
+    echo "6. Check Redpanda configuration: ssh -i $KEY_PATH ec2-user@<node-ip> 'cat /etc/redpanda/redpanda.yaml'"
     exit 1
 fi 

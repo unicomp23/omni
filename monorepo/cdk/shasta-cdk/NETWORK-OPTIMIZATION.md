@@ -7,7 +7,7 @@ This document describes the comprehensive network optimizations implemented to m
 ## Current Optimizations ✅
 
 ### 1. **Host Networking (Already Active)**
-RedPanda containers use `--network host` to bypass Docker's bridge networking:
+RedPanda uses native host networking for optimal performance:
 ```bash
 --network host  # Direct access to host network stack
 --ipc host      # Shared inter-process communication
@@ -171,7 +171,7 @@ watch -n 1 'cat /proc/net/dev'
 ss -tuln
 
 # Check RedPanda metrics
-sudo docker exec redpanda rpk cluster info
+rpk cluster info
 ```
 
 ### Load Test Metrics
@@ -189,7 +189,7 @@ The enhanced load test provides detailed latency percentiles:
 4. **Check for swapping**: `free -h`, `vmstat 1`
 
 ### Network Connectivity Issues
-1. **Verify host networking**: `docker inspect redpanda | grep NetworkMode`
+1. **Verify native service**: `sudo systemctl status redpanda`
 2. **Check firewall rules**: `iptables -L -n`
 3. **Test port connectivity**: `nc -zv {broker-ip} 9092`
 
