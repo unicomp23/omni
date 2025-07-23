@@ -45,6 +45,7 @@ COMPRESSION="${COMPRESSION:-none}"     # Optimized: no compression for minimum l
 PARTITIONS="${PARTITIONS:-6}"
 CLEANUP_OLD_TOPICS="${CLEANUP_OLD_TOPICS:-true}"       # Clean up old topics before starting test
 WARMUP_MESSAGES="${WARMUP_MESSAGES:-1000}"
+RATE_PER_PRODUCER="${RATE_PER_PRODUCER:-1000}"          # Messages per second per producer
 
 echo "Load Test Configuration (Ultra-Low Latency Optimized):"
 echo "  Producers: $PRODUCERS"
@@ -55,6 +56,7 @@ echo "  Compression: $COMPRESSION (zero compression for minimum latency)"
 echo "  Partitions: $PARTITIONS"
 echo "  Cleanup old topics: $CLEANUP_OLD_TOPICS"
 echo "  Warm-up messages: $WARMUP_MESSAGES (excluded from latency percentiles)"
+echo "  Rate per Producer: $RATE_PER_PRODUCER msg/s (Total: $((PRODUCERS * RATE_PER_PRODUCER)) msg/s)"
 echo "  Topic: [auto-generated UUID, old topics cleaned up]"
 echo "  🎯 Target: p99.99 < 20ms with zero batching + immediate flush"
 echo ""
@@ -140,6 +142,7 @@ echo ""
     -partitions="$PARTITIONS" \\
     -cleanup-old-topics="$CLEANUP_OLD_TOPICS" \\
     -warmup-messages="$WARMUP_MESSAGES" \\
+    -rate-per-producer="$RATE_PER_PRODUCER" \\
     -batch-size=100 \\
     -print-interval=5s
 EOF

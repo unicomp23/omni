@@ -367,10 +367,22 @@ func runProducer(ctx context.Context, wg *sync.WaitGroup, config *Config, metric
 
 	log.Printf("Producer %d started", id)
 
-	// Simple 1ms spacing between sends (no rate limiting)
-	ticker := time.NewTicker(1 * time.Millisecond)
+	// Calculate proper ticker interval based on ratePerProducer config
+	var ticker *time.Ticker
+	var tickerInterval time.Duration
+	
+	if config.ratePerProducer <= 0 {
+		// Unlimited rate - send as fast as possible
+		tickerInterval = 0
+		ticker = time.NewTicker(1 * time.Microsecond) // Very fast for unlimited
+		log.Printf("Producer %d sending at unlimited rate", id)
+	} else {
+		// Calculate interval: if rate = 16 msg/s, interval = 1000ms / 16 = 62.5ms
+		tickerInterval = time.Duration(int64(time.Second) / int64(config.ratePerProducer))
+		ticker = time.NewTicker(tickerInterval)
+		log.Printf("Producer %d sending with %v spacing (%d msg/s)", id, tickerInterval, config.ratePerProducer)
+	}
 	defer ticker.Stop()
-	log.Printf("Producer %d sending with 1ms spacing (1000 msg/s)", id)
 
 	for {
 		select {
