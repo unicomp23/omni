@@ -179,7 +179,7 @@ export class RedPandaClusterStack extends Stack {
         loadTestBucket.grantReadWrite(role);
 
         // High-performance instance type for low latency
-        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.I4I, ec2.InstanceSize.XLARGE2);
+        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.C5, ec2.InstanceSize.XLARGE4);
         const machineImage = ec2.MachineImage.latestAmazonLinux2023();
 
         // Get public subnets for RedPanda cluster (one per AZ) - need public IPs for direct access

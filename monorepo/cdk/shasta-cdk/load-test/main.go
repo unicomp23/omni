@@ -126,8 +126,8 @@ func main() {
 		go runConsumer(ctx, &wg, config, metrics, i)
 	}
 
-	// Give consumers time to start
-	time.Sleep(2 * time.Second)
+	// Give consumers 5 seconds to rebalance before starting producers
+	time.Sleep(5 * time.Second)
 
 	// Start producers
 	for i := 0; i < config.producers; i++ {
