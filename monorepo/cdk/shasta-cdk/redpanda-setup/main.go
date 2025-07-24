@@ -198,11 +198,11 @@ func main() {
 	if err := configureLoadTestInstance(config); err != nil {
 		logWarn("Failed to configure load test instance: %v", err)
 		fmt.Printf("⚠️  Warning: Load test instance configuration failed: %v\n", err)
-		fmt.Println("You may need to manually set REDPANDA_BROKERS environment variable on the load test instance")
+		fmt.Println("You may need to manually set REDPANDA_BROKERS and RPK environment variables on the load test instance")
 	} else {
 		ltConfigDuration := time.Since(ltConfigStart)
 		logInfo("Load test instance configured successfully in %v", ltConfigDuration)
-		fmt.Println("✅ Load test instance configured with broker environment variables")
+		fmt.Println("✅ Load test instance configured with broker and RPK environment variables")
 	}
 
 	totalDuration := time.Since(startTime)
@@ -853,6 +853,19 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	bootstrapBrokers := getBootstrapBrokers(config.Nodes)
 	logDebug("Bootstrap brokers: %s", bootstrapBrokers)
 	
+	// Generate RPK service URLs using first cluster node IP
+	var firstNodeIP string
+	if len(config.Nodes) > 0 {
+		firstNodeIP = config.Nodes[0].PrivateIP
+	}
+	
+	rpkSchemaRegistryURL := fmt.Sprintf("http://%s:8081", firstNodeIP)
+	rpkAdminAPIURL := fmt.Sprintf("http://%s:33145", firstNodeIP)
+	rpkRestProxyURL := fmt.Sprintf("http://%s:8082", firstNodeIP)
+	
+	logDebug("RPK service URLs - Schema Registry: %s, Admin API: %s, REST Proxy: %s", 
+		rpkSchemaRegistryURL, rpkAdminAPIURL, rpkRestProxyURL)
+	
 	// Commands to set up environment variables
 	commands := []string{
 		// Create/update .bashrc with broker information
@@ -860,21 +873,55 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
 		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
 		
+		// RPK-specific environment variables in .bashrc
+		fmt.Sprintf(`echo "export RPK_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),
+		fmt.Sprintf(`echo "export RPK_SCHEMA_REGISTRY_URL='%s'" >> ~/.bashrc`, rpkSchemaRegistryURL),
+		fmt.Sprintf(`echo "export RPK_ADMIN_API_URL='%s'" >> ~/.bashrc`, rpkAdminAPIURL),
+		fmt.Sprintf(`echo "export RPK_REST_PROXY_URL='%s'" >> ~/.bashrc`, rpkRestProxyURL),
+		`echo "export RPK_TLS_ENABLED='false'" >> ~/.bashrc`,
+		`echo "export RPK_SASL_MECHANISM=''" >> ~/.bashrc`,
+		
 		// Also set in current session
 		fmt.Sprintf(`export REDPANDA_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export KAFKA_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export BOOTSTRAP_BROKERS='%s'`, bootstrapBrokers),
+		fmt.Sprintf(`export RPK_BROKERS='%s'`, bootstrapBrokers),
+		fmt.Sprintf(`export RPK_SCHEMA_REGISTRY_URL='%s'`, rpkSchemaRegistryURL),
+		fmt.Sprintf(`export RPK_ADMIN_API_URL='%s'`, rpkAdminAPIURL),
+		fmt.Sprintf(`export RPK_REST_PROXY_URL='%s'`, rpkRestProxyURL),
+		`export RPK_TLS_ENABLED='false'`,
+		`export RPK_SASL_MECHANISM=''`,
 		
 		// Create a convenient script for re-sourcing environment
 		`echo '#!/bin/bash' > ~/redpanda-env.sh`,
+		`echo "# RedPanda Cluster Environment Variables" >> ~/redpanda-env.sh`,
+		`echo "# Source this file to set up rpk connectivity: source ~/redpanda-env.sh" >> ~/redpanda-env.sh`,
+		`echo "" >> ~/redpanda-env.sh`,
+		`echo "# Core connectivity" >> ~/redpanda-env.sh`,
 		fmt.Sprintf(`echo "export REDPANDA_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		fmt.Sprintf(`echo "export RPK_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		`echo "" >> ~/redpanda-env.sh`,
+		`echo "# RPK Service URLs" >> ~/redpanda-env.sh`,
+		fmt.Sprintf(`echo "export RPK_SCHEMA_REGISTRY_URL='%s'" >> ~/redpanda-env.sh`, rpkSchemaRegistryURL),
+		fmt.Sprintf(`echo "export RPK_ADMIN_API_URL='%s'" >> ~/redpanda-env.sh`, rpkAdminAPIURL),
+		fmt.Sprintf(`echo "export RPK_REST_PROXY_URL='%s'" >> ~/redpanda-env.sh`, rpkRestProxyURL),
+		`echo "" >> ~/redpanda-env.sh`,
+		`echo "# RPK Connection settings" >> ~/redpanda-env.sh`,
+		`echo "export RPK_TLS_ENABLED='false'" >> ~/redpanda-env.sh`,
+		`echo "export RPK_SASL_MECHANISM=''" >> ~/redpanda-env.sh`,
+		`echo "" >> ~/redpanda-env.sh`,
+		`echo 'echo "RedPanda environment variables loaded:"' >> ~/redpanda-env.sh`,
+		`echo 'echo "  Brokers: $RPK_BROKERS"' >> ~/redpanda-env.sh`,
+		`echo 'echo "  Schema Registry: $RPK_SCHEMA_REGISTRY_URL"' >> ~/redpanda-env.sh`,
+		`echo 'echo "  Admin API: $RPK_ADMIN_API_URL"' >> ~/redpanda-env.sh`,
+		`echo 'echo "  REST Proxy: $RPK_REST_PROXY_URL"' >> ~/redpanda-env.sh`,
 		`chmod +x ~/redpanda-env.sh`,
 		
 		// Verify the environment variables were set
 		`echo "Environment variables set:"`,
-		`grep -E "(REDPANDA_BROKERS|KAFKA_BROKERS|BOOTSTRAP_BROKERS)" ~/.bashrc || echo "No broker env vars found in .bashrc"`,
+		`grep -E "(REDPANDA_BROKERS|KAFKA_BROKERS|RPK_BROKERS|RPK_SCHEMA_REGISTRY_URL)" ~/.bashrc || echo "No broker env vars found in .bashrc"`,
 	}
 	
 	logDebug("Executing %d commands on load test instance", len(commands))
@@ -889,7 +936,7 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	
 	// Test that the environment variables are accessible
 	logDebug("Testing environment variable accessibility")
-	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS"`
+	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS" && echo "RPK_BROKERS=$RPK_BROKERS" && echo "RPK_SCHEMA_REGISTRY_URL=$RPK_SCHEMA_REGISTRY_URL"`
 	if err := executeSSHCommand(client, testCmd); err != nil {
 		logWarn("Failed to verify environment variables: %v", err)
 	}
@@ -897,7 +944,14 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	logInfo("Load test instance configuration completed")
 	fmt.Printf("Load test instance configured with:\n")
 	fmt.Printf("  REDPANDA_BROKERS=%s\n", bootstrapBrokers)
+	fmt.Printf("  RPK_BROKERS=%s\n", bootstrapBrokers)
+	fmt.Printf("  RPK_SCHEMA_REGISTRY_URL=%s\n", rpkSchemaRegistryURL)
+	fmt.Printf("  RPK_ADMIN_API_URL=%s\n", rpkAdminAPIURL)
+	fmt.Printf("  RPK_REST_PROXY_URL=%s\n", rpkRestProxyURL)
+	fmt.Printf("  RPK_TLS_ENABLED=false\n")
+	fmt.Printf("  RPK_SASL_MECHANISM=(empty)\n")
 	fmt.Printf("  Environment script: ~/redpanda-env.sh\n")
+	fmt.Printf("  All variables available in ~/.bashrc and current session\n")
 	
 	return nil
 }
