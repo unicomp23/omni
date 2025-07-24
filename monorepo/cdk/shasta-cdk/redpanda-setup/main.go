@@ -191,6 +191,20 @@ func main() {
 	healthDuration := time.Since(healthStart)
 	logInfo("Cluster health verification completed in %v", healthDuration)
 
+	// Configure load test instance with broker environment variables
+	logInfo("Configuring load test instance with broker information")
+	fmt.Println("\n=== Configuring Load Test Instance ===")
+	ltConfigStart := time.Now()
+	if err := configureLoadTestInstance(config); err != nil {
+		logWarn("Failed to configure load test instance: %v", err)
+		fmt.Printf("⚠️  Warning: Load test instance configuration failed: %v\n", err)
+		fmt.Println("You may need to manually set REDPANDA_BROKERS environment variable on the load test instance")
+	} else {
+		ltConfigDuration := time.Since(ltConfigStart)
+		logInfo("Load test instance configured successfully in %v", ltConfigDuration)
+		fmt.Println("✅ Load test instance configured with broker environment variables")
+	}
+
 	totalDuration := time.Since(startTime)
 	logInfo("Setup completed successfully in %v", totalDuration)
 
@@ -810,4 +824,119 @@ echo "Network optimizations applied successfully"
 
 	logInfo("Network optimizations applied successfully")
 	return nil
+} 
+
+// configureLoadTestInstance sets up environment variables on the load test instance
+func configureLoadTestInstance(config *ClusterConfig) error {
+	logDebug("Starting load test instance configuration")
+	
+	// Get load test instance IP from CloudFormation
+	loadTestIP, err := getLoadTestInstanceIP(config)
+	if err != nil {
+		return fmt.Errorf("failed to get load test instance IP: %w", err)
+	}
+	
+	logInfo("Configuring load test instance at %s", loadTestIP)
+	
+	// Create SSH connection to load test instance
+	logDebug("Creating SSH connection to load test instance")
+	client, err := createSSHClient(loadTestIP, config.KeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to create SSH client for load test instance: %w", err)
+	}
+	defer client.Close()
+	
+	fmt.Printf("Connected to load test instance via SSH\n")
+	logInfo("SSH connection established to load test instance")
+	
+	// Generate broker list
+	bootstrapBrokers := getBootstrapBrokers(config.Nodes)
+	logDebug("Bootstrap brokers: %s", bootstrapBrokers)
+	
+	// Commands to set up environment variables
+	commands := []string{
+		// Create/update .bashrc with broker information
+		fmt.Sprintf(`echo "export REDPANDA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),
+		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
+		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
+		
+		// Also set in current session
+		fmt.Sprintf(`export REDPANDA_BROKERS='%s'`, bootstrapBrokers),
+		fmt.Sprintf(`export KAFKA_BROKERS='%s'`, bootstrapBrokers),
+		fmt.Sprintf(`export BOOTSTRAP_BROKERS='%s'`, bootstrapBrokers),
+		
+		// Create a convenient script for re-sourcing environment
+		`echo '#!/bin/bash' > ~/redpanda-env.sh`,
+		fmt.Sprintf(`echo "export REDPANDA_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		`chmod +x ~/redpanda-env.sh`,
+		
+		// Verify the environment variables were set
+		`echo "Environment variables set:"`,
+		`grep -E "(REDPANDA_BROKERS|KAFKA_BROKERS|BOOTSTRAP_BROKERS)" ~/.bashrc || echo "No broker env vars found in .bashrc"`,
+	}
+	
+	logDebug("Executing %d commands on load test instance", len(commands))
+	for i, cmd := range commands {
+		logDebug("Executing command %d: %s", i+1, cmd)
+		if err := executeSSHCommand(client, cmd); err != nil {
+			logWarn("Command failed: %s - Error: %v", cmd, err)
+			// Don't fail the entire setup for env var issues
+			continue
+		}
+	}
+	
+	// Test that the environment variables are accessible
+	logDebug("Testing environment variable accessibility")
+	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS"`
+	if err := executeSSHCommand(client, testCmd); err != nil {
+		logWarn("Failed to verify environment variables: %v", err)
+	}
+	
+	logInfo("Load test instance configuration completed")
+	fmt.Printf("Load test instance configured with:\n")
+	fmt.Printf("  REDPANDA_BROKERS=%s\n", bootstrapBrokers)
+	fmt.Printf("  Environment script: ~/redpanda-env.sh\n")
+	
+	return nil
+}
+
+// getLoadTestInstanceIP retrieves the load test instance public IP from CloudFormation
+func getLoadTestInstanceIP(config *ClusterConfig) (string, error) {
+	logDebug("Fetching load test instance IP from CloudFormation")
+	
+	sess, err := session.NewSession(&aws.Config{
+		Region: aws.String(config.Region),
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to create AWS session: %w", err)
+	}
+	
+	cfSvc := cloudformation.New(sess)
+	
+	input := &cloudformation.DescribeStacksInput{
+		StackName: aws.String(config.StackName),
+	}
+	
+	result, err := cfSvc.DescribeStacks(input)
+	if err != nil {
+		return "", fmt.Errorf("failed to describe stack: %w", err)
+	}
+	
+	if len(result.Stacks) == 0 {
+		return "", fmt.Errorf("stack %s not found", config.StackName)
+	}
+	
+	// Look for LoadTestInstanceIP output
+	for _, output := range result.Stacks[0].Outputs {
+		if output.OutputKey != nil && *output.OutputKey == "LoadTestInstanceIP" {
+			if output.OutputValue != nil {
+				logDebug("Found load test instance IP: %s", *output.OutputValue)
+				return *output.OutputValue, nil
+			}
+		}
+	}
+	
+	return "", fmt.Errorf("LoadTestInstanceIP output not found in stack %s", config.StackName)
 } 
