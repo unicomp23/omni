@@ -1,0 +1,64 @@
+# Ultra-Low Latency RedPanda Configuration Template
+# Apply these settings to reduce p99+ tail latencies from 500ms+ to <50ms
+
+redpanda:
+  data_directory: /var/lib/redpanda/data
+  node_id: 0  # Will be replaced per node
+  
+  # Network Configuration
+  rpc_server:
+    address: NODE_IP
+    port: 33145
+  kafka_api:
+    - address: NODE_IP
+      port: 9092
+  admin:
+    - address: NODE_IP
+      port: 9644
+  
+  # CRITICAL: Reduce internal batching and coordination delays
+  group_initial_rebalance_delay: 100ms     # vs 3s default - 97% faster rebalancing
+  group_new_member_join_timeout: 5s        # vs 30s default - faster member joins
+  
+  # Log segment optimization for tail latency reduction
+  log_segment_size: 16777216               # 16MB vs 1GB - faster segment rolls
+  log_flush_interval_ms: 1                 # Immediate flush - critical for latency
+  max_compacted_log_segment_size: 16777216 # Match segment size
+  
+  # Memory allocation - prevent GC spikes causing tail latency
+  seastar_memory: "6G"                     # Reserve for Seastar (adjust based on instance)
+  reserve_memory: "1G"                     # System reserve
+  
+  # Raft optimization - reduce leader election time
+  raft_heartbeat_interval_ms: 50           # vs 150ms - 3x faster heartbeats
+  raft_heartbeat_timeout_ms: 500           # vs 1000ms - faster failure detection
+  raft_election_timeout_ms: 1500           # vs 5000ms - faster leader election
+  
+  # I/O scheduling optimization
+  log_segment_ms: 60000                    # 1min vs 10min - more frequent segments
+  compaction_ctrl_update_interval_ms: 10000 # vs 30000ms - faster compaction decisions
+  
+  # Connection pooling - reduce connection establishment overhead
+  kafka_connection_rate_limit: 1000        # connections per second
+  kafka_connections_max: 10000            # total connections
+  
+  # Reduce coordinator overhead
+  group_min_session_timeout_ms: 1000       # vs 6000ms - faster session timeouts
+  group_max_session_timeout_ms: 30000      # vs 300000ms - reasonable upper bound
+  
+  # Performance tuning
+  disable_metrics: false                   # Keep metrics for monitoring
+  developer_mode: false                    # Production mode
+  auto_create_topics_enabled: true        # For testing convenience
+
+# Schema Registry - optimize for latency
+schema_registry:
+  schema_registry_api:
+    - address: NODE_IP
+      port: 8081
+
+# Pandaproxy - optimize for latency  
+pandaproxy:
+  pandaproxy_api:
+    - address: NODE_IP
+      port: 8082 

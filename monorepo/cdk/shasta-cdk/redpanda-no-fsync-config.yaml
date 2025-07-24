@@ -1,0 +1,70 @@
+# RedPanda Ultra-Low Latency Configuration - Minimal Disk Sync
+# Reduces p99+ latencies by avoiding synchronous disk operations
+
+redpanda:
+  data_directory: /var/lib/redpanda/data
+  node_id: 0  # Will be replaced per node
+  
+  # Network Configuration
+  rpc_server:
+    address: NODE_IP
+    port: 33145
+  kafka_api:
+    - address: NODE_IP
+      port: 9092
+  admin:
+    - address: NODE_IP
+      port: 9644
+  
+  # CRITICAL: Minimize disk sync operations
+  log_flush_interval_ms: -1                # DISABLE periodic flushing (-1 = disabled)
+  log_segment_size: 268435456              # 256MB segments (larger = less frequent flushes)
+  max_compacted_log_segment_size: 268435456 # Match segment size
+  log_segment_ms: 300000                   # 5min before rolling segments (vs 1min)
+  
+  # Raft optimizations - reduce disk I/O
+  raft_io_timeout_ms: 10000               # 10s timeout (vs 5s) - less aggressive
+  raft_heartbeat_interval_ms: 150         # Default 150ms (balance between latency and I/O)
+  raft_heartbeat_timeout_ms: 1500         # 1.5s (vs 1s) - reduce leader election I/O
+  raft_election_timeout_ms: 7500          # 7.5s (vs 5s) - less frequent elections
+  
+  # Disable expensive features for ultra-low latency
+  enable_transactions: false              # Transactions require extra disk I/O
+  enable_idempotence: false               # Idempotence requires extra disk I/O
+  
+  # Reduce compaction I/O overhead
+  compaction_ctrl_update_interval_ms: 30000 # 30s vs 10s - less frequent compaction checks
+  log_compaction_interval_ms: 300000      # 5min vs default - less frequent compaction
+  
+  # Memory-based optimizations (rely on OS page cache instead of explicit fsyncs)
+  log_cache_size_max: 1073741824         # 1GB log cache (keep more in memory)
+  
+  # Consumer group optimizations (reduce metadata I/O)
+  group_initial_rebalance_delay: 100ms
+  group_new_member_join_timeout: 5s
+  group_min_session_timeout_ms: 1000
+  group_max_session_timeout_ms: 30000
+  
+  # Topic configuration defaults (minimize I/O for new topics)
+  default_topic_replications: 3
+  default_topic_partitions: 6
+  auto_create_topics_enabled: true
+  
+  # Memory allocation - prevent GC that can trigger I/O
+  seastar_memory: "6G"
+  reserve_memory: "1G"
+  
+  # Development vs production mode
+  developer_mode: false                   # Keep false for production safety
+
+# Schema Registry
+schema_registry:
+  schema_registry_api:
+    - address: NODE_IP
+      port: 8081
+
+# Pandaproxy  
+pandaproxy:
+  pandaproxy_api:
+    - address: NODE_IP
+      port: 8082 
