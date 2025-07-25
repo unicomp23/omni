@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	testDuration = 15 * time.Second
+	testDuration = 10 * time.Second
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
 	messageInterval = 50 * time.Millisecond // 50ms spacing = 20 msg/s per producer
 	numPartitions = 18
@@ -23,7 +23,7 @@ const (
 	numConsumers = 3
 )
 
-var brokers = []string{"10.1.0.207:9092", "10.1.1.79:9092", "10.1.2.202:9092"}
+var brokers = []string{"10.1.0.217:9092", "10.1.1.237:9092", "10.1.2.12:9092"}
 
 type LatencyStats struct {
 	latencies []time.Duration
@@ -201,7 +201,7 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - 15s Duration, 31.25 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - 10s Duration, 31.25 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", brokers)
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
