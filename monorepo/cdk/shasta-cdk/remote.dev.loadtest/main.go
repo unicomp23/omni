@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -15,11 +16,11 @@ import (
 )
 
 const (
-	testDuration = 10 * time.Second
+	testDuration = 30 * time.Second
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
-	messageInterval = 50 * time.Millisecond // 50ms spacing = 20 msg/s per producer
+	messageInterval = 25 * time.Millisecond // 25ms spacing = 40 msg/s per producer
 	numPartitions = 18
-	numProducers = 32
+	numProducers = 128
 	numConsumers = 3
 )
 
@@ -111,7 +112,7 @@ func producer(ctx context.Context, client *kgo.Client, stats *LatencyStats, prod
 	if isWarmup {
 		fmt.Printf("🔥 Warm-up Producer %d started\n", producerID)
 	} else {
-		fmt.Printf("🚀 Producer %d started (31.25 msg/s)\n", producerID)
+		fmt.Printf("🚀 Producer %d started (10 msg/s)\n", producerID)
 	}
 	
 	messageCount := 0
@@ -204,11 +205,12 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - 10s Duration, 31.25 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - 60s Duration, 40 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", brokers)
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
-	fmt.Printf("⏱️  Message interval: %v (31.25 msg/s per producer)\n\n", messageInterval)
+	fmt.Printf("⏱️  Message interval: %v (10 msg/s per producer)\n", messageInterval)
+	fmt.Printf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducers + numConsumers)
 	
 	stats := &LatencyStats{}
 	
@@ -373,9 +375,9 @@ func main() {
 		fmt.Printf("Max:       %v\n", results["max"])
 		
 		throughput := float64(int(count)) / actualDuration.Seconds()
-		expectedThroughput := float64(numProducers) * 31.25
+		expectedThroughput := float64(numProducers) * 10.0
 		fmt.Printf("\n📈 Throughput: %.2f messages/second\n", throughput)
-		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 31.25 msg/sec)\n", throughput/float64(numProducers))
+		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 10.0 msg/sec)\n", throughput/float64(numProducers))
 		fmt.Printf("📊 Per-partition: %.2f msg/sec\n", throughput/float64(numPartitions))
 		fmt.Printf("🎯 Expected total: %.2f msg/sec\n", expectedThroughput)
 	} else {
