@@ -3,15 +3,15 @@
 # Source this file to set up rpk connectivity: source redpanda-env.sh
 
 # Core connectivity
-export RPK_BROKERS="10.1.0.207:9092,10.1.1.79:9092,10.1.2.202:9092"
-export REDPANDA_CLUSTER_IPS="10.1.0.207,10.1.1.79,10.1.2.202"
-export REDPANDA_PUBLIC_IPS="35.173.223.198,3.239.61.202,184.73.80.226"
-export LOAD_TEST_INSTANCE_IP="184.73.4.251"
+export RPK_BROKERS="10.1.0.217:9092,10.1.1.237:9092,10.1.2.12:9092"
+export REDPANDA_CLUSTER_IPS="10.1.0.217,10.1.1.237,10.1.2.12"
+export REDPANDA_PUBLIC_IPS="3.84.214.214,34.232.50.167,44.210.115.179"
+export LOAD_TEST_INSTANCE_IP="18.234.250.45"
 
 # Service URLs
-export RPK_SCHEMA_REGISTRY_URL="http://10.1.0.207:8081"
-export RPK_ADMIN_API_URL="http://10.1.0.207:33145"
-export RPK_REST_PROXY_URL="http://10.1.0.207:8082"
+export RPK_SCHEMA_REGISTRY_URL="http://10.1.0.217:8081"
+export RPK_ADMIN_API_URL="http://10.1.0.217:33145"
+export RPK_REST_PROXY_URL="http://10.1.0.217:8082"
 
 # Connection settings
 export RPK_TLS_ENABLED="false"

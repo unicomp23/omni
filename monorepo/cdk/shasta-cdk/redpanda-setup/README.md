@@ -70,6 +70,11 @@ The tool performs these steps on each node:
    - Performs comprehensive health checks
    - Validates topic operations and admin functions
 
+6. **Performance Optimization**
+   - Enables write caching at the cluster level for improved performance
+   - Configures relaxed durability mode for faster message acknowledgments
+   - Verifies write caching configuration
+
 ## Usage
 
 ### Basic Setup
@@ -118,6 +123,7 @@ After setup, use the cluster utilities for ongoing management:
 - **Native Networking**: Host networking without bridge overhead
 - **System Integration**: Proper systemd service management
 - **Resource Efficiency**: Direct memory and CPU access
+- **Write Caching**: Automatically enabled for improved performance with relaxed durability
 
 ### Management Benefits
 - **Standard Commands**: Use familiar `systemctl` commands
@@ -327,6 +333,54 @@ redpanda:
   developer_mode: false
   auto_create_topics_enabled: true
 ```
+
+## Write Caching Configuration
+
+Write caching is automatically enabled during cluster setup for improved performance. This feature provides better throughput and lower latency by acknowledging messages as soon as they are received and acknowledged by a majority of brokers, without waiting for disk writes.
+
+### What Write Caching Does
+
+- **Improved Performance**: Messages are acknowledged faster, reducing latency
+- **Relaxed Durability**: Trades some durability for performance gains
+- **Majority Acknowledgment**: Still ensures majority of brokers receive the message
+- **User Topics Only**: Does not apply to transactions or consumer offsets
+
+### Manual Configuration
+
+To check or modify write caching settings:
+
+```bash
+# Check current write caching setting
+rpk cluster config get write_caching_default
+
+# Enable write caching (already done by setup)
+rpk cluster config set write_caching_default true
+
+# Disable write caching if needed
+rpk cluster config set write_caching_default false
+```
+
+### Per-Topic Override
+
+You can override the cluster-level setting for specific topics:
+
+```bash
+# Enable write caching for a specific topic
+rpk topic alter-config my-topic --set write.caching=true
+
+# Disable write caching for a specific topic
+rpk topic alter-config my-topic --set write.caching=false
+
+# Remove topic-level override (use cluster default)
+rpk topic alter-config my-topic --delete write.caching
+```
+
+### Performance Considerations
+
+- **Use Case**: Best for workloads that can tolerate some data loss for better performance
+- **Data Safety**: Not recommended for critical financial or transactional data
+- **Throughput**: Can significantly improve message throughput and reduce latency
+- **Recovery**: In case of multiple simultaneous broker failures, some recent messages may be lost
 
 ## Security Considerations
 

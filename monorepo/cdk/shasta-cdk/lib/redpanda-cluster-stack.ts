@@ -10,13 +10,14 @@ export const REDPANDA_CLUSTER_IPS = 'RedPandaClusterIPs';
 export const LOAD_TEST_INSTANCE_IP = 'LoadTestInstanceIP';
 
 /**
- * RedPanda Cluster Stack with i4i instances for ultra-low latency
+ * RedPanda Cluster Stack with im4gn instances for ultra-low latency
  * 
- * Performance improvements with i4i.xlarge vs c5.4xlarge + EBS:
- * - Storage latency: ~30μs vs ~800μs (26x faster)
- * - IOPS: Up to 1M read, 800K write per instance
+ * Performance improvements with im4gn.large vs c5.4xlarge + EBS:
+ * - Storage latency: ~30μs vs ~800μs (26x faster with AWS Nitro SSDs)
+ * - Network bandwidth: 25 Gbps vs 10 Gbps (2.5x improvement)
+ * - Architecture: ARM64 Graviton2 processors for better price/performance
  * - Expected p99 latency: <10ms vs 2,450ms (245x improvement)
- * - Target throughput: 3,000-5,000 msg/s vs 1,800 msg/s
+ * - Target throughput: Optimized for high-throughput with lower cost per TB
  */
 export class RedPandaClusterStack extends Stack {
     static readonly keyName = "john.davis";
@@ -187,10 +188,17 @@ export class RedPandaClusterStack extends Stack {
         // Grant bucket access to the role
         loadTestBucket.grantReadWrite(role);
 
-        // Ultra-low latency i4i instances with AWS Nitro NVMe SSDs
-        // i4i.xlarge: 4 vCPU, 32 GiB RAM, 937 GB NVMe SSD (~30μs latency vs 800μs EBS)
-        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.I4I, ec2.InstanceSize.XLARGE);
-        const machineImage = ec2.MachineImage.latestAmazonLinux2023();
+        // Ultra-low latency im4gn instances with AWS Nitro NVMe SSDs (Graviton2)
+        // im4gn.large: 2 vCPU, 8 GiB RAM, 937 GB NVMe SSD, 25 Gbps network (~30μs latency vs 800μs EBS)
+        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.IM4GN, ec2.InstanceSize.LARGE);
+        const redpandaMachineImage = ec2.MachineImage.latestAmazonLinux2023({
+            cpuType: ec2.AmazonLinuxCpuType.ARM_64
+        });
+        
+        // Load test instance uses x86_64 for broader compatibility and c5n optimization
+        const loadTestMachineImage = ec2.MachineImage.latestAmazonLinux2023({
+            cpuType: ec2.AmazonLinuxCpuType.X86_64
+        });
 
         // Get public subnets for RedPanda cluster (one per AZ) - need public IPs for direct access
         const publicSubnets = vpc.selectSubnets({subnetType: ec2.SubnetType.PUBLIC}).subnets;
@@ -205,14 +213,14 @@ export class RedPandaClusterStack extends Stack {
                 vpc,
                 vpcSubnets: { subnets: [publicSubnets[i]] },
                 instanceType: redpandaInstanceType,
-                machineImage,
+                machineImage: redpandaMachineImage,
                 securityGroup: redpandaSecurityGroup,
                 keyPair: ec2.KeyPair.fromKeyPairName(this, `RedPandaKeyPair${i}`, RedPandaClusterStack.keyName),
                 role,
                 associatePublicIpAddress: true,
-                // i4i instances come with built-in NVMe SSD instance store
-                // NVMe storage automatically available at /dev/nvme1n1 (937 GB for i4i.xlarge)
-                // Performance: Up to 1M read IOPS, 800K write IOPS, ~30μs latency
+                // im4gn instances come with built-in NVMe SSD instance store
+                // NVMe storage automatically available at /dev/nvme1n1 (937 GB for im4gn.large)
+                // Performance: High I/O performance with AWS Nitro SSDs, ~30μs latency, 25 Gbps network
                 blockDevices: [{
                     deviceName: '/dev/xvda', // Root volume only - keep small for OS
                     volume: ec2.BlockDeviceVolume.ebs(20, {
@@ -235,12 +243,12 @@ export class RedPandaClusterStack extends Stack {
         }
 
         // Create load testing instance in public subnet
-        // Using c5n.xlarge for high network performance to test i4i cluster throughput
+        // Using c5n.xlarge for high network performance to test im4gn cluster throughput
         const loadTestInstance = new ec2.Instance(this, 'LoadTestInstance', {
             vpc,
             vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
             instanceType: ec2.InstanceType.of(ec2.InstanceClass.C5N, ec2.InstanceSize.XLARGE),
-            machineImage,
+            machineImage: loadTestMachineImage,
             securityGroup: redpandaSecurityGroup,
             keyPair: ec2.KeyPair.fromKeyPairName(this, 'LoadTestKeyPair', RedPandaClusterStack.keyName),
             role,

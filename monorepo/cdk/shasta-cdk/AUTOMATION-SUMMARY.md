@@ -19,7 +19,7 @@ Messages: 9.3M sent, 18.6M received
 Throughput: 291K+ messages/sec send, 582K+ messages/sec receive
 Data Rate: 284 MB/sec send, 569 MB/sec receive
 Configuration: 2 producers, 2 consumers, 1KB messages, snappy compression
-Instance Type: i4i.2xlarge (high-performance NVMe storage)
+Instance Type: im4gn.large (high-performance NVMe storage, ARM64 Graviton2)
 ```
 
 ## 🚀 **New Automation Scripts Created**

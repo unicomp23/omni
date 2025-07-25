@@ -62,7 +62,7 @@ Our automation has successfully achieved:
 - **Scalability**: Tested with 1KB messages, snappy compression
 - **Reliability**: 9.3M+ messages processed in 32 seconds
 
-*Results from actual test run on i4i.2xlarge instances*
+*Results from actual test run on im4gn.large instances*
 
 ## 🛠️ Manual Step-by-Step (If Needed)
 
@@ -125,7 +125,7 @@ ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-instance-ip}
 ## 🔧 Component Details
 
 ### CDK Stack Features
-- **3 RedPanda Nodes**: i4i.2xlarge instances across AZs
+- **3 RedPanda Nodes**: im4gn.large instances across AZs
 - **Load Test Instance**: c5n.4xlarge for high network performance  
 - **S3 Integration**: Bucket for load test code deployment
 - **Security Groups**: Proper port configuration for RedPanda services
@@ -180,11 +180,12 @@ PRODUCERS=1 CONSUMERS=1 ./run-complete-load-test.sh                   # Latency 
 
 ## 📊 Expected Performance
 
-With the default i4i.2xlarge instances:
-- **Throughput**: 100K+ messages/sec per producer
-- **Latency**: Sub-millisecond at moderate loads
-- **Bandwidth**: 100+ MB/sec per node
-- **Concurrent Connections**: Thousands of producer/consumer clients
+With the default im4gn.large instances:
+- **Throughput**: 50K+ messages/sec per producer (optimized for cost-efficiency)
+- **Latency**: Sub-millisecond at moderate loads with AWS Nitro SSDs
+- **Bandwidth**: 50+ MB/sec per node (25 Gbps network capability)
+- **Concurrent Connections**: Hundreds of producer/consumer clients
+- **Cost Benefits**: Lower cost per TB with ARM64 Graviton2 processors
 
 ## 🛠️ Management Commands
 

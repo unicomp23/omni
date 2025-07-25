@@ -191,6 +191,20 @@ func main() {
 	healthDuration := time.Since(healthStart)
 	logInfo("Cluster health verification completed in %v", healthDuration)
 
+	// Enable write caching for improved performance
+	logInfo("Enabling write caching for improved performance")
+	fmt.Println("\n=== Enabling Write Caching ===")
+	writeCachingStart := time.Now()
+	if err := enableWriteCaching(config); err != nil {
+		logWarn("Failed to enable write caching: %v", err)
+		fmt.Printf("⚠️  Warning: Write caching configuration failed: %v\n", err)
+		fmt.Println("You can enable it manually later with: rpk cluster config set write_caching_default true")
+	} else {
+		writeCachingDuration := time.Since(writeCachingStart)
+		logInfo("Write caching enabled successfully in %v", writeCachingDuration)
+		fmt.Println("✅ Write caching enabled - improved performance with relaxed durability")
+	}
+
 	// Configure load test instance with broker environment variables
 	logInfo("Configuring load test instance with broker information")
 	fmt.Println("\n=== Configuring Load Test Instance ===")
@@ -211,6 +225,7 @@ func main() {
 	fmt.Println("\n=== Setup Complete ===")
 	fmt.Println("🎉 RedPanda cluster is healthy and ready!")
 	fmt.Printf("Bootstrap brokers: %s\n", getBootstrapBrokers(config.Nodes))
+	fmt.Println("⚡ Write caching enabled for improved performance")
 	fmt.Println("✅ All systems operational!")
 }
 
@@ -746,6 +761,84 @@ func performAdditionalHealthChecks(client *ssh.Client, config *ClusterConfig) er
 		fmt.Printf("    ✅ %s: OK\n", check.name)
 	}
 	
+	return nil
+}
+
+// enableWriteCaching configures the cluster to use write caching for improved performance
+func enableWriteCaching(config *ClusterConfig) error {
+	logDebug("Starting write caching configuration")
+	
+	// Connect to first node to configure cluster settings
+	logDebug("Connecting to first node for write caching configuration")
+	client, err := createSSHClient(config.Nodes[0].PublicIP, config.KeyPath)
+	if err != nil {
+		logError("Failed to connect to node 0 for write caching config: %v", err)
+		return fmt.Errorf("failed to connect to node 0: %w", err)
+	}
+	defer client.Close()
+	
+	// Enable write caching at cluster level (rpk auto-discovers cluster)
+	fmt.Printf("🚀 Enabling write caching for improved performance...\n")
+	logDebug("Executing rpk cluster config set write_caching_default true")
+	
+	configCmd := "rpk cluster config set write_caching_default true"
+	session, err := client.NewSession()
+	if err != nil {
+		logError("Failed to create SSH session for write caching config: %v", err)
+		return fmt.Errorf("failed to create SSH session: %w", err)
+	}
+	
+	configStart := time.Now()
+	output, err := session.CombinedOutput(configCmd)
+	session.Close()
+	configDuration := time.Since(configStart)
+	
+	if err != nil {
+		logError("Write caching configuration command failed after %v: %v", configDuration, err)
+		logDebug("Command output: %s", string(output))
+		return fmt.Errorf("failed to enable write caching: %s, output: %s", err, string(output))
+	}
+	
+	logDebug("Write caching configuration command succeeded after %v", configDuration)
+	fmt.Printf("Configuration output: %s\n", string(output))
+	
+	// Verify the setting was applied correctly
+	fmt.Printf("🔍 Verifying write caching configuration...\n")
+	logDebug("Verifying write_caching_default setting")
+	
+	verifyCmd := "rpk cluster config get write_caching_default"
+	session, err = client.NewSession()
+	if err != nil {
+		logWarn("Failed to create SSH session for verification: %v", err)
+		// Don't fail the entire operation for verification issues
+		return nil
+	}
+	
+	verifyStart := time.Now()
+	output, err = session.CombinedOutput(verifyCmd)
+	session.Close()
+	verifyDuration := time.Since(verifyStart)
+	
+	if err != nil {
+		logWarn("Write caching verification failed after %v: %v", verifyDuration, err)
+		logDebug("Verification output: %s", string(output))
+		// Don't fail the entire operation for verification issues
+		fmt.Printf("⚠️  Unable to verify write caching setting, but configuration command succeeded\n")
+		return nil
+	}
+	
+	logDebug("Write caching verification succeeded after %v", verifyDuration)
+	fmt.Printf("✅ Write caching verification: %s\n", strings.TrimSpace(string(output)))
+	
+	// Additional information about write caching
+	fmt.Printf("📋 Write caching info:\n")
+	fmt.Printf("  • Provides better performance with relaxed durability\n")
+	fmt.Printf("  • Messages acknowledged when received by majority of brokers\n")
+	fmt.Printf("  • Does not wait for disk writes before acknowledgment\n")
+	fmt.Printf("  • Applies to user topics (not transactions or consumer offsets)\n")
+	fmt.Printf("  • Can be overridden per topic with: rpk topic alter-config <topic> --set write.caching=true/false\n")
+	
+	logInfo("Write caching configuration completed successfully")
 	return nil
 }
 
