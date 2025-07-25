@@ -59,11 +59,14 @@ func (ls *LatencyStats) Calculate() map[string]time.Duration {
 	results["p95"] = ls.latencies[count*95/100]
 	results["p99"] = ls.latencies[count*99/100]
 	
-	if count >= 1000 {
+	if count >= 100 {
 		results["p99.9"] = ls.latencies[count*999/1000]
 	}
-	if count >= 10000 {
+	if count >= 1000 {
 		results["p99.99"] = ls.latencies[count*9999/10000]
+	}
+	if count >= 10000 {
+		results["p99.999"] = ls.latencies[count*99999/100000]
 	}
 	
 	var sum time.Duration
@@ -363,6 +366,9 @@ func main() {
 		}
 		if p9999, exists := results["p99.99"]; exists {
 			fmt.Printf("P99.99:    %v\n", p9999)
+		}
+		if p99999, exists := results["p99.999"]; exists {
+			fmt.Printf("P99.999:   %v\n", p99999)
 		}
 		fmt.Printf("Max:       %v\n", results["max"])
 		
