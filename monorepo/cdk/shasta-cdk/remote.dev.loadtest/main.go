@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"runtime"
 	"sort"
 	"sync"
 	"time"
@@ -15,59 +16,117 @@ import (
 )
 
 const (
-	testDuration = 15 * time.Second
+	testDuration = 60 * time.Second
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
-	messageInterval = 50 * time.Millisecond // 50ms spacing = 20 msg/s per producer
+	messageInterval = 28 * time.Millisecond // 28ms spacing = 36 msg/s per producer
 	numPartitions = 18
-	numProducers = 32
-	numConsumers = 3
+	numProducers = 64
+	numConsumers = 8
 )
 
-var brokers = []string{"10.1.0.207:9092", "10.1.1.79:9092", "10.1.2.202:9092"}
+var brokers = []string{"10.1.0.217:9092", "10.1.1.237:9092", "10.1.2.12:9092"}
+
+// Buffer pool to reduce GC pressure from message allocations
+var messageBufferPool = sync.Pool{
+	New: func() interface{} {
+		return make([]byte, 8)
+	},
+}
 
 type LatencyStats struct {
-	latencies []time.Duration
-	mu        sync.Mutex
+	addCh     chan time.Duration
+	calcCh    chan chan map[string]time.Duration
+	closeCh   chan struct{}
+}
+
+func NewLatencyStats() *LatencyStats {
+	ls := &LatencyStats{
+		addCh:   make(chan time.Duration, 1000), // Buffered to avoid blocking producers
+		calcCh:  make(chan chan map[string]time.Duration),
+		closeCh: make(chan struct{}),
+	}
+	
+	// Start the goroutine that manages the latencies slice
+	go ls.run()
+	
+	return ls
+}
+
+func (ls *LatencyStats) run() {
+	var latencies []time.Duration
+	
+	for {
+		select {
+		case latency := <-ls.addCh:
+			latencies = append(latencies, latency)
+			
+		case responseCh := <-ls.calcCh:
+			// Calculate stats and send back result
+			result := ls.calculateStats(latencies)
+			responseCh <- result
+			
+		case <-ls.closeCh:
+			return
+		}
+	}
 }
 
 func (ls *LatencyStats) Add(latency time.Duration) {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
-	ls.latencies = append(ls.latencies, latency)
+	select {
+	case ls.addCh <- latency:
+		// Successfully added
+	default:
+		// Channel full, could log this or use different strategy
+		// For now, just drop the measurement to avoid blocking
+	}
 }
 
 func (ls *LatencyStats) Calculate() map[string]time.Duration {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
-	
-	if len(ls.latencies) == 0 {
+	responseCh := make(chan map[string]time.Duration)
+	ls.calcCh <- responseCh
+	return <-responseCh
+}
+
+func (ls *LatencyStats) Close() {
+	close(ls.closeCh)
+}
+
+func (ls *LatencyStats) calculateStats(latencies []time.Duration) map[string]time.Duration {
+	if len(latencies) == 0 {
 		return map[string]time.Duration{}
 	}
 	
-	sort.Slice(ls.latencies, func(i, j int) bool {
-		return ls.latencies[i] < ls.latencies[j]
+	// Create a copy to avoid modifying the original slice during sorting
+	latenciesCopy := make([]time.Duration, len(latencies))
+	copy(latenciesCopy, latencies)
+	
+	sort.Slice(latenciesCopy, func(i, j int) bool {
+		return latenciesCopy[i] < latenciesCopy[j]
 	})
 	
-	count := len(ls.latencies)
+	count := len(latenciesCopy)
 	results := make(map[string]time.Duration)
 	
 	results["count"] = time.Duration(count)
-	results["min"] = ls.latencies[0]
-	results["max"] = ls.latencies[count-1]
-	results["p50"] = ls.latencies[count*50/100]
-	results["p90"] = ls.latencies[count*90/100]
-	results["p95"] = ls.latencies[count*95/100]
-	results["p99"] = ls.latencies[count*99/100]
+	results["min"] = latenciesCopy[0]
+	results["max"] = latenciesCopy[count-1]
+	results["p50"] = latenciesCopy[count*50/100]
+	results["p90"] = latenciesCopy[count*90/100]
+	results["p95"] = latenciesCopy[count*95/100]
+	results["p99"] = latenciesCopy[count*99/100]
 	
+	if count >= 100 {
+		results["p99.9"] = latenciesCopy[count*999/1000]
+	}
 	if count >= 1000 {
-		results["p99.9"] = ls.latencies[count*999/1000]
+		results["p99.99"] = latenciesCopy[count*9999/10000]
 	}
 	if count >= 10000 {
-		results["p99.99"] = ls.latencies[count*9999/10000]
+		results["p99.999"] = latenciesCopy[count*99999/100000]
 	}
 	
 	var sum time.Duration
-	for _, latency := range ls.latencies {
+	for _, latency := range latenciesCopy {
 		sum += latency
 	}
 	results["avg"] = sum / time.Duration(count)
@@ -76,15 +135,29 @@ func (ls *LatencyStats) Calculate() map[string]time.Duration {
 }
 
 func createMessage(sendTime time.Time) []byte {
-	msg := make([]byte, 8)
+	// Get pre-allocated buffer from pool to reduce GC pressure
+	msg := messageBufferPool.Get().([]byte)
+	// Ensure buffer is the right size (should always be 8 from pool)
+	if len(msg) != 8 {
+		msg = make([]byte, 8)
+	}
+	// Write timestamp to buffer
 	binary.BigEndian.PutUint64(msg, uint64(sendTime.UnixNano()))
 	return msg
+}
+
+func releaseMessageBuffer(msg []byte) {
+	// Return buffer to pool for reuse (only if it's the right size)
+	if len(msg) == 8 {
+		messageBufferPool.Put(msg)
+	}
 }
 
 func extractTimestampFromMessage(data []byte) time.Time {
 	if len(data) < 8 {
 		return time.Time{}
 	}
+	// Extract timestamp from first 8 bytes (rest is padding)
 	nanos := binary.BigEndian.Uint64(data[:8])
 	return time.Unix(0, int64(nanos))
 }
@@ -101,17 +174,68 @@ func createTopic(client *kgo.Client, topicName string) error {
 	return err
 }
 
-func producer(ctx context.Context, client *kgo.Client, stats *LatencyStats, producerID int, topicName string, startSignal <-chan struct{}, isWarmup bool) {
+func cleanupOldLoadtestTopics(client *kgo.Client) error {
+	fmt.Println("🧹 Cleaning up old loadtest topics...")
+	
+	// Get list of topics
+	metaReq := kmsg.NewMetadataRequest()
+	metaResp, err := metaReq.RequestWith(context.Background(), client)
+	if err != nil {
+		return err
+	}
+	
+	// Find loadtest topics to delete
+	var topicsToDelete []string
+	for _, topic := range metaResp.Topics {
+		if topic.Topic != nil && len(*topic.Topic) > 15 && (*topic.Topic)[:15] == "loadtest-topic-" {
+			topicsToDelete = append(topicsToDelete, *topic.Topic)
+		}
+	}
+	
+	if len(topicsToDelete) == 0 {
+		fmt.Println("✅ No old loadtest topics to clean up")
+		return nil
+	}
+	
+	fmt.Printf("🗑️  Found %d old loadtest topics to delete\n", len(topicsToDelete))
+	
+	// Delete topics in batches to avoid overwhelming the cluster
+	batchSize := 10
+	for i := 0; i < len(topicsToDelete); i += batchSize {
+		end := i + batchSize
+		if end > len(topicsToDelete) {
+			end = len(topicsToDelete)
+		}
+		
+		deleteReq := kmsg.NewDeleteTopicsRequest()
+		for _, topicName := range topicsToDelete[i:end] {
+			deleteReq.TopicNames = append(deleteReq.TopicNames, topicName)
+			fmt.Printf("  🗑️  Deleting: %s\n", topicName)
+		}
+		
+		_, err := deleteReq.RequestWith(context.Background(), client)
+		if err != nil {
+			fmt.Printf("⚠️  Warning: Failed to delete some topics: %v\n", err)
+		} else {
+			fmt.Printf("✅ Deleted batch of %d topics\n", end-i)
+		}
+	}
+	
+	return nil
+}
+
+func allProducersInOneGoroutine(ctx context.Context, client *kgo.Client, stats *LatencyStats, topicName string, startSignal <-chan struct{}, isWarmup bool) {
 	// Wait for consumers to be ready
 	<-startSignal
 	
 	if isWarmup {
-		fmt.Printf("🔥 Warm-up Producer %d started\n", producerID)
+		fmt.Printf("🔥 All warm-up producers started in single goroutine\n")
 	} else {
-		fmt.Printf("🚀 Producer %d started (31.25 msg/s)\n", producerID)
+		fmt.Printf("🚀 All producers started in single goroutine (36 msg/s each)\n")
 	}
 	
-	messageCount := 0
+	// Track message count per producer
+	messageCounts := make([]int, numProducers)
 	timer := time.NewTimer(messageInterval)
 	defer timer.Stop()
 	
@@ -119,29 +243,47 @@ func producer(ctx context.Context, client *kgo.Client, stats *LatencyStats, prod
 		select {
 		case <-ctx.Done():
 			if isWarmup {
-				fmt.Printf("🔥 Warm-up Producer %d finished. Sent %d messages\n", producerID, messageCount)
+				totalMessages := 0
+				for i, count := range messageCounts {
+					fmt.Printf("🔥 Warm-up Producer %d finished. Sent %d messages\n", i, count)
+					totalMessages += count
+				}
+				fmt.Printf("🔥 Total warm-up messages sent: %d\n", totalMessages)
 			} else {
-				fmt.Printf("📤 Producer %d finished. Sent %d messages\n", producerID, messageCount)
+				totalMessages := 0
+				for i, count := range messageCounts {
+					fmt.Printf("📤 Producer %d finished. Sent %d messages\n", i, count)
+					totalMessages += count
+				}
+				fmt.Printf("📤 Total messages sent: %d\n", totalMessages)
 			}
 			return
 		case <-timer.C:
+			// Cycle through all producers and send one message for each
 			sendTime := time.Now()
-			message := createMessage(sendTime)
 			
-			record := &kgo.Record{
-				Topic: topicName,
-				Value: message,
+			for producerID := 0; producerID < numProducers; producerID++ {
+				message := createMessage(sendTime)
+				
+				record := &kgo.Record{
+					Topic: topicName,
+					Value: message,
+				}
+				
+				// Capture producerID for the callback
+				currentProducerID := producerID
+				client.Produce(ctx, record, func(record *kgo.Record, err error) {
+					if err != nil && err.Error() != "context deadline exceeded" {
+						log.Printf("❌ Producer %d error: %v", currentProducerID, err)
+					}
+					// Return buffer to pool after message is sent
+					releaseMessageBuffer(record.Value)
+				})
+				
+				messageCounts[producerID]++
 			}
 			
-			client.Produce(ctx, record, func(record *kgo.Record, err error) {
-				if err != nil && err.Error() != "context deadline exceeded" {
-					log.Printf("❌ Producer %d error: %v", producerID, err)
-				}
-			})
-			
-			messageCount++
-			
-			// Reset timer for next message (channel-based sleep)
+			// Reset timer for next batch of messages
 			timer.Reset(messageInterval)
 		}
 	}
@@ -201,20 +343,24 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - 15s Duration, 31.25 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - GC Optimized + Balanced, 36 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", brokers)
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
-	fmt.Printf("⏱️  Message interval: %v (31.25 msg/s per producer)\n\n", messageInterval)
+	fmt.Printf("📦 Message size: 8 bytes (timestamp only)\n")
+	fmt.Printf("⏱️  Message interval: %v (36 msg/s per producer)\n", messageInterval)
+	fmt.Printf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (1 producer + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), 1 + numConsumers, numConsumers)
 	
-	stats := &LatencyStats{}
+	stats := NewLatencyStats()
 	
-	// Producer client with ack=1, optimized for latency
+	// Producer client optimized for balanced throughput and low latency
 	producerOpts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
-		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1
+		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (better durability vs ack=0)
 		kgo.DisableIdempotentWrite(),           // Allow ack=1
-		kgo.ProducerLinger(0),                  // No linger time
+		kgo.ProducerLinger(2 * time.Millisecond), // Small batching for efficiency
+		kgo.ConnIdleTimeout(10 * time.Second),  // Add connection timeout
+		kgo.RequestTimeoutOverhead(5 * time.Second), // Add request timeout
 	}
 	
 	producerClient, err := kgo.NewClient(producerOpts...)
@@ -223,12 +369,26 @@ func main() {
 	}
 	defer producerClient.Close()
 	
+	// Cleanup old loadtest topics before starting
+	err = cleanupOldLoadtestTopics(producerClient)
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Topic cleanup failed: %v\n", err)
+	}
+	
+	// Brief pause to let deletions process
+	if err == nil {
+		fmt.Println("⏳ Waiting for topic deletions to complete...")
+		time.Sleep(2 * time.Second)
+	}
+	
 	// Consumer client
 	consumerOpts := []kgo.Opt{
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(fmt.Sprintf("loadtest-group-%s", topicUUID)),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+		kgo.ConnIdleTimeout(10 * time.Second),  // Add connection timeout
+		kgo.RequestTimeoutOverhead(5 * time.Second), // Add request timeout
 	}
 	
 	consumerClient, err := kgo.NewClient(consumerOpts...)
@@ -282,25 +442,29 @@ func main() {
 		close(warmupProducerStart)
 	}()
 	
-	// Start warm-up producers
-	for i := 0; i < numProducers; i++ {
-		warmupWg.Add(1)
-		go func(producerID int) {
-			defer warmupWg.Done()
-			producer(warmupCtx, producerClient, stats, producerID, topicName, warmupProducerStart, true) // true for warmup
-		}(i)
-	}
+	// Start single warm-up producer goroutine managing all producers
+	warmupWg.Add(1)
+	go func() {
+		defer warmupWg.Done()
+		allProducersInOneGoroutine(warmupCtx, producerClient, stats, topicName, warmupProducerStart, true) // true for warmup
+	}()
 	
 	warmupWg.Wait()
 	fmt.Printf("\n🔥 Warm-up completed!\n\n")
 	
-	// Clear stats from warm-up (fresh start for actual test)
-	stats = &LatencyStats{}
+	// Clean up warm-up stats and create fresh stats for actual test
+	stats.Close()
+	stats = NewLatencyStats()
 	
 	// ========================================
 	// MAIN LOAD TEST
 	// ========================================
 	fmt.Printf("⏱️  Starting %v main load test...\n\n", testDuration)
+	
+	// Collect GC stats before test
+	var gcStatsBefore runtime.MemStats
+	runtime.ReadMemStats(&gcStatsBefore)
+	
 	startTime := time.Now()
 	
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
@@ -330,19 +494,21 @@ func main() {
 		close(producerStart)
 	}()
 	
-	// Start producers
-	for i := 0; i < numProducers; i++ {
-		wg.Add(1)
-		go func(producerID int) {
-			defer wg.Done()
-			producer(ctx, producerClient, stats, producerID, topicName, producerStart, false) // false for main test
-		}(i)
-	}
+	// Start single producer goroutine managing all producers
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		allProducersInOneGoroutine(ctx, producerClient, stats, topicName, producerStart, false) // false for main test
+	}()
 	
 	wg.Wait()
 	
 	actualDuration := time.Since(startTime)
 	fmt.Printf("\n⏱️  Test completed in %v\n\n", actualDuration)
+	
+	// Collect GC stats after test
+	var gcStatsAfter runtime.MemStats
+	runtime.ReadMemStats(&gcStatsAfter)
 	
 	// Display results
 	results := stats.Calculate()
@@ -364,17 +530,39 @@ func main() {
 		if p9999, exists := results["p99.99"]; exists {
 			fmt.Printf("P99.99:    %v\n", p9999)
 		}
+		if p99999, exists := results["p99.999"]; exists {
+			fmt.Printf("P99.999:   %v\n", p99999)
+		}
 		fmt.Printf("Max:       %v\n", results["max"])
 		
 		throughput := float64(int(count)) / actualDuration.Seconds()
-		expectedThroughput := float64(numProducers) * 31.25
+		expectedThroughput := float64(numProducers) * 36.0
+		dataThroughputKB := (throughput * 8) / 1024 // 8 bytes per message
 		fmt.Printf("\n📈 Throughput: %.2f messages/second\n", throughput)
-		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 31.25 msg/sec)\n", throughput/float64(numProducers))
+		fmt.Printf("📊 Data throughput: %.2f KB/second\n", dataThroughputKB)
+		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 36.0 msg/sec)\n", throughput/float64(numProducers))
 		fmt.Printf("📊 Per-partition: %.2f msg/sec\n", throughput/float64(numPartitions))
 		fmt.Printf("🎯 Expected total: %.2f msg/sec\n", expectedThroughput)
+		
+		// Display GC statistics
+		gcCollections := gcStatsAfter.NumGC - gcStatsBefore.NumGC
+		gcPauseTotal := time.Duration(gcStatsAfter.PauseTotalNs - gcStatsBefore.PauseTotalNs)
+		var avgPause time.Duration
+		if gcCollections > 0 {
+			avgPause = gcPauseTotal / time.Duration(gcCollections)
+		}
+		fmt.Printf("\n🗑️  GC STATISTICS\n")
+		fmt.Printf("═══════════════\n")
+		fmt.Printf("Collections: %d\n", gcCollections)
+		fmt.Printf("Total pause: %v\n", gcPauseTotal)
+		fmt.Printf("Avg pause:   %v\n", avgPause)
+		fmt.Printf("Heap size:   %.2f MB\n", float64(gcStatsAfter.HeapInuse)/(1024*1024))
 	} else {
 		fmt.Println("❌ No messages received - check cluster connectivity")
 	}
 	
 	fmt.Println("\n✅ Load test completed!")
+	
+	// Clean up the stats goroutine
+	stats.Close()
 }
