@@ -10,14 +10,14 @@ export const REDPANDA_CLUSTER_IPS = 'RedPandaClusterIPs';
 export const LOAD_TEST_INSTANCE_IP = 'LoadTestInstanceIP';
 
 /**
- * RedPanda Cluster Stack with im4gn instances for ultra-low latency
+ * RedPanda Cluster Stack with m7g instances for high performance
  * 
- * Performance improvements with im4gn.large vs c5.4xlarge + EBS:
- * - Storage latency: ~30μs vs ~800μs (26x faster with AWS Nitro SSDs)
- * - Network bandwidth: 25 Gbps vs 10 Gbps (2.5x improvement)
- * - Architecture: ARM64 Graviton2 processors for better price/performance
- * - Expected p99 latency: <10ms vs 2,450ms (245x improvement)
- * - Target throughput: Optimized for high-throughput with lower cost per TB
+ * Performance characteristics with m7g.xlarge:
+ * - CPU: 4 vCPUs with ARM64 Graviton3 processors for optimal price/performance
+ * - Memory: 16 GiB RAM optimized for memory-intensive workloads like Kafka brokers
+ * - Network: Up to 15 Gbps network performance for high-throughput messaging
+ * - Storage: EBS GP3 volumes with consistent performance and durability
+ * - Architecture: Latest generation Graviton3 with enhanced performance per watt
  */
 export class RedPandaClusterStack extends Stack {
     static readonly keyName = "john.davis";
@@ -188,9 +188,9 @@ export class RedPandaClusterStack extends Stack {
         // Grant bucket access to the role
         loadTestBucket.grantReadWrite(role);
 
-        // Ultra-low latency im4gn instances with AWS Nitro NVMe SSDs (Graviton2)
-        // im4gn.large: 2 vCPU, 8 GiB RAM, 937 GB NVMe SSD, 25 Gbps network (~30μs latency vs 800μs EBS)
-        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.IM4GN, ec2.InstanceSize.LARGE);
+        // High-performance m7g instances with Graviton3 processors
+        // m7g.xlarge: 4 vCPU, 16 GiB RAM, Up to 15 Gbps network, optimized for memory-intensive workloads
+        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.M7G, ec2.InstanceSize.XLARGE);
         const redpandaMachineImage = ec2.MachineImage.latestAmazonLinux2023({
             cpuType: ec2.AmazonLinuxCpuType.ARM_64
         });
@@ -218,9 +218,8 @@ export class RedPandaClusterStack extends Stack {
                 keyPair: ec2.KeyPair.fromKeyPairName(this, `RedPandaKeyPair${i}`, RedPandaClusterStack.keyName),
                 role,
                 associatePublicIpAddress: true,
-                // im4gn instances come with built-in NVMe SSD instance store
-                // NVMe storage automatically available at /dev/nvme1n1 (937 GB for im4gn.large)
-                // Performance: High I/O performance with AWS Nitro SSDs, ~30μs latency, 25 Gbps network
+                // m7g instances use EBS storage for persistent data
+                // Performance: Graviton3 processors with optimized memory bandwidth
                 blockDevices: [{
                     deviceName: '/dev/xvda', // Root volume only - keep small for OS
                     volume: ec2.BlockDeviceVolume.ebs(20, {
@@ -319,16 +318,11 @@ export class RedPandaClusterStack extends Stack {
             '',
             'sudo yum install -y redpanda',
             '',
-            '# Format and mount the NVMe SSD instance store for ultra-low latency',
-            '# i4i instances have NVMe storage at /dev/nvme1n1',
-            'sudo mkfs.xfs -f /dev/nvme1n1',
+            '# Create Redpanda data directory on root volume',
+            '# m7g instances use EBS storage instead of instance store',
             'sudo mkdir -p /var/lib/redpanda/data',
-            'sudo mount /dev/nvme1n1 /var/lib/redpanda/data',
             '',
-            '# Add to fstab for persistence across reboots',
-            'echo "/dev/nvme1n1 /var/lib/redpanda/data xfs defaults,noatime 0 2" | sudo tee -a /etc/fstab',
-            '',
-            '# Create Redpanda directories on NVMe storage',
+            '# Create Redpanda directories and set permissions',
             'sudo mkdir -p /opt/redpanda/conf /var/lib/redpanda/data',
             'sudo chown -R redpanda:redpanda /var/lib/redpanda/data',
             'sudo chown -R redpanda:redpanda /opt/redpanda/conf',
