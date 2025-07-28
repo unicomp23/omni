@@ -20,10 +20,12 @@ import (
 const (
 	testDuration = 15 * time.Second
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
-	messageInterval = 28 * time.Millisecond // 28ms spacing = 36 msg/s per producer
+	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
 	numPartitions = 18
 	numProducers = 64
 	numConsumers = 8
+	numProducerGoroutines = 8  // 8 producer goroutines
+	producersPerGoroutine = numProducers / numProducerGoroutines  // 8 producers per goroutine
 )
 
 func getBrokers() []string {
@@ -232,18 +234,22 @@ func cleanupOldLoadtestTopics(client *kgo.Client) error {
 	return nil
 }
 
-func allProducersInOneGoroutine(ctx context.Context, client *kgo.Client, stats *LatencyStats, topicName string, startSignal <-chan struct{}, isWarmup bool) {
+func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencyStats, topicName string, startSignal <-chan struct{}, goroutineID int, isWarmup bool) {
 	// Wait for consumers to be ready
 	<-startSignal
 	
+	// Calculate producer ID range for this goroutine
+	startProducerID := goroutineID * producersPerGoroutine
+	endProducerID := startProducerID + producersPerGoroutine
+	
 	if isWarmup {
-		fmt.Printf("🔥 All warm-up producers started in single goroutine\n")
+		fmt.Printf("🔥 Warm-up Producer Goroutine %d started (producers %d-%d)\n", goroutineID, startProducerID, endProducerID-1)
 	} else {
-		fmt.Printf("🚀 All producers started in single goroutine (36 msg/s each)\n")
+		fmt.Printf("🚀 Producer Goroutine %d started (producers %d-%d, 2 msg/s each)\n", goroutineID, startProducerID, endProducerID-1)
 	}
 	
-	// Track message count per producer
-	messageCounts := make([]int, numProducers)
+	// Track message count per producer (only for this goroutine's producers)
+	messageCounts := make([]int, producersPerGoroutine)
 	timer := time.NewTimer(messageInterval)
 	defer timer.Stop()
 	
@@ -253,24 +259,27 @@ func allProducersInOneGoroutine(ctx context.Context, client *kgo.Client, stats *
 			if isWarmup {
 				totalMessages := 0
 				for i, count := range messageCounts {
-					fmt.Printf("🔥 Warm-up Producer %d finished. Sent %d messages\n", i, count)
+					actualProducerID := startProducerID + i
+					fmt.Printf("🔥 Warm-up Producer %d finished. Sent %d messages\n", actualProducerID, count)
 					totalMessages += count
 				}
-				fmt.Printf("🔥 Total warm-up messages sent: %d\n", totalMessages)
+				fmt.Printf("🔥 Goroutine %d warm-up messages sent: %d\n", goroutineID, totalMessages)
 			} else {
 				totalMessages := 0
 				for i, count := range messageCounts {
-					fmt.Printf("📤 Producer %d finished. Sent %d messages\n", i, count)
+					actualProducerID := startProducerID + i
+					fmt.Printf("📤 Producer %d finished. Sent %d messages\n", actualProducerID, count)
 					totalMessages += count
 				}
-				fmt.Printf("📤 Total messages sent: %d\n", totalMessages)
+				fmt.Printf("📤 Goroutine %d messages sent: %d\n", goroutineID, totalMessages)
 			}
 			return
 		case <-timer.C:
-			// Cycle through all producers and send one message for each
-			sendTime := time.Now()
-			
-			for producerID := 0; producerID < numProducers; producerID++ {
+			// Cycle through this goroutine's producers and send one message for each
+			for i := 0; i < producersPerGoroutine; i++ {
+				actualProducerID := startProducerID + i
+				// ✅ Capture timestamp immediately before each producer send for accurate latency measurement
+				sendTime := time.Now()
 				message := createMessage(sendTime)
 				
 				record := &kgo.Record{
@@ -278,8 +287,8 @@ func allProducersInOneGoroutine(ctx context.Context, client *kgo.Client, stats *
 					Value: message,
 				}
 				
-				// Capture producerID for the callback
-				currentProducerID := producerID
+				// Capture actualProducerID for the callback
+				currentProducerID := actualProducerID
 				client.Produce(ctx, record, func(record *kgo.Record, err error) {
 					if err != nil && err.Error() != "context deadline exceeded" {
 						log.Printf("❌ Producer %d error: %v", currentProducerID, err)
@@ -288,7 +297,7 @@ func allProducersInOneGoroutine(ctx context.Context, client *kgo.Client, stats *
 					releaseMessageBuffer(record.Value)
 				})
 				
-				messageCounts[producerID]++
+				messageCounts[i]++
 			}
 			
 			// Reset timer for next batch of messages
@@ -351,13 +360,13 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - ULTRA-LOW LATENCY OPTIMIZED, 36 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - 8 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", getBrokers())
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
 	fmt.Printf("📦 Message size: 8 bytes (timestamp only)\n")
-	fmt.Printf("⏱️  Message interval: %v (36 msg/s per producer)\n", messageInterval)
-	fmt.Printf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (1 producer + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), 1 + numConsumers, numConsumers)
+	fmt.Printf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
+	fmt.Printf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines + numConsumers, numProducerGoroutines, numConsumers)
 	
 	stats := NewLatencyStats()
 	
@@ -467,16 +476,18 @@ func main() {
 		for i := 0; i < numConsumers; i++ {
 			<-warmupConsumerReady
 		}
-		fmt.Printf("🔥 All %d consumers ready for warm-up, starting warm-up producers...\n\n", numConsumers)
+		fmt.Printf("🔥 All %d consumers ready for warm-up, starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(warmupProducerStart)
 	}()
 	
-	// Start single warm-up producer goroutine managing all producers
-	warmupWg.Add(1)
-	go func() {
-		defer warmupWg.Done()
-		allProducersInOneGoroutine(warmupCtx, producerClient, stats, topicName, warmupProducerStart, true) // true for warmup
-	}()
+	// Start multiple warm-up producer goroutines
+	for goroutineID := 0; goroutineID < numProducerGoroutines; goroutineID++ {
+		warmupWg.Add(1)
+		go func(gID int) {
+			defer warmupWg.Done()
+			producerGoroutine(warmupCtx, producerClient, stats, topicName, warmupProducerStart, gID, true) // true for warmup
+		}(goroutineID)
+	}
 	
 	warmupWg.Wait()
 	fmt.Printf("\n🔥 Warm-up completed!\n\n")
@@ -519,16 +530,18 @@ func main() {
 		for i := 0; i < numConsumers; i++ {
 			<-consumerReady
 		}
-		fmt.Printf("✅ All %d consumers ready, starting producers...\n\n", numConsumers)
+		fmt.Printf("✅ All %d consumers ready, starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(producerStart)
 	}()
 	
-	// Start single producer goroutine managing all producers
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		allProducersInOneGoroutine(ctx, producerClient, stats, topicName, producerStart, false) // false for main test
-	}()
+	// Start multiple producer goroutines
+	for goroutineID := 0; goroutineID < numProducerGoroutines; goroutineID++ {
+		wg.Add(1)
+		go func(gID int) {
+			defer wg.Done()
+			producerGoroutine(ctx, producerClient, stats, topicName, producerStart, gID, false) // false for main test
+		}(goroutineID)
+	}
 	
 	wg.Wait()
 	
@@ -565,11 +578,11 @@ func main() {
 		fmt.Printf("Max:       %v\n", results["max"])
 		
 		throughput := float64(int(count)) / actualDuration.Seconds()
-		expectedThroughput := float64(numProducers) * 36.0
+		expectedThroughput := float64(numProducers) * 2.0  // 2 msg/s per producer
 		dataThroughputKB := (throughput * 8) / 1024 // 8 bytes per message
 		fmt.Printf("\n📈 Throughput: %.2f messages/second\n", throughput)
 		fmt.Printf("📊 Data throughput: %.2f KB/second\n", dataThroughputKB)
-		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 36.0 msg/sec)\n", throughput/float64(numProducers))
+		fmt.Printf("📊 Per-producer: %.2f msg/sec (target: 2.0 msg/sec)\n", throughput/float64(numProducers))
 		fmt.Printf("📊 Per-partition: %.2f msg/sec\n", throughput/float64(numPartitions))
 		fmt.Printf("🎯 Expected total: %.2f msg/sec\n", expectedThroughput)
 		
