@@ -351,7 +351,7 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - GC Optimized + Balanced, 36 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - ULTRA-LOW LATENCY OPTIMIZED, 36 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", getBrokers())
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
@@ -361,14 +361,23 @@ func main() {
 	
 	stats := NewLatencyStats()
 	
-	// Producer client optimized for balanced throughput and low latency
+	// Producer client optimized for ULTRA-LOW latency (<50ms P99.99 goal)
 	producerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
-		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (better durability vs ack=0)
-		kgo.DisableIdempotentWrite(),           // Allow ack=1
-		kgo.ProducerLinger(2 * time.Millisecond), // Small batching for efficiency
-		kgo.ConnIdleTimeout(10 * time.Second),  // Add connection timeout
-		kgo.RequestTimeoutOverhead(5 * time.Second), // Add request timeout
+		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (lower latency than ack=all)
+		kgo.DisableIdempotentWrite(),           // Allow ack=1, reduce overhead
+		
+		// Ultra-low latency optimizations
+		kgo.ProducerLinger(0),                  // Zero linger = immediate send
+		kgo.ProducerBatchMaxBytes(4096),        // Very small batches (4KB)
+		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+		
+		// Aggressive timeouts for speed
+		kgo.ConnIdleTimeout(30 * time.Second),
+		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
+		kgo.RetryBackoffFn(func(tries int) time.Duration {
+			return time.Millisecond * 10        // Fast retries
+		}),
 	}
 	
 	producerClient, err := kgo.NewClient(producerOpts...)
@@ -389,14 +398,26 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 	
-	// Consumer client
+	// Consumer client optimized for ULTRA-LOW latency
 	consumerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(fmt.Sprintf("loadtest-group-%s", topicUUID)),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
-		kgo.ConnIdleTimeout(10 * time.Second),  // Add connection timeout
-		kgo.RequestTimeoutOverhead(5 * time.Second), // Add request timeout
+		
+		// Ultra-low latency fetch optimizations  
+		kgo.FetchMinBytes(1),                   // Don't wait for minimum bytes
+		kgo.FetchMaxWait(10 * time.Millisecond), // Minimum allowed max wait (10ms)
+		kgo.FetchMaxBytes(1024 * 1024),         // Reasonable max fetch (1MB)
+		
+		// Aggressive session management
+		kgo.SessionTimeout(6 * time.Second),    // Faster failure detection
+		kgo.HeartbeatInterval(2 * time.Second), // More frequent heartbeats
+		kgo.AutoCommitInterval(100 * time.Millisecond), // Minimum allowed commit interval
+		
+		// Fast timeouts
+		kgo.ConnIdleTimeout(30 * time.Second),
+		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
 	}
 	
 	consumerClient, err := kgo.NewClient(consumerOpts...)
