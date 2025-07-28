@@ -36,6 +36,11 @@ Thumbs.db
 # Log files
 *.log
 
+# Load test logging directory and files
+logs/
+*.jsonl
+*.jsonl.gz
+
 # Environment files
 .env
 .env.local

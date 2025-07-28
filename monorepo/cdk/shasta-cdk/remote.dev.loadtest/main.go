@@ -3,9 +3,12 @@ package main
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
@@ -41,6 +44,122 @@ var messageBufferPool = sync.Pool{
 	New: func() interface{} {
 		return make([]byte, 8)
 	},
+}
+
+// LatencyLogEntry represents a single latency measurement in JSONL format
+type LatencyLogEntry struct {
+	Timestamp    time.Time `json:"timestamp"`    // ISO8601 timestamp when message was received
+	SendTime     time.Time `json:"send_time"`    // When message was originally sent
+	ReceiveTime  time.Time `json:"receive_time"` // When message was received
+	LatencyMs    float64   `json:"latency_ms"`   // Latency in milliseconds
+	ConsumerID   int       `json:"consumer_id"`  // Which consumer processed this
+	Partition    int32     `json:"partition"`    // Kafka partition
+	Offset       int64     `json:"offset"`       // Kafka offset
+}
+
+// LatencyLogger handles JSONL logging with hourly rotation and compression
+type LatencyLogger struct {
+	logDir      string
+	currentFile *os.File
+	currentHour time.Time
+	encoder     *json.Encoder
+	mutex       sync.Mutex
+}
+
+func NewLatencyLogger(logDir string) (*LatencyLogger, error) {
+	// Create logging directory
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create log directory: %v", err)
+	}
+	
+	logger := &LatencyLogger{
+		logDir: logDir,
+	}
+	
+	// Initialize first log file
+	if err := logger.rotateFile(); err != nil {
+		return nil, err
+	}
+	
+	return logger, nil
+}
+
+func (ll *LatencyLogger) rotateFile() error {
+	now := time.Now().UTC()
+	// Truncate to hour boundary for consistent rotation
+	currentHour := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC)
+	
+	// Check if we need to rotate
+	if ll.currentFile != nil && ll.currentHour.Equal(currentHour) {
+		return nil // No rotation needed
+	}
+	
+	// Close previous file if exists
+	var prevFilePath string
+	if ll.currentFile != nil {
+		prevFilePath = ll.currentFile.Name()
+		ll.currentFile.Close()
+		
+		// Spawn background gzip compression of previous file
+		go ll.compressPreviousFile(prevFilePath)
+	}
+	
+	// Create new file with sortable timestamp
+	filename := fmt.Sprintf("latency-%s.jsonl", currentHour.Format("2006-01-02T15-04-05Z"))
+	filepath := filepath.Join(ll.logDir, filename)
+	
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to create log file %s: %v", filepath, err)
+	}
+	
+	ll.currentFile = file
+	ll.currentHour = currentHour
+	ll.encoder = json.NewEncoder(file)
+	
+	fmt.Printf("📝 Started new latency log: %s\n", filename)
+	return nil
+}
+
+func (ll *LatencyLogger) compressPreviousFile(filePath string) {
+	fmt.Printf("🗜️  Compressing previous log file: %s\n", filepath.Base(filePath))
+	
+	// Use gzip command for better performance than Go's gzip
+	cmd := exec.Command("gzip", filePath)
+	if err := cmd.Run(); err != nil {
+		log.Printf("❌ Failed to gzip %s: %v", filePath, err)
+		return
+	}
+	
+	fmt.Printf("✅ Compressed: %s.gz\n", filepath.Base(filePath))
+}
+
+func (ll *LatencyLogger) LogLatency(entry LatencyLogEntry) error {
+	ll.mutex.Lock()
+	defer ll.mutex.Unlock()
+	
+	// Check if we need to rotate to new hour
+	if err := ll.rotateFile(); err != nil {
+		return err
+	}
+	
+	// Write JSONL entry
+	return ll.encoder.Encode(entry)
+}
+
+func (ll *LatencyLogger) Close() error {
+	ll.mutex.Lock()
+	defer ll.mutex.Unlock()
+	
+	if ll.currentFile != nil {
+		prevFilePath := ll.currentFile.Name()
+		ll.currentFile.Close()
+		
+		// Compress final file
+		go ll.compressPreviousFile(prevFilePath)
+	}
+	
+	return nil
 }
 
 type LatencyStats struct {
@@ -306,7 +425,7 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 	}
 }
 
-func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, consumerID int, readySignal chan<- struct{}, isWarmup bool) {
+func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logger *LatencyLogger, consumerID int, readySignal chan<- struct{}, isWarmup bool) {
 	if isWarmup {
 		fmt.Printf("🔥 Warm-up Consumer %d started\n", consumerID)
 	} else {
@@ -347,6 +466,21 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, cons
 						// Only collect stats during main test, not warm-up
 						latency := receiveTime.Sub(sendTime)
 						stats.Add(latency)
+						
+						// Log to JSONL file
+						entry := LatencyLogEntry{
+							Timestamp:   receiveTime,
+							SendTime:    sendTime,
+							ReceiveTime: receiveTime,
+							LatencyMs:   float64(latency.Nanoseconds()) / 1e6, // Convert to milliseconds
+							ConsumerID:  consumerID,
+							Partition:   record.Partition,
+							Offset:      record.Offset,
+						}
+						
+						if err := logger.LogLatency(entry); err != nil {
+							log.Printf("❌ Failed to log latency for consumer %d: %v", consumerID, err)
+						}
 					}
 					receivedCount++
 				}
@@ -366,9 +500,17 @@ func main() {
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
 	fmt.Printf("📦 Message size: 8 bytes (timestamp only)\n")
 	fmt.Printf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
+	fmt.Printf("📋 Logging: JSONL latency logs in ./logs/ (hourly rotation + gzip)\n")
 	fmt.Printf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines + numConsumers, numProducerGoroutines, numConsumers)
 	
 	stats := NewLatencyStats()
+	
+	// Create latency logger with hourly rotation and compression
+	latencyLogger, err := NewLatencyLogger("./logs")
+	if err != nil {
+		log.Fatalf("❌ Failed to create latency logger: %v", err)
+	}
+	defer latencyLogger.Close()
 	
 	// Producer client optimized for ULTRA-LOW latency (<50ms P99.99 goal)
 	producerOpts := []kgo.Opt{
@@ -479,7 +621,7 @@ func main() {
 		warmupWg.Add(1)
 		go func(consumerID int) {
 			defer warmupWg.Done()
-			consumer(warmupCtx, consumerClient, stats, consumerID, warmupConsumerReady, true) // true for warmup
+			consumer(warmupCtx, consumerClient, stats, latencyLogger, consumerID, warmupConsumerReady, true) // true for warmup
 		}(i)
 	}
 	
@@ -533,7 +675,7 @@ func main() {
 		wg.Add(1)
 		go func(consumerID int) {
 			defer wg.Done()
-			consumer(ctx, consumerClient, stats, consumerID, consumerReady, false) // false for main test
+			consumer(ctx, consumerClient, stats, latencyLogger, consumerID, consumerReady, false) // false for main test
 		}(i)
 	}
 	
