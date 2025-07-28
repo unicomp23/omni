@@ -5,8 +5,10 @@ import (
 	"encoding/binary"
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +18,7 @@ import (
 )
 
 const (
-	testDuration = 60 * time.Second
+	testDuration = 15 * time.Second
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
 	messageInterval = 28 * time.Millisecond // 28ms spacing = 36 msg/s per producer
 	numPartitions = 18
@@ -24,7 +26,13 @@ const (
 	numConsumers = 8
 )
 
-var brokers = []string{"10.1.0.217:9092", "10.1.1.237:9092", "10.1.2.12:9092"}
+func getBrokers() []string {
+	if brokersEnv := os.Getenv("REDPANDA_BROKERS"); brokersEnv != "" {
+		return strings.Split(brokersEnv, ",")
+	}
+	// Fallback to hardcoded brokers
+	return []string{"10.1.0.217:9092", "10.1.1.237:9092", "10.1.2.12:9092"}
+}
 
 // Buffer pool to reduce GC pressure from message allocations
 var messageBufferPool = sync.Pool{
@@ -344,7 +352,7 @@ func main() {
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
 	fmt.Printf("🎯 Redpanda Load Test - GC Optimized + Balanced, 36 msg/s per producer, ack=1\n")
-	fmt.Printf("🔗 Brokers: %v\n", brokers)
+	fmt.Printf("🔗 Brokers: %v\n", getBrokers())
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
 	fmt.Printf("📦 Message size: 8 bytes (timestamp only)\n")
@@ -355,7 +363,7 @@ func main() {
 	
 	// Producer client optimized for balanced throughput and low latency
 	producerOpts := []kgo.Opt{
-		kgo.SeedBrokers(brokers...),
+		kgo.SeedBrokers(getBrokers()...),
 		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (better durability vs ack=0)
 		kgo.DisableIdempotentWrite(),           // Allow ack=1
 		kgo.ProducerLinger(2 * time.Millisecond), // Small batching for efficiency
@@ -383,7 +391,7 @@ func main() {
 	
 	// Consumer client
 	consumerOpts := []kgo.Opt{
-		kgo.SeedBrokers(brokers...),
+		kgo.SeedBrokers(getBrokers()...),
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(fmt.Sprintf("loadtest-group-%s", topicUUID)),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
