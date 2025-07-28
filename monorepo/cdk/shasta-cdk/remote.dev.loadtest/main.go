@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	testDuration = 3 * time.Minute    // 3 minute test duration
+	testDuration = 2 * time.Minute    // 2 minute test duration
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
 	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
 	numPartitions = 18
@@ -407,7 +407,7 @@ func main() {
 		time.Sleep(2 * time.Second)
 	}
 	
-	// Consumer client optimized for ULTRA-LOW latency
+	// Consumer client optimized for ULTRA-LOW latency & improved disconnect detection
 	consumerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
 		kgo.ConsumeTopics(topicName),
@@ -419,14 +419,26 @@ func main() {
 		kgo.FetchMaxWait(10 * time.Millisecond), // Minimum allowed max wait (10ms)
 		kgo.FetchMaxBytes(1024 * 1024),         // Reasonable max fetch (1MB)
 		
-		// Aggressive session management
-		kgo.SessionTimeout(6 * time.Second),    // Faster failure detection
-		kgo.HeartbeatInterval(2 * time.Second), // More frequent heartbeats
+		// OPTIMAL disconnect detection - 10s session timeout (fastest stable setting)
+		kgo.SessionTimeout(10 * time.Second),    // 10s - optimal stable threshold (10x faster than 45s default)
+		kgo.HeartbeatInterval(3 * time.Second),  // 3s (~1/3 of 10s)
 		kgo.AutoCommitInterval(100 * time.Millisecond), // Minimum allowed commit interval
 		
-		// Fast timeouts
-		kgo.ConnIdleTimeout(30 * time.Second),
+		// Faster connection management for improved reconnection
+		kgo.ConnIdleTimeout(20 * time.Second),   // Reduced from 30s
 		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
+		
+		// Faster retry backoff for quicker recovery
+		kgo.RetryBackoffFn(func(tries int) time.Duration {
+			return time.Millisecond * 100 // Reasonable backoff
+		}),
+		kgo.RetryTimeout(10 * time.Second),
+		
+		// Improved rebalancing for quicker group recovery
+		kgo.RebalanceTimeout(15 * time.Second),
+		
+		// More frequent metadata refresh
+		kgo.MetadataMaxAge(30 * time.Second),
 	}
 	
 	consumerClient, err := kgo.NewClient(consumerOpts...)
