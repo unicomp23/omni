@@ -18,14 +18,14 @@ import (
 )
 
 const (
-	testDuration = 15 * time.Second
+	testDuration = 3 * time.Minute    // 3 minute test duration
 	warmupDuration = 5 * time.Second  // 5 second warm-up phase
 	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
 	numPartitions = 18
-	numProducers = 64
+	numProducerGoroutines = 16  // 16 producer goroutines
+	producersPerGoroutine = 64  // 64 producers per goroutine
+	numProducers = numProducerGoroutines * producersPerGoroutine  // 1,024 total producers
 	numConsumers = 8
-	numProducerGoroutines = 8  // 8 producer goroutines
-	producersPerGoroutine = numProducers / numProducerGoroutines  // 8 producers per goroutine
 )
 
 func getBrokers() []string {
@@ -360,7 +360,7 @@ func main() {
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
 	
-	fmt.Printf("🎯 Redpanda Load Test - 8 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
+	fmt.Printf("🎯 Redpanda Load Test - 16 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
 	fmt.Printf("🔗 Brokers: %v\n", getBrokers())
 	fmt.Printf("📝 Topic: %s\n", topicName)
 	fmt.Printf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
@@ -578,7 +578,7 @@ func main() {
 		fmt.Printf("Max:       %v\n", results["max"])
 		
 		throughput := float64(int(count)) / actualDuration.Seconds()
-		expectedThroughput := float64(numProducers) * 2.0  // 2 msg/s per producer
+		expectedThroughput := float64(numProducers) * 2.0  // 2 msg/s per producer = 2,048 msg/s total
 		dataThroughputKB := (throughput * 8) / 1024 // 8 bytes per message
 		fmt.Printf("\n📈 Throughput: %.2f messages/second\n", throughput)
 		fmt.Printf("📊 Data throughput: %.2f KB/second\n", dataThroughputKB)
