@@ -15,10 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
@@ -63,15 +59,11 @@ type LatencyLogEntry struct {
 
 // LatencyLogger handles JSONL logging with 1-hour rotation and compression
 type LatencyLogger struct {
-	logDir         string
-	currentFile    *os.File
-	currentHour    time.Time
-	encoder        *json.Encoder
-	mutex          sync.Mutex
-	s3Client       *s3.S3
-	s3Uploader     *s3manager.Uploader
-	s3BucketName   string
-	testRunPrefix  string  // Sortable timestamp prefix for this test run
+	logDir      string
+	currentFile *os.File
+	currentHour time.Time
+	encoder     *json.Encoder
+	mutex       sync.Mutex
 }
 
 func NewLatencyLogger(logDir string) (*LatencyLogger, error) {
@@ -84,88 +76,12 @@ func NewLatencyLogger(logDir string) (*LatencyLogger, error) {
 		logDir: logDir,
 	}
 	
-	// Initialize S3 client and bucket
-	if err := logger.initializeS3(); err != nil {
-		timestampedPrintf("⚠️  Warning: S3 initialization failed, logs will only be stored locally: %v\n", err)
-		// Continue without S3 - local logging will still work
-	}
-	
 	// Initialize first log file
 	if err := logger.rotateFile(); err != nil {
 		return nil, err
 	}
 	
 	return logger, nil
-}
-
-// initializeS3 sets up S3 client and creates bucket if needed
-func (ll *LatencyLogger) initializeS3() error {
-	// Create AWS session
-	sess, err := session.NewSession(&aws.Config{
-		Region: aws.String("us-east-1"), // Default region, will use instance region if available
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create AWS session: %v", err)
-	}
-	
-	ll.s3Client = s3.New(sess)
-	ll.s3Uploader = s3manager.NewUploader(sess)
-	
-	// Create sortable test run prefix: YYYY-MM-DDTHH-MM-SS-uuid
-	now := time.Now().UTC()
-	testUUID := uuid.New().String()[:8]
-	ll.testRunPrefix = fmt.Sprintf("test-runs/%s-%s", 
-		now.Format("2006-01-02T15-04-05Z"), testUUID)
-	
-	// Get bucket name from environment or use default pattern
-	ll.s3BucketName = os.Getenv("LOADTEST_S3_BUCKET")
-	if ll.s3BucketName == "" {
-		// Try to construct bucket name based on AWS account pattern from CDK
-		ll.s3BucketName = fmt.Sprintf("redpanda-load-test-%s-%s", 
-			os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_DEFAULT_REGION"))
-		if ll.s3BucketName == "redpanda-load-test--" {
-			ll.s3BucketName = "redpanda-loadtest-logs" // Fallback bucket name
-		}
-	}
-	
-	// Create bucket if it doesn't exist
-	if err := ll.ensureBucketExists(); err != nil {
-		return fmt.Errorf("failed to ensure bucket exists: %v", err)
-	}
-	
-	timestampedPrintf("✅ S3 initialized: bucket=%s, prefix=%s\n", ll.s3BucketName, ll.testRunPrefix)
-	return nil
-}
-
-// ensureBucketExists creates the S3 bucket if it doesn't exist
-func (ll *LatencyLogger) ensureBucketExists() error {
-	// Check if bucket exists
-	_, err := ll.s3Client.HeadBucket(&s3.HeadBucketInput{
-		Bucket: aws.String(ll.s3BucketName),
-	})
-	
-	if err == nil {
-		// Bucket exists
-		return nil
-	}
-	
-	// Try to create bucket
-	timestampedPrintf("📦 Creating S3 bucket: %s\n", ll.s3BucketName)
-	_, err = ll.s3Client.CreateBucket(&s3.CreateBucketInput{
-		Bucket: aws.String(ll.s3BucketName),
-	})
-	
-	if err != nil {
-		// Check if error is because bucket already exists (race condition)
-		if strings.Contains(err.Error(), "BucketAlreadyOwnedByYou") || 
-		   strings.Contains(err.Error(), "BucketAlreadyExists") {
-			return nil // Bucket exists, which is what we want
-		}
-		return fmt.Errorf("failed to create bucket: %v", err)
-	}
-	
-	timestampedPrintf("✅ S3 bucket created: %s\n", ll.s3BucketName)
-	return nil
 }
 
 func (ll *LatencyLogger) rotateFile() error {
@@ -215,49 +131,7 @@ func (ll *LatencyLogger) compressPreviousFile(filePath string) {
 		return
 	}
 	
-	gzipPath := filePath + ".gz"
 	timestampedPrintf("✅ Compressed: %s.gz\n", filepath.Base(filePath))
-	
-	// Upload to S3 if S3 is configured
-	if ll.s3Client != nil && ll.s3BucketName != "" {
-		if err := ll.uploadToS3(gzipPath); err != nil {
-			timestampedPrintf("⚠️  Warning: Failed to upload %s to S3: %v\n", filepath.Base(gzipPath), err)
-		} else {
-			timestampedPrintf("☁️  Uploaded to S3: %s\n", filepath.Base(gzipPath))
-		}
-	}
-}
-
-// uploadToS3 uploads a file to the configured S3 bucket under the test run prefix
-func (ll *LatencyLogger) uploadToS3(localFilePath string) error {
-	// Open the file
-	file, err := os.Open(localFilePath)
-	if err != nil {
-		return fmt.Errorf("failed to open file %s: %v", localFilePath, err)
-	}
-	defer file.Close()
-	
-	// Create S3 key: test-runs/YYYY-MM-DDTHH-MM-SS-uuid/filename.gz
-	fileName := filepath.Base(localFilePath)
-	s3Key := fmt.Sprintf("%s/%s", ll.testRunPrefix, fileName)
-	
-	// Upload to S3
-	_, err = ll.s3Uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(ll.s3BucketName),
-		Key:    aws.String(s3Key),
-		Body:   file,
-		Metadata: map[string]*string{
-			"test-run-id": aws.String(strings.Split(ll.testRunPrefix, "/")[1]), // Extract timestamp-uuid part
-			"file-type":   aws.String("latency-log"),
-			"compressed":  aws.String("true"),
-		},
-	})
-	
-	if err != nil {
-		return fmt.Errorf("failed to upload to S3: %v", err)
-	}
-	
-	return nil
 }
 
 func (ll *LatencyLogger) LogLatency(entry LatencyLogEntry) error {
@@ -655,7 +529,7 @@ func main() {
 	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
 	timestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	timestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
-	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip + S3 upload)\n")
+	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip)\n")
 	timestampedPrintf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines + numConsumers, numProducerGoroutines, numConsumers)
 	
 	stats := NewLatencyStats()
@@ -666,14 +540,6 @@ func main() {
 		log.Fatalf("❌ Failed to create latency logger: %v", err)
 	}
 	defer latencyLogger.Close()
-	
-	// Display S3 configuration if available
-	if latencyLogger.s3Client != nil && latencyLogger.s3BucketName != "" {
-		timestampedPrintf("☁️  S3 Storage: s3://%s/%s/\n", latencyLogger.s3BucketName, latencyLogger.testRunPrefix)
-	} else {
-		timestampedPrintf("📁 Local Storage: ./logs/ (S3 upload disabled)\n")
-	}
-	timestampedPrintf("\n")
 	
 	// Producer client optimized for ULTRA-LOW latency (<50ms P99.99 goal)
 	producerOpts := []kgo.Opt{
@@ -921,12 +787,6 @@ func main() {
 	}
 	
 	timestampedPrintf("\n✅ Load test completed!\n")
-	
-	// Display S3 upload status
-	if latencyLogger.s3Client != nil && latencyLogger.s3BucketName != "" {
-		timestampedPrintf("☁️  Logs uploaded to: s3://%s/%s/\n", latencyLogger.s3BucketName, latencyLogger.testRunPrefix)
-		timestampedPrintf("📊 Note: Final log file will be uploaded when compression completes\n")
-	}
 	
 	// Clean up the stats goroutine
 	stats.Close()
