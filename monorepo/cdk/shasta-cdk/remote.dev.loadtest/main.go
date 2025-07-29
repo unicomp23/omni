@@ -22,7 +22,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
-	"github.com/aws/aws-sdk-go/service/cloudformation"
 )
 
 const (
@@ -118,74 +117,24 @@ func (ll *LatencyLogger) initializeS3() error {
 	ll.testRunPrefix = fmt.Sprintf("test-runs/%s-%s", 
 		now.Format("2006-01-02T15-04-05Z"), testUUID)
 	
-	// Get bucket name - priority order:
-	// 1. LOADTEST_S3_BUCKET environment variable
-	// 2. CloudFormation stack output
-	// 3. Construct from AWS env vars
-	// 4. Fallback bucket name
+	// Get bucket name from environment or use default pattern
 	ll.s3BucketName = os.Getenv("LOADTEST_S3_BUCKET")
-	
 	if ll.s3BucketName == "" {
-		// Try to get bucket name from CloudFormation stack
-		if bucketName, err := ll.getBucketNameFromCloudFormation(sess); err == nil && bucketName != "" {
-			ll.s3BucketName = bucketName
-			timestampedPrintf("📦 Using existing S3 bucket from CloudFormation: %s\n", ll.s3BucketName)
-		} else {
-			timestampedPrintf("⚠️  Could not get bucket from CloudFormation: %v\n", err)
-			
-			// Try to construct bucket name based on AWS account pattern from CDK
-			ll.s3BucketName = fmt.Sprintf("redpanda-load-test-%s-%s", 
-				os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_DEFAULT_REGION"))
-			if ll.s3BucketName == "redpanda-load-test--" {
-				ll.s3BucketName = "redpanda-loadtest-logs" // Fallback bucket name
-			}
-			
-			// Only create bucket if we're using a fallback name
-			if err := ll.ensureBucketExists(); err != nil {
-				return fmt.Errorf("failed to ensure bucket exists: %v", err)
-			}
+		// Try to construct bucket name based on AWS account pattern from CDK
+		ll.s3BucketName = fmt.Sprintf("redpanda-load-test-%s-%s", 
+			os.Getenv("AWS_ACCOUNT_ID"), os.Getenv("AWS_DEFAULT_REGION"))
+		if ll.s3BucketName == "redpanda-load-test--" {
+			ll.s3BucketName = "redpanda-loadtest-logs" // Fallback bucket name
 		}
-	} else {
-		timestampedPrintf("📦 Using S3 bucket from environment: %s\n", ll.s3BucketName)
+	}
+	
+	// Create bucket if it doesn't exist
+	if err := ll.ensureBucketExists(); err != nil {
+		return fmt.Errorf("failed to ensure bucket exists: %v", err)
 	}
 	
 	timestampedPrintf("✅ S3 initialized: bucket=%s, prefix=%s\n", ll.s3BucketName, ll.testRunPrefix)
 	return nil
-}
-
-// getBucketNameFromCloudFormation retrieves the S3 bucket name from CloudFormation stack output
-func (ll *LatencyLogger) getBucketNameFromCloudFormation(sess *session.Session) (string, error) {
-	cfSvc := cloudformation.New(sess)
-	
-	// Get stack name from environment or use default
-	stackName := os.Getenv("STACK_NAME")
-	if stackName == "" {
-		stackName = "RedPandaClusterStack" // Default stack name
-	}
-	
-	input := &cloudformation.DescribeStacksInput{
-		StackName: aws.String(stackName),
-	}
-	
-	result, err := cfSvc.DescribeStacks(input)
-	if err != nil {
-		return "", fmt.Errorf("failed to describe CloudFormation stack: %w", err)
-	}
-	
-	if len(result.Stacks) == 0 {
-		return "", fmt.Errorf("stack %s not found", stackName)
-	}
-	
-	// Look for LoadTestS3Bucket output
-	for _, output := range result.Stacks[0].Outputs {
-		if output.OutputKey != nil && *output.OutputKey == "LoadTestS3Bucket" {
-			if output.OutputValue != nil {
-				return *output.OutputValue, nil
-			}
-		}
-	}
-	
-	return "", fmt.Errorf("LoadTestS3Bucket output not found in stack %s", stackName)
 }
 
 // ensureBucketExists creates the S3 bucket if it doesn't exist
