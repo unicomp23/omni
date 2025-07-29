@@ -51,6 +51,18 @@ logs/
 /dist/
 /bin/
 
+# Compiled binaries (project-specific)
+s3-sync
+s3-download
+
+# S3 sync daemon files
+s3-sync.log
+s3-sync.pid
+
+# Download directories
+downloads/
+*-downloads/
+
 # Temporary files
 tmp/
 temp/ 
