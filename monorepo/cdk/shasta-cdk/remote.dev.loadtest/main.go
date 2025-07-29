@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	testDuration = 20 * time.Minute   // 20 minute test duration
-	warmupDuration = 5 * time.Second  // 5 second warm-up phase
+	testDuration = 3 * 7 * 24 * time.Hour  // 3 week test duration
+	warmupDuration = 5 * time.Second       // 5 second warm-up phase
 	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
 	numPartitions = 18
 	numProducerGoroutines = 16  // 16 producer goroutines
