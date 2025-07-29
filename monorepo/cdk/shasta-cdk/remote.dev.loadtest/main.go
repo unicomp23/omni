@@ -430,13 +430,32 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 	if isWarmup {
 		fmt.Printf("🔥 Warm-up Consumer %d started\n", consumerID)
 	} else {
-		fmt.Printf("�� Consumer %d started\n", consumerID)
+		fmt.Printf("🚀 Consumer %d started\n", consumerID)
 	}
 	
 	// Signal that this consumer is ready
 	readySignal <- struct{}{}
 	
 	receivedCount := 0
+	
+	// Channel for communicating event counts to logging goroutine
+	countChan := make(chan int, 100)
+	
+	// Start logging goroutine that logs every 10k events
+	go func() {
+		lastLoggedCount := 0
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case count := <-countChan:
+				if count-lastLoggedCount >= 10000 {
+					fmt.Printf("📊 Consumer %d: Processed %d events (total: %d)\n", consumerID, count-lastLoggedCount, count)
+					lastLoggedCount = count
+				}
+			}
+		}
+	}()
 	
 	for {
 		select {
@@ -485,6 +504,15 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 						}
 					}
 					receivedCount++
+					
+					// Send count update to logging goroutine every 1000 events to avoid channel flooding
+					if receivedCount%1000 == 0 {
+						select {
+						case countChan <- receivedCount:
+						default:
+							// Don't block if channel is full
+						}
+					}
 				}
 			})
 		}
