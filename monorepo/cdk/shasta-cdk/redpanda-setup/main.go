@@ -966,6 +966,10 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
 		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
 		
+		// Stack information for S3 bucket discovery
+		fmt.Sprintf(`echo "export STACK_NAME='%s'" >> ~/.bashrc`, config.StackName),
+		fmt.Sprintf(`echo "export AWS_DEFAULT_REGION='%s'" >> ~/.bashrc`, config.Region),
+		
 		// RPK-specific environment variables in .bashrc
 		fmt.Sprintf(`echo "export RPK_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export RPK_SCHEMA_REGISTRY_URL='%s'" >> ~/.bashrc`, rpkSchemaRegistryURL),
@@ -978,6 +982,8 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`export REDPANDA_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export KAFKA_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export BOOTSTRAP_BROKERS='%s'`, bootstrapBrokers),
+		fmt.Sprintf(`export STACK_NAME='%s'`, config.StackName),
+		fmt.Sprintf(`export AWS_DEFAULT_REGION='%s'`, config.Region),
 		fmt.Sprintf(`export RPK_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export RPK_SCHEMA_REGISTRY_URL='%s'`, rpkSchemaRegistryURL),
 		fmt.Sprintf(`export RPK_ADMIN_API_URL='%s'`, rpkAdminAPIURL),
@@ -995,6 +1001,10 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export RPK_BROKERS='%s'" >> ~/redpanda-env.sh`, bootstrapBrokers),
+		`echo "" >> ~/redpanda-env.sh`,
+		`echo "# CloudFormation Stack Info" >> ~/redpanda-env.sh`,
+		fmt.Sprintf(`echo "export STACK_NAME='%s'" >> ~/redpanda-env.sh`, config.StackName),
+		fmt.Sprintf(`echo "export AWS_DEFAULT_REGION='%s'" >> ~/redpanda-env.sh`, config.Region),
 		`echo "" >> ~/redpanda-env.sh`,
 		`echo "# RPK Service URLs" >> ~/redpanda-env.sh`,
 		fmt.Sprintf(`echo "export RPK_SCHEMA_REGISTRY_URL='%s'" >> ~/redpanda-env.sh`, rpkSchemaRegistryURL),
@@ -1029,7 +1039,7 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	
 	// Test that the environment variables are accessible
 	logDebug("Testing environment variable accessibility")
-	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS" && echo "RPK_BROKERS=$RPK_BROKERS" && echo "RPK_SCHEMA_REGISTRY_URL=$RPK_SCHEMA_REGISTRY_URL"`
+	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS" && echo "RPK_BROKERS=$RPK_BROKERS" && echo "RPK_SCHEMA_REGISTRY_URL=$RPK_SCHEMA_REGISTRY_URL" && echo "STACK_NAME=$STACK_NAME"`
 	if err := executeSSHCommand(client, testCmd); err != nil {
 		logWarn("Failed to verify environment variables: %v", err)
 	}
@@ -1038,6 +1048,8 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	fmt.Printf("Load test instance configured with:\n")
 	fmt.Printf("  REDPANDA_BROKERS=%s\n", bootstrapBrokers)
 	fmt.Printf("  RPK_BROKERS=%s\n", bootstrapBrokers)
+	fmt.Printf("  STACK_NAME=%s\n", config.StackName)
+	fmt.Printf("  AWS_DEFAULT_REGION=%s\n", config.Region)
 	fmt.Printf("  RPK_SCHEMA_REGISTRY_URL=%s\n", rpkSchemaRegistryURL)
 	fmt.Printf("  RPK_ADMIN_API_URL=%s\n", rpkAdminAPIURL)
 	fmt.Printf("  RPK_REST_PROXY_URL=%s\n", rpkRestProxyURL)
