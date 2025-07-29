@@ -44,7 +44,8 @@ type LatencyAnalysis struct {
 }
 
 func main() {
-	logDir := "./logs"
+	// Default to downloads folder (where S3 download script puts files)
+	logDir := "./downloads"
 	if len(os.Args) > 1 {
 		logDir = os.Args[1]
 	}
@@ -54,11 +55,17 @@ func main() {
 	// Find all log files
 	files, err := findLogFiles(logDir)
 	if err != nil {
-		log.Fatalf("❌ Failed to find log files: %v", err)
+		fmt.Printf("❌ Failed to find log files: %v\n", err)
+		fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
+		fmt.Printf("💡 Or specify a different directory: go run analyze_latency.go /path/to/logs\n")
+		os.Exit(1)
 	}
 
 	if len(files) == 0 {
-		log.Fatalf("❌ No log files found in %s", logDir)
+		fmt.Printf("❌ No log files found in %s\n", logDir)
+		fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
+		fmt.Printf("💡 Or specify a different directory: go run analyze_latency.go /path/to/logs\n")
+		os.Exit(1)
 	}
 
 	fmt.Printf("📂 Found %d log files:\n", len(files))
@@ -67,24 +74,55 @@ func main() {
 	}
 	fmt.Println()
 
-	// Parse all log files
-	allLatencies, err := parseLogFiles(files)
-	if err != nil {
-		log.Fatalf("❌ Failed to parse log files: %v", err)
+	// Parse and analyze each file individually first
+	var allLatencies []LatencyLogEntry
+	fmt.Println("📊 INDIVIDUAL FILE ANALYSIS")
+	fmt.Println("═══════════════════════════════════")
+	
+	for _, filePath := range files {
+		fmt.Printf("\n📖 Analyzing: %s\n", filepath.Base(filePath))
+		
+		entries, err := parseLogFile(filePath)
+		if err != nil {
+			fmt.Printf("❌ Failed to parse %s: %v\n", filePath, err)
+			continue
+		}
+		
+		if len(entries) == 0 {
+			fmt.Printf("   ⚠️  No valid entries found\n")
+			continue
+		}
+		
+		fmt.Printf("   ✅ Loaded %d entries\n", len(entries))
+		
+		// Analyze this file individually
+		fileAnalysis := analyzeLatencies(entries)
+		displayFileResults(filepath.Base(filePath), fileAnalysis)
+		
+		// Add to combined dataset
+		allLatencies = append(allLatencies, entries...)
 	}
 
 	if len(allLatencies) == 0 {
-		log.Fatalf("❌ No latency data found in log files")
+		log.Fatalf("❌ No latency data found in any log files")
 	}
 
-	// Analyze the data
-	analysis := analyzeLatencies(allLatencies)
+	fmt.Printf("\n📊 Total entries across all files: %d\n", len(allLatencies))
 
-	// Display results
+	// Analyze the combined data
+	fmt.Println("\n" + strings.Repeat("═", 60))
+	fmt.Println("📊 COMBINED ANALYSIS (ALL FILES)")
+	fmt.Println(strings.Repeat("═", 60))
+	analysis := analyzeLatencies(allLatencies)
 	displayResults(analysis)
 }
 
 func findLogFiles(logDir string) ([]string, error) {
+	// Check if directory exists
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("directory '%s' does not exist", logDir)
+	}
+
 	var files []string
 
 	err := filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
@@ -108,24 +146,7 @@ func findLogFiles(logDir string) ([]string, error) {
 	return files, err
 }
 
-func parseLogFiles(files []string) ([]LatencyLogEntry, error) {
-	var allEntries []LatencyLogEntry
 
-	for _, filePath := range files {
-		fmt.Printf("📖 Reading: %s\n", filepath.Base(filePath))
-
-		entries, err := parseLogFile(filePath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse %s: %v", filePath, err)
-		}
-
-		fmt.Printf("   ✅ Loaded %d entries\n", len(entries))
-		allEntries = append(allEntries, entries...)
-	}
-
-	fmt.Printf("\n📊 Total entries loaded: %d\n\n", len(allEntries))
-	return allEntries, nil
-}
 
 func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
 	var entries []LatencyLogEntry
@@ -169,8 +190,12 @@ func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
 		entries = append(entries, entry)
 	}
 
+	// Check for scanner errors, but be resilient to EOF and other I/O errors
 	if err := scanner.Err(); err != nil {
-		return nil, err
+		// Log the error but don't fail completely - we may have successfully
+		// parsed many entries before hitting corruption/EOF
+		fmt.Printf("   ⚠️  Scanner error encountered: %v\n", err)
+		fmt.Printf("   ℹ️  Continuing with %d successfully parsed entries\n", len(entries))
 	}
 
 	return entries, nil
@@ -257,6 +282,15 @@ func percentile(sortedData []float64, p float64) float64 {
 	// Linear interpolation between lower and upper
 	weight := index - float64(lower)
 	return sortedData[lower]*(1.0-weight) + sortedData[upper]*weight
+}
+
+func displayFileResults(filename string, analysis LatencyAnalysis) {
+	fmt.Printf("   📈 Messages: %d | Span: %v | Throughput: %.1f msg/sec\n", 
+		analysis.TotalMessages, analysis.TimeSpan, analysis.ThroughputMsgSec)
+	fmt.Printf("   🎯 Latency: P50=%.2f P95=%.2f P99=%.2f P99.9=%.2f P99.99=%.2f ms\n",
+		analysis.P50, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
+	fmt.Printf("   📊 Range: %.3f - %.3f ms (avg: %.3f ms)\n",
+		analysis.MinLatency, analysis.MaxLatency, analysis.AvgLatency)
 }
 
 func displayResults(analysis LatencyAnalysis) {
