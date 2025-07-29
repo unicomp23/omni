@@ -92,12 +92,6 @@ func findLogFiles(logDir string) ([]string, error) {
 			return err
 		}
 
-		// Skip subdirectories except the root log directory
-		if info.IsDir() && path != logDir {
-			fmt.Printf("🔍 Skipping subdirectory: %s\n", filepath.Base(path))
-			return filepath.SkipDir
-		}
-
 		if !info.IsDir() {
 			name := info.Name()
 			if strings.HasPrefix(name, "latency-") && 
@@ -116,69 +110,45 @@ func findLogFiles(logDir string) ([]string, error) {
 
 func parseLogFiles(files []string) ([]LatencyLogEntry, error) {
 	var allEntries []LatencyLogEntry
-	var totalSkippedRecords int
 
 	for _, filePath := range files {
 		fmt.Printf("📖 Reading: %s\n", filepath.Base(filePath))
 
-		entries, skippedRecords := parseLogFile(filePath)
-
-		fmt.Printf("   ✅ Loaded %d entries", len(entries))
-		if skippedRecords > 0 {
-			fmt.Printf(" (skipped %d bad records)", skippedRecords)
-			totalSkippedRecords += skippedRecords
+		entries, err := parseLogFile(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse %s: %v", filePath, err)
 		}
-		fmt.Println()
+
+		fmt.Printf("   ✅ Loaded %d entries\n", len(entries))
 		allEntries = append(allEntries, entries...)
 	}
 
-	fmt.Printf("\n📊 Summary:\n")
-	fmt.Printf("   • Total entries loaded: %d\n", len(allEntries))
-	if totalSkippedRecords > 0 {
-		fmt.Printf("   • Skipped bad records: %d\n", totalSkippedRecords)
-	}
-	fmt.Println()
-
-	if len(allEntries) == 0 {
-		return nil, fmt.Errorf("no valid data found in any log files")
-	}
-
+	fmt.Printf("\n📊 Total entries loaded: %d\n\n", len(allEntries))
 	return allEntries, nil
 }
 
-func parseLogFile(filePath string) ([]LatencyLogEntry, int) {
+func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
 	var entries []LatencyLogEntry
-	var skippedRecords int
 
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Printf("   ❌ Cannot open file: %v\n", err)
-		return entries, skippedRecords
+		return nil, err
 	}
 	defer file.Close()
 
 	var scanner *bufio.Scanner
 
-	// Handle gzipped files with maximum error resilience
+	// Handle gzipped files
 	if strings.HasSuffix(filePath, ".gz") {
 		gzReader, err := gzip.NewReader(file)
 		if err != nil {
-			fmt.Printf("   ❌ Cannot read gzip file: %v\n", err)
-			// Try to read as raw file instead
-			file.Seek(0, 0) // Reset file position
-			scanner = bufio.NewScanner(file)
-			fmt.Printf("   🔄 Attempting to read as raw file...\n")
-		} else {
-			defer gzReader.Close()
-			scanner = bufio.NewScanner(gzReader)
+			return nil, err
 		}
+		defer gzReader.Close()
+		scanner = bufio.NewScanner(gzReader)
 	} else {
 		scanner = bufio.NewScanner(file)
 	}
-
-	// Increase scanner buffer size for large lines
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024) // 1MB max line size
 
 	lineNum := 0
 	for scanner.Scan() {
@@ -192,29 +162,18 @@ func parseLogFile(filePath string) ([]LatencyLogEntry, int) {
 		var entry LatencyLogEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			// Log parsing errors but continue
-			if skippedRecords < 10 { // Only show first 10 errors to avoid spam
-				fmt.Printf("   ⚠️  Line %d parse error: %v\n", lineNum, err)
-			} else if skippedRecords == 10 {
-				fmt.Printf("   ⚠️  ... (suppressing further JSON parse errors)\n")
-			}
-			skippedRecords++
+			fmt.Printf("   ⚠️  Line %d parse error: %v\n", lineNum, err)
 			continue
 		}
 
 		entries = append(entries, entry)
 	}
 
-	// Handle scanner errors gracefully - always continue with available data
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("   ⚠️  File read error (continuing with %d valid entries): %v\n", len(entries), err)
+		return nil, err
 	}
 
-	// Special handling for truncated files
-	if len(entries) > 0 && skippedRecords > 0 {
-		fmt.Printf("   ⚠️  File may be corrupted/truncated - recovered %d valid entries\n", len(entries))
-	}
-
-	return entries, skippedRecords
+	return entries, nil
 }
 
 func analyzeLatencies(entries []LatencyLogEntry) LatencyAnalysis {

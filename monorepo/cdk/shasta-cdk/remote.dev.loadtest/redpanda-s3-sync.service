@@ -1,0 +1,43 @@
+[Unit]
+Description=RedPanda Load Test S3 Log Sync Service
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=exec
+User=ec2-user
+Group=ec2-user
+WorkingDirectory=/home/ec2-user/remote.dev.loadtest
+ExecStart=/home/ec2-user/remote.dev.loadtest/s3-sync -cleanup
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+TimeoutStartSec=30
+TimeoutStopSec=30
+
+# Environment variables
+Environment=S3_BUCKET=redpanda-load-test-358474168551-us-east-1
+Environment=LOGS_DIR=./logs
+Environment=AWS_REGION=us-east-1
+Environment=CLEANUP_LOCAL=true
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=false
+ReadWritePaths=/home/ec2-user/remote.dev.loadtest
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=redpanda-s3-sync
+
+# Resource limits
+MemoryMax=256M
+TasksMax=10
+
+[Install]
+WantedBy=multi-user.target 
