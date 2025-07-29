@@ -57,7 +57,7 @@ type LatencyLogEntry struct {
 	Offset       int64     `json:"offset"`       // Kafka offset
 }
 
-// LatencyLogger handles JSONL logging with 5-minute rotation and compression
+// LatencyLogger handles JSONL logging with 1-hour rotation and compression
 type LatencyLogger struct {
 	logDir      string
 	currentFile *os.File
@@ -86,9 +86,8 @@ func NewLatencyLogger(logDir string) (*LatencyLogger, error) {
 
 func (ll *LatencyLogger) rotateFile() error {
 	now := time.Now().UTC()
-	// Truncate to 5-minute boundary for testing (instead of hourly)
-	minute := (now.Minute() / 5) * 5  // Round down to nearest 5-minute mark
-	currentPeriod := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), minute, 0, 0, time.UTC)
+	// Truncate to hourly boundary
+	currentPeriod := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC)
 	
 	// Check if we need to rotate
 	if ll.currentFile != nil && ll.currentHour.Equal(currentPeriod) {
@@ -105,8 +104,8 @@ func (ll *LatencyLogger) rotateFile() error {
 		go ll.compressPreviousFile(prevFilePath)
 	}
 	
-	// Create new file with sortable timestamp (5-minute intervals)
-	filename := fmt.Sprintf("latency-%s.jsonl", currentPeriod.Format("2006-01-02T15-04-05Z"))
+	// Create new file with sortable timestamp (hourly intervals)
+	filename := fmt.Sprintf("latency-%s.jsonl", currentPeriod.Format("2006-01-02T15-00-00Z"))
 	filepath := filepath.Join(ll.logDir, filename)
 	
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
@@ -115,10 +114,10 @@ func (ll *LatencyLogger) rotateFile() error {
 	}
 	
 	ll.currentFile = file
-	ll.currentHour = currentPeriod  // Still using this field name but now it's 5-minute periods
+	ll.currentHour = currentPeriod
 	ll.encoder = json.NewEncoder(file)
 	
-	timestampedPrintf("📝 Started new latency log (5-min rotation): %s\n", filename)
+	timestampedPrintf("📝 Started new latency log (1 hr rotation): %s\n", filename)
 	return nil
 }
 
@@ -530,12 +529,12 @@ func main() {
 	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
 	timestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	timestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
-	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (5-min rotation + gzip)\n")
+	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip)\n")
 	timestampedPrintf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines + numConsumers, numProducerGoroutines, numConsumers)
 	
 	stats := NewLatencyStats()
 	
-	// Create latency logger with 5-minute rotation and compression
+	// Create latency logger with 1-hour rotation and compression
 	latencyLogger, err := NewLatencyLogger("./logs")
 	if err != nil {
 		log.Fatalf("❌ Failed to create latency logger: %v", err)
