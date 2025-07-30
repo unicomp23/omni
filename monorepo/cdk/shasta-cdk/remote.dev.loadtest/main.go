@@ -24,7 +24,7 @@ const (
 	testDuration = 3 * 7 * 24 * time.Hour  // 3 week test duration
 	warmupDuration = 5 * time.Second       // 5 second warm-up phase
 	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
-	numPartitions = 18
+	numPartitions = 6
 	numProducerGoroutines = 16  // 16 producer goroutines
 	producersPerGoroutine = 64  // 64 producers per goroutine
 	numProducers = numProducerGoroutines * producersPerGoroutine  // 1,024 total producers
@@ -531,8 +531,12 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 				sendTime := time.Now()
 				message := createMessage(sendTime)
 				
+				// Generate partition key with producer ID and UUID for uniqueness
+				partitionKey := fmt.Sprintf("producer-%d-%s", actualProducerID, uuid.New().String()[:8])
+				
 				record := &kgo.Record{
 					Topic: topicName,
+					Key:   []byte(partitionKey),
 					Value: message,
 				}
 				
@@ -657,6 +661,7 @@ func main() {
 	timestampedPrintf("🔗 Brokers: %v\n", getBrokers())
 	timestampedPrintf("📝 Topic: %s\n", topicName)
 	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers (1:1 consumer-to-partition)\n", numPartitions, numProducers, numConsumers)
+	timestampedPrintf("🔑 Partition Keys: producer-{ID}-{UUID} format for message distribution\n")
 	timestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	timestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
 	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip)\n")
