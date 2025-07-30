@@ -689,8 +689,8 @@ func main() {
 		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
 
 		// Ultra-aggressive timeouts for speed
-		kgo.ConnIdleTimeout(15 * time.Second),              // More aggressive connection management
-		kgo.RequestTimeoutOverhead(500 * time.Millisecond), // Even faster request timeout
+		kgo.ConnIdleTimeout(15 * time.Second),       // More aggressive connection management
+		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout (library enforced)
 		kgo.RetryBackoffFn(func(tries int) time.Duration {
 			return time.Millisecond * 5 // Ultra-fast retries
 		}),
