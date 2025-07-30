@@ -299,8 +299,142 @@ func createTopic(client *kgo.Client, topicName string) error {
 	reqTopic.ReplicationFactor = 3  // Match broker count
 	req.Topics = append(req.Topics, reqTopic)
 	
-	_, err := req.RequestWith(context.Background(), client)
-	return err
+	resp, err := req.RequestWith(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to send create topic request: %v", err)
+	}
+	
+	// Check response for errors
+	for _, topic := range resp.Topics {
+		if topic.Topic != nil && *topic.Topic == topicName {
+			if topic.ErrorCode != 0 {
+				// Error code 36 = TOPIC_ALREADY_EXISTS (acceptable)
+				if topic.ErrorCode == 36 {
+					timestampedPrintf("✅ Topic already exists: %s\n", topicName)
+					return nil
+				}
+				return fmt.Errorf("topic creation failed with error code %d: %s", 
+					topic.ErrorCode, topic.ErrorMessage)
+			}
+		}
+	}
+	
+	return nil
+}
+
+func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartitions int32) error {
+	timestampedPrintf("🔍 Verifying topic has %d partitions...\n", expectedPartitions)
+	
+	// Get topic metadata
+	metaReq := kmsg.NewMetadataRequest()
+	topicPtr := topicName  // Create pointer for the request
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	
+	var lastErr error
+	maxRetries := 10
+	
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		metaResp, err := metaReq.RequestWith(context.Background(), client)
+		if err != nil {
+			lastErr = fmt.Errorf("metadata request failed: %v", err)
+			timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
+			time.Sleep(time.Duration(attempt) * time.Second)
+			continue
+		}
+		
+		// Find our topic in the response
+		for _, topic := range metaResp.Topics {
+			if topic.Topic != nil && *topic.Topic == topicName {
+				if topic.ErrorCode != 0 {
+					lastErr = fmt.Errorf("topic metadata error code %d: %s", topic.ErrorCode, topic.ErrorMessage)
+					timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
+					time.Sleep(time.Duration(attempt) * time.Second)
+					continue
+				}
+				
+				// Check partition count
+				actualPartitions := int32(len(topic.Partitions))
+				if actualPartitions != expectedPartitions {
+					lastErr = fmt.Errorf("expected %d partitions, found %d", expectedPartitions, actualPartitions)
+					timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
+					time.Sleep(time.Duration(attempt) * time.Second)
+					continue
+				}
+				
+				// Verify each partition has a leader
+				unavailablePartitions := []int32{}
+				for _, partition := range topic.Partitions {
+					if partition.Leader == -1 {
+						unavailablePartitions = append(unavailablePartitions, partition.Partition)
+					}
+				}
+				
+				if len(unavailablePartitions) > 0 {
+					lastErr = fmt.Errorf("partitions without leader: %v", unavailablePartitions)
+					timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
+					time.Sleep(time.Duration(attempt) * time.Second)
+					continue
+				}
+				
+				// Success!
+				timestampedPrintf("✅ Topic verified: %d partitions all available with leaders\n", actualPartitions)
+				return nil
+			}
+		}
+		
+		lastErr = fmt.Errorf("topic %s not found in metadata response", topicName)
+		timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
+		time.Sleep(time.Duration(attempt) * time.Second)
+	}
+	
+	return fmt.Errorf("failed to verify topic after %d attempts: %v", maxRetries, lastErr)
+}
+
+func refreshClientMetadata(client *kgo.Client, topicName string) error {
+	timestampedPrintf("🔄 Refreshing client metadata for topic %s...\n", topicName)
+	
+	// Force metadata refresh by requesting topic metadata
+	metaReq := kmsg.NewMetadataRequest()
+	topicPtr := topicName
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	
+	_, err := metaReq.RequestWith(context.Background(), client)
+	if err != nil {
+		return fmt.Errorf("failed to refresh metadata: %v", err)
+	}
+	
+	timestampedPrintf("✅ Metadata refreshed for topic %s\n", topicName)
+	return nil
+}
+
+func debugTopicInfo(client *kgo.Client, topicName string) {
+	timestampedPrintf("🔍 DEBUG: Topic partition information for %s\n", topicName)
+	
+	metaReq := kmsg.NewMetadataRequest()
+	topicPtr := topicName
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	
+	metaResp, err := metaReq.RequestWith(context.Background(), client)
+	if err != nil {
+		timestampedPrintf("❌ Failed to get topic metadata: %v\n", err)
+		return
+	}
+	
+	for _, topic := range metaResp.Topics {
+		if topic.Topic != nil && *topic.Topic == topicName {
+			timestampedPrintf("📋 Topic: %s, Partitions: %d, Error: %d\n", 
+				*topic.Topic, len(topic.Partitions), topic.ErrorCode)
+			
+			for _, partition := range topic.Partitions {
+				timestampedPrintf("  📊 Partition %d: Leader=%d, Replicas=%v, ISR=%v\n",
+					partition.Partition, partition.Leader, 
+					partition.Replicas, partition.Isr)
+			}
+			return
+		}
+	}
+	
+	timestampedPrintf("❌ Topic %s not found in metadata response\n", topicName)
 }
 
 func cleanupOldLoadtestTopics(client *kgo.Client) error {
@@ -618,16 +752,34 @@ func main() {
 	}
 	defer consumerClient.Close()
 	
-	// Create topic
+	// Create topic with proper error handling
 	timestampedPrintf("🔧 Creating topic...\n")
 	err = createTopic(producerClient, topicName)
 	if err != nil {
-		timestampedPrintf("⚠️  Topic creation warning: %v\n", err)
+		log.Fatalf("❌ Failed to create topic: %v", err)
 	}
 	
-	// Wait for topic to be ready
-	timestampedPrintf("⏳ Waiting for topic to be ready...\n")
-	time.Sleep(3 * time.Second)
+	// Verify all partitions are available with retry logic
+	timestampedPrintf("⏳ Verifying topic and partitions are ready...\n")
+	err = verifyTopicPartitions(producerClient, topicName, int32(numPartitions))
+	if err != nil {
+		log.Fatalf("❌ Topic verification failed: %v", err)
+	}
+	
+	// Force metadata refresh on both clients to ensure they have current partition info
+	timestampedPrintf("🔄 Ensuring clients have latest metadata...\n")
+	err = refreshClientMetadata(producerClient, topicName)
+	if err != nil {
+		log.Fatalf("❌ Producer metadata refresh failed: %v", err)
+	}
+	
+	err = refreshClientMetadata(consumerClient, topicName)
+	if err != nil {
+		log.Fatalf("❌ Consumer metadata refresh failed: %v", err)
+	}
+	
+	// Show partition details for debugging
+	debugTopicInfo(producerClient, topicName)
 	
 	timestampedPrintf("🔍 Debug: About to start warm-up phase with duration: %v\n", warmupDuration)
 	
