@@ -306,15 +306,14 @@ func createTopic(client *kgo.Client, topicName string) error {
 	
 	// Check response for errors
 	for _, topic := range resp.Topics {
-		if topic.Topic != nil && *topic.Topic == topicName {
+		if topic.Topic == topicName {
 			if topic.ErrorCode != 0 {
 				// Error code 36 = TOPIC_ALREADY_EXISTS (acceptable)
 				if topic.ErrorCode == 36 {
 					timestampedPrintf("✅ Topic already exists: %s\n", topicName)
 					return nil
 				}
-				return fmt.Errorf("topic creation failed with error code %d: %s", 
-					topic.ErrorCode, topic.ErrorMessage)
+				return fmt.Errorf("topic creation failed with error code %d", topic.ErrorCode)
 			}
 		}
 	}
@@ -327,8 +326,7 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 	
 	// Get topic metadata
 	metaReq := kmsg.NewMetadataRequest()
-	topicPtr := topicName  // Create pointer for the request
-	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
 	
 	var lastErr error
 	maxRetries := 10
@@ -346,7 +344,7 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 		for _, topic := range metaResp.Topics {
 			if topic.Topic != nil && *topic.Topic == topicName {
 				if topic.ErrorCode != 0 {
-					lastErr = fmt.Errorf("topic metadata error code %d: %s", topic.ErrorCode, topic.ErrorMessage)
+					lastErr = fmt.Errorf("topic metadata error code %d", topic.ErrorCode)
 					timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
 					time.Sleep(time.Duration(attempt) * time.Second)
 					continue
@@ -395,8 +393,7 @@ func refreshClientMetadata(client *kgo.Client, topicName string) error {
 	
 	// Force metadata refresh by requesting topic metadata
 	metaReq := kmsg.NewMetadataRequest()
-	topicPtr := topicName
-	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
 	
 	_, err := metaReq.RequestWith(context.Background(), client)
 	if err != nil {
@@ -411,8 +408,7 @@ func debugTopicInfo(client *kgo.Client, topicName string) {
 	timestampedPrintf("🔍 DEBUG: Topic partition information for %s\n", topicName)
 	
 	metaReq := kmsg.NewMetadataRequest()
-	topicPtr := topicName
-	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicPtr}}
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
 	
 	metaResp, err := metaReq.RequestWith(context.Background(), client)
 	if err != nil {
@@ -428,7 +424,7 @@ func debugTopicInfo(client *kgo.Client, topicName string) {
 			for _, partition := range topic.Partitions {
 				timestampedPrintf("  📊 Partition %d: Leader=%d, Replicas=%v, ISR=%v\n",
 					partition.Partition, partition.Leader, 
-					partition.Replicas, partition.Isr)
+					partition.Replicas, partition.ISR)
 			}
 			return
 		}
