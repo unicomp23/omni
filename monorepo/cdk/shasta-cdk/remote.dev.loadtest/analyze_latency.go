@@ -74,10 +74,12 @@ func main() {
 	}
 	fmt.Println()
 
-	// Parse and analyze each file individually first
-	var allLatencies []LatencyLogEntry
+	// Parse and analyze each file individually
 	fmt.Println("📊 INDIVIDUAL FILE ANALYSIS")
 	fmt.Println("═══════════════════════════════════")
+	
+	totalEntries := 0
+	filesProcessed := 0
 	
 	for _, filePath := range files {
 		fmt.Printf("\n📖 Analyzing: %s\n", filepath.Base(filePath))
@@ -99,22 +101,20 @@ func main() {
 		fileAnalysis := analyzeLatencies(entries)
 		displayFileResults(filepath.Base(filePath), fileAnalysis)
 		
-		// Add to combined dataset
-		allLatencies = append(allLatencies, entries...)
+		// Track totals for summary
+		totalEntries += len(entries)
+		filesProcessed++
+		
+		// Free memory immediately after processing each file
+		entries = nil
 	}
 
-	if len(allLatencies) == 0 {
+	if filesProcessed == 0 {
 		log.Fatalf("❌ No latency data found in any log files")
 	}
 
-	fmt.Printf("\n📊 Total entries across all files: %d\n", len(allLatencies))
-
-	// Analyze the combined data
-	fmt.Println("\n" + strings.Repeat("═", 60))
-	fmt.Println("📊 COMBINED ANALYSIS (ALL FILES)")
-	fmt.Println(strings.Repeat("═", 60))
-	analysis := analyzeLatencies(allLatencies)
-	displayResults(analysis)
+	fmt.Printf("\n📊 Successfully processed %d files with %d total entries\n", filesProcessed, totalEntries)
+	fmt.Println("💡 Individual file analysis complete - memory optimized!")
 }
 
 func findLogFiles(logDir string) ([]string, error) {
