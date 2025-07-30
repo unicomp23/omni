@@ -727,9 +727,9 @@ func main() {
 		kgo.FetchMaxBytes(64 * 1024),            // Smaller fetch size for lower latency (64KB vs 1MB)
 
 		// ULTRA-AGGRESSIVE disconnect detection for lowest latency
-		kgo.SessionTimeout(6 * time.Second),           // 6s - ultra-aggressive (minimum stable for most clusters)
-		kgo.HeartbeatInterval(2 * time.Second),        // 2s (1/3 of 6s)
-		kgo.AutoCommitInterval(50 * time.Millisecond), // More frequent commits for faster recovery
+		kgo.SessionTimeout(6 * time.Second),            // 6s - ultra-aggressive (minimum stable for most clusters)
+		kgo.HeartbeatInterval(2 * time.Second),         // 2s (1/3 of 6s)
+		kgo.AutoCommitInterval(100 * time.Millisecond), // Minimum allowed commit interval (library enforced)
 
 		// Faster connection management for improved reconnection
 		kgo.ConnIdleTimeout(20 * time.Second),       // Reduced from 30s
