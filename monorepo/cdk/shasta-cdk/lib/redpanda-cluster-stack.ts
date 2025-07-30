@@ -189,7 +189,7 @@ export class RedPandaClusterStack extends Stack {
         loadTestBucket.grantReadWrite(role);
 
         // High-performance m7g instances with Graviton3 processors
-        // m7g.xlarge: 4 vCPU, 16 GiB RAM, Up to 15 Gbps network, optimized for memory-intensive workloads
+        // m7g.xlarge: 4 vCPU, 16 GiB RAM, Up to 12.5 Gbps network, optimized for memory-intensive workloads
         const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.M7G, ec2.InstanceSize.XLARGE);
         const redpandaMachineImage = ec2.MachineImage.latestAmazonLinux2023({
             cpuType: ec2.AmazonLinuxCpuType.ARM_64
