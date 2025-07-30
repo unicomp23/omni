@@ -615,9 +615,11 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 					if !sendTime.IsZero() && !isWarmup {
 						// Only collect stats during main test, not warm-up
 						latency := receiveTime.Sub(sendTime)
+
+						// ✅ CRITICAL PATH: Add to stats immediately (non-blocking)
 						stats.Add(latency)
 
-						// Log to JSONL file
+						// ✅ OPTIMIZED: Fast logging with minimal allocation
 						entry := LatencyLogEntry{
 							Timestamp:   receiveTime,
 							SendTime:    sendTime,
@@ -628,8 +630,12 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 							Offset:      record.Offset,
 						}
 
+						// Log synchronously but with optimized logger (already has internal buffering)
 						if err := logger.LogLatency(entry); err != nil {
-							timestampedLogf("❌ Failed to log latency for consumer %d: %v", consumerID, err)
+							// Only log errors occasionally to avoid spam
+							if receivedCount%10000 == 0 {
+								timestampedLogf("❌ Failed to log latency for consumer %d: %v", consumerID, err)
+							}
 						}
 					}
 					receivedCount++
@@ -679,14 +685,14 @@ func main() {
 
 		// Ultra-low latency optimizations
 		kgo.ProducerLinger(0),                             // Zero linger = immediate send
-		kgo.ProducerBatchMaxBytes(4096),                   // Very small batches (4KB)
+		kgo.ProducerBatchMaxBytes(1024),                   // ULTRA-small batches (1KB) for lowest latency
 		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
 
-		// Aggressive timeouts for speed
-		kgo.ConnIdleTimeout(30 * time.Second),
-		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
+		// Ultra-aggressive timeouts for speed
+		kgo.ConnIdleTimeout(15 * time.Second),              // More aggressive connection management
+		kgo.RequestTimeoutOverhead(500 * time.Millisecond), // Even faster request timeout
 		kgo.RetryBackoffFn(func(tries int) time.Duration {
-			return time.Millisecond * 10 // Fast retries
+			return time.Millisecond * 5 // Ultra-fast retries
 		}),
 	}
 
@@ -716,14 +722,14 @@ func main() {
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
 
 		// Ultra-low latency fetch optimizations
-		kgo.FetchMinBytes(1),                    // Don't wait for minimum bytes
-		kgo.FetchMaxWait(10 * time.Millisecond), // Minimum allowed max wait (10ms)
-		kgo.FetchMaxBytes(1024 * 1024),          // Reasonable max fetch (1MB)
+		kgo.FetchMinBytes(1),                   // Don't wait for minimum bytes
+		kgo.FetchMaxWait(1 * time.Millisecond), // Aggressive fetch wait (1ms - may fall back to broker minimum)
+		kgo.FetchMaxBytes(64 * 1024),           // Smaller fetch size for lower latency (64KB vs 1MB)
 
-		// OPTIMAL disconnect detection - 10s session timeout (fastest stable setting)
-		kgo.SessionTimeout(10 * time.Second),           // 10s - optimal stable threshold (10x faster than 45s default)
-		kgo.HeartbeatInterval(3 * time.Second),         // 3s (~1/3 of 10s)
-		kgo.AutoCommitInterval(100 * time.Millisecond), // Minimum allowed commit interval
+		// ULTRA-AGGRESSIVE disconnect detection for lowest latency
+		kgo.SessionTimeout(6 * time.Second),           // 6s - ultra-aggressive (minimum stable for most clusters)
+		kgo.HeartbeatInterval(2 * time.Second),        // 2s (1/3 of 6s)
+		kgo.AutoCommitInterval(50 * time.Millisecond), // More frequent commits for faster recovery
 
 		// Faster connection management for improved reconnection
 		kgo.ConnIdleTimeout(20 * time.Second),       // Reduced from 30s
