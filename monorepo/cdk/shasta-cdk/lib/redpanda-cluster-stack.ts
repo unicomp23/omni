@@ -188,16 +188,16 @@ export class RedPandaClusterStack extends Stack {
         // Grant bucket access to the role
         loadTestBucket.grantReadWrite(role);
 
-        // High-performance m7g instances with Graviton3 processors
-        // m7g.xlarge: 4 vCPU, 16 GiB RAM, Up to 12.5 Gbps network, optimized for memory-intensive workloads
-        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.M7G, ec2.InstanceSize.XLARGE);
+        // High-performance m7gd instances with Graviton3 processors and local NVMe SSD storage
+        // m7gd.8xlarge: 32 vCPU, 128 GiB RAM, 25 Gbps network, 1.9 TB NVMe SSD storage
+        const redpandaInstanceType = ec2.InstanceType.of(ec2.InstanceClass.M7GD, ec2.InstanceSize.XLARGE8);
         const redpandaMachineImage = ec2.MachineImage.latestAmazonLinux2023({
             cpuType: ec2.AmazonLinuxCpuType.ARM_64
         });
         
-        // Load test instance uses x86_64 for broader compatibility and c5n optimization
+        // Load test instance now uses ARM64 to match m7gd.8xlarge instance type
         const loadTestMachineImage = ec2.MachineImage.latestAmazonLinux2023({
-            cpuType: ec2.AmazonLinuxCpuType.X86_64
+            cpuType: ec2.AmazonLinuxCpuType.ARM_64
         });
 
         // Get public subnets for RedPanda cluster (one per AZ) - need public IPs for direct access
@@ -218,8 +218,8 @@ export class RedPandaClusterStack extends Stack {
                 keyPair: ec2.KeyPair.fromKeyPairName(this, `RedPandaKeyPair${i}`, RedPandaClusterStack.keyName),
                 role,
                 associatePublicIpAddress: true,
-                // m7g instances use EBS storage for persistent data
-                // Performance: Graviton3 processors with optimized memory bandwidth
+                // m7gd instances have local NVMe SSD storage plus EBS for OS
+                // Performance: Graviton3 processors with optimized memory bandwidth and high-speed local storage
                 blockDevices: [{
                     deviceName: '/dev/xvda', // Root volume only - keep small for OS
                     volume: ec2.BlockDeviceVolume.ebs(20, {
@@ -242,11 +242,11 @@ export class RedPandaClusterStack extends Stack {
         }
 
         // Create load testing instance in public subnet
-        // Using c5n.xlarge for high network performance to test im4gn cluster throughput
+        // Using m7gd.8xlarge for high performance load testing with local NVMe storage
         const loadTestInstance = new ec2.Instance(this, 'LoadTestInstance', {
             vpc,
             vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
-            instanceType: ec2.InstanceType.of(ec2.InstanceClass.C5N, ec2.InstanceSize.XLARGE),
+            instanceType: ec2.InstanceType.of(ec2.InstanceClass.M7GD, ec2.InstanceSize.XLARGE8),
             machineImage: loadTestMachineImage,
             securityGroup: redpandaSecurityGroup,
             keyPair: ec2.KeyPair.fromKeyPairName(this, 'LoadTestKeyPair', RedPandaClusterStack.keyName),
@@ -318,9 +318,12 @@ export class RedPandaClusterStack extends Stack {
             '',
             'sudo yum install -y redpanda',
             '',
-            '# Create Redpanda data directory on root volume',
-            '# m7g instances use EBS storage instead of instance store',
+            '# Create Redpanda data directory on local NVMe storage',
+            '# m7gd instances have high-performance local NVMe SSD storage',
+            'sudo mkfs.ext4 /dev/nvme1n1 || true',
             'sudo mkdir -p /var/lib/redpanda/data',
+            'sudo mount /dev/nvme1n1 /var/lib/redpanda/data || true',
+            'echo "/dev/nvme1n1 /var/lib/redpanda/data ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab',
             '',
             '# Create Redpanda directories and set permissions',
             'sudo mkdir -p /opt/redpanda/conf /var/lib/redpanda/data',

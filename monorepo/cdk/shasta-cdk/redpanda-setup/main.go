@@ -56,20 +56,20 @@ type NodeConfig struct {
 }
 
 type RedPandaConfig struct {
-	RedPanda RedPandaSettings `yaml:"redpanda"`
-	Pandaproxy PandaproxySettings `yaml:"pandaproxy"`
+	RedPanda       RedPandaSettings       `yaml:"redpanda"`
+	Pandaproxy     PandaproxySettings     `yaml:"pandaproxy"`
 	SchemaRegistry SchemaRegistrySettings `yaml:"schema_registry"`
 }
 
 type RedPandaSettings struct {
-	DataDirectory       string                   `yaml:"data_directory"`
-	NodeID             int                      `yaml:"node_id"`
-	RpcServer          ServerConfig             `yaml:"rpc_server"`
-	KafkaAPI           []ServerConfig           `yaml:"kafka_api"`
-	AdminAPI           []ServerConfig           `yaml:"admin"`
-	SeedServers        []SeedServer             `yaml:"seed_servers"`
-	DeveloperMode      bool                     `yaml:"developer_mode"`
-	AutoCreateTopics   bool                     `yaml:"auto_create_topics_enabled"`
+	DataDirectory    string         `yaml:"data_directory"`
+	NodeID           int            `yaml:"node_id"`
+	RpcServer        ServerConfig   `yaml:"rpc_server"`
+	KafkaAPI         []ServerConfig `yaml:"kafka_api"`
+	AdminAPI         []ServerConfig `yaml:"admin"`
+	SeedServers      []SeedServer   `yaml:"seed_servers"`
+	DeveloperMode    bool           `yaml:"developer_mode"`
+	AutoCreateTopics bool           `yaml:"auto_create_topics_enabled"`
 }
 
 type PandaproxySettings struct {
@@ -131,14 +131,14 @@ func main() {
 	fmt.Printf("Found %d RedPanda nodes:\n", len(config.Nodes))
 	for _, node := range config.Nodes {
 		fmt.Printf("  Node %d: %s (public: %s)\n", node.ID, node.PrivateIP, node.PublicIP)
-		logDebug("Node %d details - Private: %s, Public: %s, Hostname: %s", 
+		logDebug("Node %d details - Private: %s, Public: %s, Hostname: %s",
 			node.ID, node.PrivateIP, node.PublicIP, node.Hostname)
 	}
 
 	// Confirm before proceeding (unless non-interactive mode)
 	nonInteractive := strings.ToLower(getEnvOrDefault("NON_INTERACTIVE", "false")) == "true"
 	logDebug("Non-interactive mode: %v", nonInteractive)
-	
+
 	if !nonInteractive {
 		fmt.Print("\nProceed with RedPanda cluster setup? (y/N): ")
 		scanner := bufio.NewScanner(os.Stdin)
@@ -161,17 +161,17 @@ func main() {
 		nodeStart := time.Now()
 		fmt.Printf("\n=== Setting up Node %d (%s) ===\n", node.ID, node.PrivateIP)
 		logInfo("Setting up node %d (%s)", node.ID, node.PrivateIP)
-		
+
 		if err := setupRedPandaNode(config, node); err != nil {
 			logError("Failed to setup node %d: %v", node.ID, err)
 			log.Printf("Failed to setup node %d: %v", node.ID, err)
 			continue
 		}
-		
+
 		nodeSetupTime := time.Since(nodeStart)
 		logInfo("Node %d setup completed in %v", node.ID, nodeSetupTime)
 		fmt.Printf("Node %d setup complete\n", node.ID)
-		
+
 		// Wait between nodes to avoid overwhelming
 		if i < len(config.Nodes)-1 {
 			waitTime := 5 * time.Second
@@ -270,16 +270,16 @@ func fetchClusterInfo(config *ClusterConfig) error {
 	}
 
 	stack := result.Stacks[0]
-	logDebug("Found stack '%s' with status: %s", config.StackName, 
+	logDebug("Found stack '%s' with status: %s", config.StackName,
 		func() string {
 			if stack.StackStatus != nil {
 				return *stack.StackStatus
 			}
 			return "unknown"
 		}())
-	
+
 	outputs := make(map[string]string)
-	
+
 	logDebug("Processing %d stack outputs", len(stack.Outputs))
 	for _, output := range stack.Outputs {
 		if output.OutputKey != nil && output.OutputValue != nil {
@@ -314,11 +314,11 @@ func fetchClusterInfo(config *ClusterConfig) error {
 	for i, privateIP := range privateIPs {
 		privateIP = strings.TrimSpace(privateIP)
 		publicIP := strings.TrimSpace(publicIPs[i])
-		
+
 		if privateIP == "" || publicIP == "" {
 			logWarn("Empty IP address found at index %d: private='%s', public='%s'", i, privateIP, publicIP)
 		}
-		
+
 		node := NodeConfig{
 			ID:        i,
 			PrivateIP: privateIP,
@@ -336,7 +336,7 @@ func fetchClusterInfo(config *ClusterConfig) error {
 func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 	logDebug("Starting setup for node %d (%s)", node.ID, node.PrivateIP)
 	nodeStart := time.Now()
-	
+
 	// Create SSH connection
 	logDebug("Creating SSH connection to node %d", node.ID)
 	client, err := createSSHClient(node.PublicIP, config.KeyPath)
@@ -364,15 +364,27 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 	commands := []string{
 		// Ensure Redpanda is stopped before configuration
 		"sudo systemctl stop redpanda || true",
-		
+
 		// Create directories (should already exist from package installation)
-		"sudo mkdir -p /etc/redpanda /var/lib/redpanda/data",
+		"sudo mkdir -p /etc/redpanda",
+
+		// For m7gd.8xlarge instances: Ensure local NVMe SSD storage is properly configured
+		// CDK user data mounts 1.9TB NVMe at /var/lib/redpanda/data for high-performance storage
+		"sudo mkdir -p /var/lib/redpanda/data",
+
+		// Verify NVMe mount is active (m7gd instances have local NVMe storage)
+		"sudo mount | grep -q '/var/lib/redpanda/data' && echo 'NVMe storage mounted' || echo 'Using EBS storage'",
+
+		// Set proper ownership for both config and data directories
 		"sudo chown -R redpanda:redpanda /var/lib/redpanda/data",
 		"sudo chown -R redpanda:redpanda /etc/redpanda",
-		
-		// Set proper permissions
+
+		// Set proper permissions (important for mounted NVMe filesystem)
 		"sudo chmod 755 /var/lib/redpanda/data",
 		"sudo chmod 755 /etc/redpanda",
+
+		// Ensure proper SELinux context if enabled (not typically on Amazon Linux 2023)
+		"sudo restorecon -R /var/lib/redpanda/data 2>/dev/null || true",
 	}
 
 	for _, cmd := range commands {
@@ -407,7 +419,7 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 		// Get detailed status for debugging
 		executeSSHCommand(client, "sudo systemctl status redpanda --no-pager")
 		executeSSHCommand(client, "sudo journalctl -u redpanda --lines=30 --no-pager")
-		
+
 		// For cluster setup, the first node might timeout waiting for others
 		// Check if it's actually running despite the timeout
 		if err := executeSSHCommand(client, "sudo systemctl is-active redpanda"); err != nil {
@@ -433,7 +445,7 @@ func setupRedPandaNode(config *ClusterConfig, node NodeConfig) error {
 		// Get more detailed status information
 		executeSSHCommand(client, "sudo systemctl status redpanda --no-pager")
 		executeSSHCommand(client, "sudo journalctl -u redpanda --lines=20 --no-pager")
-		
+
 		// For cluster setup, nodes might be in "activating" state waiting for peers
 		// Check if the process is running
 		if err := executeSSHCommand(client, "pgrep -f redpanda"); err != nil {
@@ -463,7 +475,7 @@ func generateRedPandaConfig(config *ClusterConfig, node NodeConfig) RedPandaConf
 	return RedPandaConfig{
 		RedPanda: RedPandaSettings{
 			DataDirectory: "/var/lib/redpanda/data",
-			NodeID:       node.ID,
+			NodeID:        node.ID,
 			RpcServer: ServerConfig{
 				Address: node.PrivateIP,
 				Port:    33145,
@@ -480,9 +492,9 @@ func generateRedPandaConfig(config *ClusterConfig, node NodeConfig) RedPandaConf
 					Port:    9644,
 				},
 			},
-			SeedServers:        seedServers,
-			DeveloperMode:      false,
-			AutoCreateTopics:   true,
+			SeedServers:      seedServers,
+			DeveloperMode:    false,
+			AutoCreateTopics: true,
 		},
 		Pandaproxy: PandaproxySettings{
 			PandaproxyAPI: []ServerConfig{
@@ -506,7 +518,7 @@ func generateRedPandaConfig(config *ClusterConfig, node NodeConfig) RedPandaConf
 func createSSHClient(host, keyPath string) (*ssh.Client, error) {
 	logDebug("Creating SSH client for host: %s", host)
 	logDebug("Using SSH key: %s", keyPath)
-	
+
 	// Read private key
 	start := time.Now()
 	key, err := ioutil.ReadFile(keyPath)
@@ -538,14 +550,14 @@ func createSSHClient(host, keyPath string) (*ssh.Client, error) {
 	// Connect
 	address := net.JoinHostPort(host, "22")
 	logDebug("Attempting SSH connection to: %s", address)
-	
+
 	connectStart := time.Now()
 	client, err := ssh.Dial("tcp", address, config)
 	if err != nil {
 		logError("Failed to establish SSH connection to %s: %v", address, err)
 		return nil, fmt.Errorf("failed to connect via SSH: %w", err)
 	}
-	
+
 	connectDuration := time.Since(connectStart)
 	logDebug("SSH connection established successfully in %v", connectDuration)
 	logInfo("Connected to %s via SSH", host)
@@ -555,7 +567,7 @@ func createSSHClient(host, keyPath string) (*ssh.Client, error) {
 
 func executeSSHCommand(client *ssh.Client, command string) error {
 	logDebug("Executing SSH command: %s", command)
-	
+
 	start := time.Now()
 	session, err := client.NewSession()
 	if err != nil {
@@ -567,7 +579,7 @@ func executeSSHCommand(client *ssh.Client, command string) error {
 	logDebug("SSH session created, executing command")
 	output, err := session.CombinedOutput(command)
 	duration := time.Since(start)
-	
+
 	if err != nil {
 		logError("Command failed after %v: %s", duration, err)
 		logDebug("Command output: %s", string(output))
@@ -588,7 +600,7 @@ func executeSSHCommand(client *ssh.Client, command string) error {
 
 func uploadFile(client *ssh.Client, content []byte, remotePath string) error {
 	logDebug("Uploading file to remote path: %s (size: %d bytes)", remotePath, len(content))
-	
+
 	session, err := client.NewSession()
 	if err != nil {
 		logError("Failed to create SSH session for upload: %v", err)
@@ -606,14 +618,14 @@ func uploadFile(client *ssh.Client, content []byte, remotePath string) error {
 	// Generate a unique temporary file name to avoid conflicts
 	tempFile := fmt.Sprintf("/tmp/upload_%d.tmp", time.Now().UnixNano())
 	logDebug("Using temporary file: %s", tempFile)
-	
+
 	// Use base64 encoding to avoid heredoc conflicts
 	encodedContent := base64.StdEncoding.EncodeToString(content)
-	
+
 	// Write base64 encoded content and decode it
 	writeCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", encodedContent, tempFile)
 	logDebug("Writing content using base64 encoding to avoid heredoc conflicts")
-	
+
 	if err := executeSSHCommand(client, writeCmd); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
@@ -636,7 +648,7 @@ func uploadFile(client *ssh.Client, content []byte, remotePath string) error {
 func verifyClusterHealth(config *ClusterConfig) error {
 	logInfo("Starting cluster health verification")
 	fmt.Println("🔍 Polling cluster status until healthy...")
-	
+
 	// Connect to first node to check cluster status
 	logDebug("Connecting to first node for health checks")
 	client, err := createSSHClient(config.Nodes[0].PublicIP, config.KeyPath)
@@ -649,11 +661,11 @@ func verifyClusterHealth(config *ClusterConfig) error {
 	expectedBrokers := len(config.Nodes)
 	maxAttempts := 120 // 10 minutes with 5-second intervals (longer for cluster formation)
 	logDebug("Expecting %d brokers, will poll for up to %d attempts", expectedBrokers, maxAttempts)
-	
+
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		fmt.Printf("  Attempt %d/%d: Checking cluster health...\n", attempt, maxAttempts)
 		logDebug("Health check attempt %d/%d", attempt, maxAttempts)
-		
+
 		// Check if cluster is responding
 		session, err := client.NewSession()
 		if err != nil {
@@ -662,37 +674,37 @@ func verifyClusterHealth(config *ClusterConfig) error {
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		
+
 		checkStart := time.Now()
 		output, err := session.CombinedOutput(fmt.Sprintf("rpk cluster info --brokers %s:9092", config.Nodes[0].PrivateIP))
 		session.Close()
 		checkDuration := time.Since(checkStart)
-		
+
 		if err != nil {
 			logDebug("Cluster info command failed after %v: %v", checkDuration, err)
 			fmt.Printf("  ⏳ Cluster not ready yet: %v\n", err)
-			
+
 			// Show more context every 10 attempts
 			if attempt%10 == 0 {
 				logDebug("Attempt %d: Getting additional diagnostics", attempt)
 				executeSSHCommand(client, "sudo systemctl status redpanda --no-pager")
 			}
-			
+
 			time.Sleep(5 * time.Second)
 			continue
 		}
-		
+
 		logDebug("Cluster info command succeeded after %v", checkDuration)
-		
+
 		outputStr := string(output)
 		fmt.Printf("  📊 Cluster info:\n%s\n", outputStr)
-		
+
 		// Parse cluster info to check broker count
 		// Count broker lines in the BROKERS section
 		lines := strings.Split(outputStr, "\n")
 		brokerCount := 0
 		inBrokersSection := false
-		
+
 		for _, line := range lines {
 			line = strings.TrimSpace(line)
 			if strings.Contains(line, "BROKERS") {
@@ -714,24 +726,24 @@ func verifyClusterHealth(config *ClusterConfig) error {
 				break
 			}
 		}
-		
+
 		if brokerCount == expectedBrokers {
 			fmt.Printf("  ✅ All %d brokers are healthy!\n", expectedBrokers)
-			
+
 			// Additional health checks
 			if err := performAdditionalHealthChecks(client, config); err != nil {
 				fmt.Printf("  ⚠️  Additional health check failed: %v\n", err)
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			
+
 			return nil
 		}
-		
+
 		fmt.Printf("  ⏳ Found %d brokers, expecting %d. Waiting for full cluster...\n", brokerCount, expectedBrokers)
 		time.Sleep(5 * time.Second)
 	}
-	
+
 	return fmt.Errorf("cluster failed to become healthy after %d attempts", maxAttempts)
 }
 
@@ -750,24 +762,24 @@ func performAdditionalHealthChecks(client *ssh.Client, config *ClusterConfig) er
 		if err != nil {
 			return fmt.Errorf("%s check - session failed: %v", check.name, err)
 		}
-		
+
 		output, err := session.CombinedOutput(check.cmd)
 		session.Close()
-		
+
 		if err != nil {
 			return fmt.Errorf("%s check failed: %v, output: %s", check.name, err, string(output))
 		}
-		
+
 		fmt.Printf("    ✅ %s: OK\n", check.name)
 	}
-	
+
 	return nil
 }
 
 // enableWriteCaching configures the cluster to use write caching for improved performance
 func enableWriteCaching(config *ClusterConfig) error {
 	logDebug("Starting write caching configuration")
-	
+
 	// Connect to first node to configure cluster settings
 	logDebug("Connecting to first node for write caching configuration")
 	client, err := createSSHClient(config.Nodes[0].PublicIP, config.KeyPath)
@@ -776,36 +788,36 @@ func enableWriteCaching(config *ClusterConfig) error {
 		return fmt.Errorf("failed to connect to node 0: %w", err)
 	}
 	defer client.Close()
-	
+
 	// Enable write caching at cluster level (rpk auto-discovers cluster)
 	fmt.Printf("🚀 Enabling write caching for improved performance...\n")
 	logDebug("Executing rpk cluster config set write_caching_default true")
-	
+
 	configCmd := "rpk cluster config set write_caching_default true"
 	session, err := client.NewSession()
 	if err != nil {
 		logError("Failed to create SSH session for write caching config: %v", err)
 		return fmt.Errorf("failed to create SSH session: %w", err)
 	}
-	
+
 	configStart := time.Now()
 	output, err := session.CombinedOutput(configCmd)
 	session.Close()
 	configDuration := time.Since(configStart)
-	
+
 	if err != nil {
 		logError("Write caching configuration command failed after %v: %v", configDuration, err)
 		logDebug("Command output: %s", string(output))
 		return fmt.Errorf("failed to enable write caching: %s, output: %s", err, string(output))
 	}
-	
+
 	logDebug("Write caching configuration command succeeded after %v", configDuration)
 	fmt.Printf("Configuration output: %s\n", string(output))
-	
+
 	// Verify the setting was applied correctly
 	fmt.Printf("🔍 Verifying write caching configuration...\n")
 	logDebug("Verifying write_caching_default setting")
-	
+
 	verifyCmd := "rpk cluster config get write_caching_default"
 	session, err = client.NewSession()
 	if err != nil {
@@ -813,12 +825,12 @@ func enableWriteCaching(config *ClusterConfig) error {
 		// Don't fail the entire operation for verification issues
 		return nil
 	}
-	
+
 	verifyStart := time.Now()
 	output, err = session.CombinedOutput(verifyCmd)
 	session.Close()
 	verifyDuration := time.Since(verifyStart)
-	
+
 	if err != nil {
 		logWarn("Write caching verification failed after %v: %v", verifyDuration, err)
 		logDebug("Verification output: %s", string(output))
@@ -826,10 +838,10 @@ func enableWriteCaching(config *ClusterConfig) error {
 		fmt.Printf("⚠️  Unable to verify write caching setting, but configuration command succeeded\n")
 		return nil
 	}
-	
+
 	logDebug("Write caching verification succeeded after %v", verifyDuration)
 	fmt.Printf("✅ Write caching verification: %s\n", strings.TrimSpace(string(output)))
-	
+
 	// Additional information about write caching
 	fmt.Printf("📋 Write caching info:\n")
 	fmt.Printf("  • Provides better performance with relaxed durability\n")
@@ -837,7 +849,7 @@ func enableWriteCaching(config *ClusterConfig) error {
 	fmt.Printf("  • Does not wait for disk writes before acknowledgment\n")
 	fmt.Printf("  • Applies to user topics (not transactions or consumer offsets)\n")
 	fmt.Printf("  • Can be overridden per topic with: rpk topic alter-config <topic> --set write.caching=true/false\n")
-	
+
 	logInfo("Write caching configuration completed successfully")
 	return nil
 }
@@ -852,7 +864,7 @@ func getBootstrapBrokers(nodes []NodeConfig) string {
 
 func applyNetworkOptimizations(client *ssh.Client) error {
 	logDebug("Starting network optimizations")
-	
+
 	// Network optimization script content
 	optimizationScript := `#!/bin/bash
 # Ultra-Low Latency Network Optimizations for RedPanda
@@ -917,20 +929,20 @@ echo "Network optimizations applied successfully"
 
 	logInfo("Network optimizations applied successfully")
 	return nil
-} 
+}
 
 // configureLoadTestInstance sets up environment variables on the load test instance
 func configureLoadTestInstance(config *ClusterConfig) error {
 	logDebug("Starting load test instance configuration")
-	
+
 	// Get load test instance IP from CloudFormation
 	loadTestIP, err := getLoadTestInstanceIP(config)
 	if err != nil {
 		return fmt.Errorf("failed to get load test instance IP: %w", err)
 	}
-	
+
 	logInfo("Configuring load test instance at %s", loadTestIP)
-	
+
 	// Create SSH connection to load test instance
 	logDebug("Creating SSH connection to load test instance")
 	client, err := createSSHClient(loadTestIP, config.KeyPath)
@@ -938,34 +950,34 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		return fmt.Errorf("failed to create SSH client for load test instance: %w", err)
 	}
 	defer client.Close()
-	
+
 	fmt.Printf("Connected to load test instance via SSH\n")
 	logInfo("SSH connection established to load test instance")
-	
+
 	// Generate broker list
 	bootstrapBrokers := getBootstrapBrokers(config.Nodes)
 	logDebug("Bootstrap brokers: %s", bootstrapBrokers)
-	
+
 	// Generate RPK service URLs using first cluster node IP
 	var firstNodeIP string
 	if len(config.Nodes) > 0 {
 		firstNodeIP = config.Nodes[0].PrivateIP
 	}
-	
+
 	rpkSchemaRegistryURL := fmt.Sprintf("http://%s:8081", firstNodeIP)
 	rpkAdminAPIURL := fmt.Sprintf("http://%s:33145", firstNodeIP)
 	rpkRestProxyURL := fmt.Sprintf("http://%s:8082", firstNodeIP)
-	
-	logDebug("RPK service URLs - Schema Registry: %s, Admin API: %s, REST Proxy: %s", 
+
+	logDebug("RPK service URLs - Schema Registry: %s, Admin API: %s, REST Proxy: %s",
 		rpkSchemaRegistryURL, rpkAdminAPIURL, rpkRestProxyURL)
-	
+
 	// Commands to set up environment variables
 	commands := []string{
 		// Create/update .bashrc with broker information
 		fmt.Sprintf(`echo "export REDPANDA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),
-		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
+		fmt.Sprintf(`echo "export KAFKA_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),     // Alternative name
 		fmt.Sprintf(`echo "export BOOTSTRAP_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers), // Alternative name
-		
+
 		// RPK-specific environment variables in .bashrc
 		fmt.Sprintf(`echo "export RPK_BROKERS='%s'" >> ~/.bashrc`, bootstrapBrokers),
 		fmt.Sprintf(`echo "export RPK_SCHEMA_REGISTRY_URL='%s'" >> ~/.bashrc`, rpkSchemaRegistryURL),
@@ -973,7 +985,7 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`echo "export RPK_REST_PROXY_URL='%s'" >> ~/.bashrc`, rpkRestProxyURL),
 		`echo "export RPK_TLS_ENABLED='false'" >> ~/.bashrc`,
 		`echo "export RPK_SASL_MECHANISM=''" >> ~/.bashrc`,
-		
+
 		// Also set in current session
 		fmt.Sprintf(`export REDPANDA_BROKERS='%s'`, bootstrapBrokers),
 		fmt.Sprintf(`export KAFKA_BROKERS='%s'`, bootstrapBrokers),
@@ -984,7 +996,7 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		fmt.Sprintf(`export RPK_REST_PROXY_URL='%s'`, rpkRestProxyURL),
 		`export RPK_TLS_ENABLED='false'`,
 		`export RPK_SASL_MECHANISM=''`,
-		
+
 		// Create a convenient script for re-sourcing environment
 		`echo '#!/bin/bash' > ~/redpanda-env.sh`,
 		`echo "# RedPanda Cluster Environment Variables" >> ~/redpanda-env.sh`,
@@ -1011,12 +1023,12 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 		`echo 'echo "  Admin API: $RPK_ADMIN_API_URL"' >> ~/redpanda-env.sh`,
 		`echo 'echo "  REST Proxy: $RPK_REST_PROXY_URL"' >> ~/redpanda-env.sh`,
 		`chmod +x ~/redpanda-env.sh`,
-		
+
 		// Verify the environment variables were set
 		`echo "Environment variables set:"`,
 		`grep -E "(REDPANDA_BROKERS|KAFKA_BROKERS|RPK_BROKERS|RPK_SCHEMA_REGISTRY_URL)" ~/.bashrc || echo "No broker env vars found in .bashrc"`,
 	}
-	
+
 	logDebug("Executing %d commands on load test instance", len(commands))
 	for i, cmd := range commands {
 		logDebug("Executing command %d: %s", i+1, cmd)
@@ -1026,14 +1038,14 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 			continue
 		}
 	}
-	
+
 	// Test that the environment variables are accessible
 	logDebug("Testing environment variable accessibility")
 	testCmd := `source ~/.bashrc && echo "REDPANDA_BROKERS=$REDPANDA_BROKERS" && echo "RPK_BROKERS=$RPK_BROKERS" && echo "RPK_SCHEMA_REGISTRY_URL=$RPK_SCHEMA_REGISTRY_URL"`
 	if err := executeSSHCommand(client, testCmd); err != nil {
 		logWarn("Failed to verify environment variables: %v", err)
 	}
-	
+
 	logInfo("Load test instance configuration completed")
 	fmt.Printf("Load test instance configured with:\n")
 	fmt.Printf("  REDPANDA_BROKERS=%s\n", bootstrapBrokers)
@@ -1045,36 +1057,36 @@ func configureLoadTestInstance(config *ClusterConfig) error {
 	fmt.Printf("  RPK_SASL_MECHANISM=(empty)\n")
 	fmt.Printf("  Environment script: ~/redpanda-env.sh\n")
 	fmt.Printf("  All variables available in ~/.bashrc and current session\n")
-	
+
 	return nil
 }
 
 // getLoadTestInstanceIP retrieves the load test instance public IP from CloudFormation
 func getLoadTestInstanceIP(config *ClusterConfig) (string, error) {
 	logDebug("Fetching load test instance IP from CloudFormation")
-	
+
 	sess, err := session.NewSession(&aws.Config{
 		Region: aws.String(config.Region),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to create AWS session: %w", err)
 	}
-	
+
 	cfSvc := cloudformation.New(sess)
-	
+
 	input := &cloudformation.DescribeStacksInput{
 		StackName: aws.String(config.StackName),
 	}
-	
+
 	result, err := cfSvc.DescribeStacks(input)
 	if err != nil {
 		return "", fmt.Errorf("failed to describe stack: %w", err)
 	}
-	
+
 	if len(result.Stacks) == 0 {
 		return "", fmt.Errorf("stack %s not found", config.StackName)
 	}
-	
+
 	// Look for LoadTestInstanceIP output
 	for _, output := range result.Stacks[0].Outputs {
 		if output.OutputKey != nil && *output.OutputKey == "LoadTestInstanceIP" {
@@ -1084,6 +1096,6 @@ func getLoadTestInstanceIP(config *ClusterConfig) (string, error) {
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("LoadTestInstanceIP output not found in stack %s", config.StackName)
-} 
+}

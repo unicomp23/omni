@@ -30,5 +30,5 @@ console.log(env);
     });
 
     shastaCdkStackL2.addDependency(shastaCdkStackL1);
-    redPandaClusterStack.addDependency(shastaCdkStackL1);
+    // redPandaClusterStack.addDependency(shastaCdkStackL1); // Removed - RedPanda stack is self-contained
 }

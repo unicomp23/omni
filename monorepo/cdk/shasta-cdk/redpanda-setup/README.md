@@ -50,12 +50,17 @@ The tool performs these steps on each node:
    - Creates required directories (`/etc/redpanda`, `/var/lib/redpanda/data`)
    - Sets proper ownership and permissions
 
-2. **Network Optimization**
+2. **Storage Configuration**
+   - Verifies NVMe SSD storage mount (m7gd.8xlarge instances)
+   - Sets proper ownership and permissions for high-performance storage
+   - Ensures data directory is ready for RedPanda operations
+
+3. **Network Optimization**
    - Applies ultra-low latency TCP settings
    - Configures system parameters for optimal performance
    - Sets CPU governor to performance mode
 
-3. **Configuration Deployment**
+4. **Configuration Deployment**
    - Generates node-specific `redpanda.yaml` configuration
    - Configures cluster seed servers and node IDs
    - Sets up Kafka API, Admin API, and Schema Registry endpoints
