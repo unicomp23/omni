@@ -722,9 +722,9 @@ func main() {
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
 
 		// Ultra-low latency fetch optimizations
-		kgo.FetchMinBytes(1),                   // Don't wait for minimum bytes
-		kgo.FetchMaxWait(1 * time.Millisecond), // Aggressive fetch wait (1ms - may fall back to broker minimum)
-		kgo.FetchMaxBytes(64 * 1024),           // Smaller fetch size for lower latency (64KB vs 1MB)
+		kgo.FetchMinBytes(1),                    // Don't wait for minimum bytes
+		kgo.FetchMaxWait(10 * time.Millisecond), // Minimum allowed max wait (10ms - library enforced)
+		kgo.FetchMaxBytes(64 * 1024),            // Smaller fetch size for lower latency (64KB vs 1MB)
 
 		// ULTRA-AGGRESSIVE disconnect detection for lowest latency
 		kgo.SessionTimeout(6 * time.Second),           // 6s - ultra-aggressive (minimum stable for most clusters)
