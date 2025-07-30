@@ -682,10 +682,10 @@ func main() {
 		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (lower latency than ack=all)
 		kgo.DisableIdempotentWrite(),           // Allow ack=1, reduce overhead
 		
-		// Ultra-low latency optimizations
-		kgo.ProducerLinger(0),                  // Zero linger = immediate send
-		kgo.ProducerBatchMaxBytes(4096),        // Very small batches (4KB)
-		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+		// Optimized for write-cached topics: balance latency vs throughput
+		kgo.ProducerLinger(1 * time.Millisecond),    // 1ms linger for batching efficiency
+		kgo.ProducerBatchMaxBytes(50 * 1024),        // 50KB batches for better throughput
+		kgo.ProducerBatchCompression(kgo.SnappyCompression()), // Fast compression
 		
 		// Aggressive timeouts for speed
 		kgo.ConnIdleTimeout(30 * time.Second),
