@@ -21,14 +21,14 @@ import (
 )
 
 const (
-	testDuration = 3 * 7 * 24 * time.Hour  // 3 week test duration
-	warmupDuration = 5 * time.Second       // 5 second warm-up phase
-	messageInterval = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
-	numPartitions = 6
-	numProducerGoroutines = 16  // 16 producer goroutines
-	producersPerGoroutine = 64  // 64 producers per goroutine
-	numProducers = numProducerGoroutines * producersPerGoroutine  // 1,024 total producers
-	numConsumers = numPartitions  // 1 consumer per partition
+	testDuration          = 3 * 7 * 24 * time.Hour // 3 week test duration
+	warmupDuration        = 5 * time.Second        // 5 second warm-up phase
+	messageInterval       = 500 * time.Millisecond // 0.5s spacing = 2 msg/s per producer
+	numPartitions         = 18
+	numProducerGoroutines = 16                                            // 16 producer goroutines
+	producersPerGoroutine = 64                                            // 64 producers per goroutine
+	numProducers          = numProducerGoroutines * producersPerGoroutine // 1,024 total producers
+	numConsumers          = numPartitions                                 // 1 consumer per partition for optimal latency
 )
 
 func getBrokers() []string {
@@ -48,13 +48,13 @@ var messageBufferPool = sync.Pool{
 
 // LatencyLogEntry represents a single latency measurement in JSONL format
 type LatencyLogEntry struct {
-	Timestamp    time.Time `json:"timestamp"`    // ISO8601 timestamp when message was received
-	SendTime     time.Time `json:"send_time"`    // When message was originally sent
-	ReceiveTime  time.Time `json:"receive_time"` // When message was received
-	LatencyMs    float64   `json:"latency_ms"`   // Latency in milliseconds
-	ConsumerID   int       `json:"consumer_id"`  // Which consumer processed this
-	Partition    int32     `json:"partition"`    // Kafka partition
-	Offset       int64     `json:"offset"`       // Kafka offset
+	Timestamp   time.Time `json:"timestamp"`    // ISO8601 timestamp when message was received
+	SendTime    time.Time `json:"send_time"`    // When message was originally sent
+	ReceiveTime time.Time `json:"receive_time"` // When message was received
+	LatencyMs   float64   `json:"latency_ms"`   // Latency in milliseconds
+	ConsumerID  int       `json:"consumer_id"`  // Which consumer processed this
+	Partition   int32     `json:"partition"`    // Kafka partition
+	Offset      int64     `json:"offset"`       // Kafka offset
 }
 
 // LatencyLogger handles JSONL logging with 1-hour rotation and compression
@@ -71,16 +71,16 @@ func NewLatencyLogger(logDir string) (*LatencyLogger, error) {
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create log directory: %v", err)
 	}
-	
+
 	logger := &LatencyLogger{
 		logDir: logDir,
 	}
-	
+
 	// Initialize first log file
 	if err := logger.rotateFile(); err != nil {
 		return nil, err
 	}
-	
+
 	return logger, nil
 }
 
@@ -88,61 +88,61 @@ func (ll *LatencyLogger) rotateFile() error {
 	now := time.Now().UTC()
 	// Truncate to hourly boundary
 	currentPeriod := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 0, 0, 0, time.UTC)
-	
+
 	// Check if we need to rotate
 	if ll.currentFile != nil && ll.currentHour.Equal(currentPeriod) {
 		return nil // No rotation needed
 	}
-	
+
 	// Close previous file if exists
 	var prevFilePath string
 	if ll.currentFile != nil {
 		prevFilePath = ll.currentFile.Name()
 		ll.currentFile.Close()
-		
+
 		// Spawn background gzip compression of previous file
 		go ll.compressPreviousFile(prevFilePath)
 	}
-	
+
 	// Create new file with sortable timestamp (hourly intervals)
 	filename := fmt.Sprintf("latency-%s.jsonl", currentPeriod.Format("2006-01-02T15-00-00Z"))
 	filepath := filepath.Join(ll.logDir, filename)
-	
+
 	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to create log file %s: %v", filepath, err)
 	}
-	
+
 	ll.currentFile = file
 	ll.currentHour = currentPeriod
 	ll.encoder = json.NewEncoder(file)
-	
+
 	timestampedPrintf("📝 Started new latency log (1 hr rotation): %s\n", filename)
 	return nil
 }
 
 func (ll *LatencyLogger) compressPreviousFile(filePath string) {
 	timestampedPrintf("🗜️  Compressing previous log file: %s\n", filepath.Base(filePath))
-	
+
 	// Use gzip command for better performance than Go's gzip
 	cmd := exec.Command("gzip", filePath)
 	if err := cmd.Run(); err != nil {
 		timestampedLogf("❌ Failed to gzip %s: %v", filePath, err)
 		return
 	}
-	
+
 	timestampedPrintf("✅ Compressed: %s.gz\n", filepath.Base(filePath))
 }
 
 func (ll *LatencyLogger) LogLatency(entry LatencyLogEntry) error {
 	ll.mutex.Lock()
 	defer ll.mutex.Unlock()
-	
+
 	// Check if we need to rotate to new hour
 	if err := ll.rotateFile(); err != nil {
 		return err
 	}
-	
+
 	// Write JSONL entry
 	return ll.encoder.Encode(entry)
 }
@@ -150,22 +150,22 @@ func (ll *LatencyLogger) LogLatency(entry LatencyLogEntry) error {
 func (ll *LatencyLogger) Close() error {
 	ll.mutex.Lock()
 	defer ll.mutex.Unlock()
-	
+
 	if ll.currentFile != nil {
 		prevFilePath := ll.currentFile.Name()
 		ll.currentFile.Close()
-		
+
 		// Compress final file
 		go ll.compressPreviousFile(prevFilePath)
 	}
-	
+
 	return nil
 }
 
 type LatencyStats struct {
-	addCh     chan time.Duration
-	calcCh    chan chan map[string]time.Duration
-	closeCh   chan struct{}
+	addCh   chan time.Duration
+	calcCh  chan chan map[string]time.Duration
+	closeCh chan struct{}
 }
 
 func NewLatencyStats() *LatencyStats {
@@ -174,26 +174,26 @@ func NewLatencyStats() *LatencyStats {
 		calcCh:  make(chan chan map[string]time.Duration),
 		closeCh: make(chan struct{}),
 	}
-	
+
 	// Start the goroutine that manages the latencies slice
 	go ls.run()
-	
+
 	return ls
 }
 
 func (ls *LatencyStats) run() {
 	var latencies []time.Duration
-	
+
 	for {
 		select {
 		case latency := <-ls.addCh:
 			latencies = append(latencies, latency)
-			
+
 		case responseCh := <-ls.calcCh:
 			// Calculate stats and send back result
 			result := ls.calculateStats(latencies)
 			responseCh <- result
-			
+
 		case <-ls.closeCh:
 			return
 		}
@@ -224,18 +224,18 @@ func (ls *LatencyStats) calculateStats(latencies []time.Duration) map[string]tim
 	if len(latencies) == 0 {
 		return map[string]time.Duration{}
 	}
-	
+
 	// Create a copy to avoid modifying the original slice during sorting
 	latenciesCopy := make([]time.Duration, len(latencies))
 	copy(latenciesCopy, latencies)
-	
+
 	sort.Slice(latenciesCopy, func(i, j int) bool {
 		return latenciesCopy[i] < latenciesCopy[j]
 	})
-	
+
 	count := len(latenciesCopy)
 	results := make(map[string]time.Duration)
-	
+
 	results["count"] = time.Duration(count)
 	results["min"] = latenciesCopy[0]
 	results["max"] = latenciesCopy[count-1]
@@ -243,7 +243,7 @@ func (ls *LatencyStats) calculateStats(latencies []time.Duration) map[string]tim
 	results["p90"] = latenciesCopy[count*90/100]
 	results["p95"] = latenciesCopy[count*95/100]
 	results["p99"] = latenciesCopy[count*99/100]
-	
+
 	if count >= 100 {
 		results["p99.9"] = latenciesCopy[count*999/1000]
 	}
@@ -253,13 +253,13 @@ func (ls *LatencyStats) calculateStats(latencies []time.Duration) map[string]tim
 	if count >= 10000 {
 		results["p99.999"] = latenciesCopy[count*99999/100000]
 	}
-	
+
 	var sum time.Duration
 	for _, latency := range latenciesCopy {
 		sum += latency
 	}
 	results["avg"] = sum / time.Duration(count)
-	
+
 	return results
 }
 
@@ -296,14 +296,14 @@ func createTopic(client *kgo.Client, topicName string) error {
 	reqTopic := kmsg.NewCreateTopicsRequestTopic()
 	reqTopic.Topic = topicName
 	reqTopic.NumPartitions = numPartitions
-	reqTopic.ReplicationFactor = 3  // Match broker count
+	reqTopic.ReplicationFactor = 3 // Match broker count
 	req.Topics = append(req.Topics, reqTopic)
-	
+
 	resp, err := req.RequestWith(context.Background(), client)
 	if err != nil {
 		return fmt.Errorf("failed to send create topic request: %v", err)
 	}
-	
+
 	// Check response for errors
 	for _, topic := range resp.Topics {
 		if topic.Topic == topicName {
@@ -317,20 +317,20 @@ func createTopic(client *kgo.Client, topicName string) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
 func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartitions int32) error {
 	timestampedPrintf("🔍 Verifying topic has %d partitions...\n", expectedPartitions)
-	
+
 	// Get topic metadata
 	metaReq := kmsg.NewMetadataRequest()
 	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
-	
+
 	var lastErr error
 	maxRetries := 10
-	
+
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		metaResp, err := metaReq.RequestWith(context.Background(), client)
 		if err != nil {
@@ -339,7 +339,7 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 			time.Sleep(time.Duration(attempt) * time.Second)
 			continue
 		}
-		
+
 		// Find our topic in the response
 		for _, topic := range metaResp.Topics {
 			if topic.Topic != nil && *topic.Topic == topicName {
@@ -349,7 +349,7 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 					time.Sleep(time.Duration(attempt) * time.Second)
 					continue
 				}
-				
+
 				// Check partition count
 				actualPartitions := int32(len(topic.Partitions))
 				if actualPartitions != expectedPartitions {
@@ -358,7 +358,7 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 					time.Sleep(time.Duration(attempt) * time.Second)
 					continue
 				}
-				
+
 				// Verify each partition has a leader
 				unavailablePartitions := []int32{}
 				for _, partition := range topic.Partitions {
@@ -366,83 +366,83 @@ func verifyTopicPartitions(client *kgo.Client, topicName string, expectedPartiti
 						unavailablePartitions = append(unavailablePartitions, partition.Partition)
 					}
 				}
-				
+
 				if len(unavailablePartitions) > 0 {
 					lastErr = fmt.Errorf("partitions without leader: %v", unavailablePartitions)
 					timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
 					time.Sleep(time.Duration(attempt) * time.Second)
 					continue
 				}
-				
+
 				// Success!
 				timestampedPrintf("✅ Topic verified: %d partitions all available with leaders\n", actualPartitions)
 				return nil
 			}
 		}
-		
+
 		lastErr = fmt.Errorf("topic %s not found in metadata response", topicName)
 		timestampedPrintf("⚠️  Attempt %d/%d: %v\n", attempt, maxRetries, lastErr)
 		time.Sleep(time.Duration(attempt) * time.Second)
 	}
-	
+
 	return fmt.Errorf("failed to verify topic after %d attempts: %v", maxRetries, lastErr)
 }
 
 func refreshClientMetadata(client *kgo.Client, topicName string) error {
 	timestampedPrintf("🔄 Refreshing client metadata for topic %s...\n", topicName)
-	
+
 	// Force metadata refresh by requesting topic metadata
 	metaReq := kmsg.NewMetadataRequest()
 	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
-	
+
 	_, err := metaReq.RequestWith(context.Background(), client)
 	if err != nil {
 		return fmt.Errorf("failed to refresh metadata: %v", err)
 	}
-	
+
 	timestampedPrintf("✅ Metadata refreshed for topic %s\n", topicName)
 	return nil
 }
 
 func debugTopicInfo(client *kgo.Client, topicName string) {
 	timestampedPrintf("🔍 DEBUG: Topic partition information for %s\n", topicName)
-	
+
 	metaReq := kmsg.NewMetadataRequest()
 	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &topicName}}
-	
+
 	metaResp, err := metaReq.RequestWith(context.Background(), client)
 	if err != nil {
 		timestampedPrintf("❌ Failed to get topic metadata: %v\n", err)
 		return
 	}
-	
+
 	for _, topic := range metaResp.Topics {
 		if topic.Topic != nil && *topic.Topic == topicName {
-			timestampedPrintf("📋 Topic: %s, Partitions: %d, Error: %d\n", 
+			timestampedPrintf("📋 Topic: %s, Partitions: %d, Error: %d\n",
 				*topic.Topic, len(topic.Partitions), topic.ErrorCode)
-			
+
 			for _, partition := range topic.Partitions {
 				timestampedPrintf("  📊 Partition %d: Leader=%d, Replicas=%v, ISR=%v\n",
-					partition.Partition, partition.Leader, 
+					partition.Partition, partition.Leader,
 					partition.Replicas, partition.ISR)
 			}
 			return
 		}
 	}
-	
+
 	timestampedPrintf("❌ Topic %s not found in metadata response\n", topicName)
 }
 
 func cleanupOldLoadtestTopics(client *kgo.Client) error {
 	timestampedPrintf("🧹 Cleaning up old loadtest topics...\n")
-	
+
 	// Get list of topics
 	metaReq := kmsg.NewMetadataRequest()
 	metaResp, err := metaReq.RequestWith(context.Background(), client)
 	if err != nil {
 		return err
 	}
-	
+
 	// Find loadtest topics to delete
 	var topicsToDelete []string
 	for _, topic := range metaResp.Topics {
@@ -450,14 +450,14 @@ func cleanupOldLoadtestTopics(client *kgo.Client) error {
 			topicsToDelete = append(topicsToDelete, *topic.Topic)
 		}
 	}
-	
+
 	if len(topicsToDelete) == 0 {
 		timestampedPrintf("✅ No old loadtest topics to clean up\n")
 		return nil
 	}
-	
+
 	timestampedPrintf("🗑️  Found %d old loadtest topics to delete\n", len(topicsToDelete))
-	
+
 	// Delete topics in batches to avoid overwhelming the cluster
 	batchSize := 10
 	for i := 0; i < len(topicsToDelete); i += batchSize {
@@ -465,13 +465,13 @@ func cleanupOldLoadtestTopics(client *kgo.Client) error {
 		if end > len(topicsToDelete) {
 			end = len(topicsToDelete)
 		}
-		
+
 		deleteReq := kmsg.NewDeleteTopicsRequest()
 		for _, topicName := range topicsToDelete[i:end] {
 			deleteReq.TopicNames = append(deleteReq.TopicNames, topicName)
 			timestampedPrintf("  🗑️  Deleting: %s\n", topicName)
 		}
-		
+
 		_, err := deleteReq.RequestWith(context.Background(), client)
 		if err != nil {
 			timestampedPrintf("⚠️  Warning: Failed to delete some topics: %v\n", err)
@@ -479,29 +479,29 @@ func cleanupOldLoadtestTopics(client *kgo.Client) error {
 			timestampedPrintf("✅ Deleted batch of %d topics\n", end-i)
 		}
 	}
-	
+
 	return nil
 }
 
 func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencyStats, topicName string, startSignal <-chan struct{}, goroutineID int, isWarmup bool) {
 	// Wait for consumers to be ready
 	<-startSignal
-	
+
 	// Calculate producer ID range for this goroutine
 	startProducerID := goroutineID * producersPerGoroutine
 	endProducerID := startProducerID + producersPerGoroutine
-	
+
 	if isWarmup {
 		timestampedPrintf("🔥 Warm-up Producer Goroutine %d started (producers %d-%d)\n", goroutineID, startProducerID, endProducerID-1)
 	} else {
 		timestampedPrintf("🚀 Producer Goroutine %d started (producers %d-%d, 2 msg/s each)\n", goroutineID, startProducerID, endProducerID-1)
 	}
-	
+
 	// Track message count per producer (only for this goroutine's producers)
 	messageCounts := make([]int, producersPerGoroutine)
 	timer := time.NewTimer(messageInterval)
 	defer timer.Stop()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -530,16 +530,12 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 				// ✅ Capture timestamp immediately before each producer send for accurate latency measurement
 				sendTime := time.Now()
 				message := createMessage(sendTime)
-				
-				// Generate partition key with producer ID and UUID for uniqueness
-				partitionKey := fmt.Sprintf("producer-%d-%s", actualProducerID, uuid.New().String()[:8])
-				
+
 				record := &kgo.Record{
 					Topic: topicName,
-					Key:   []byte(partitionKey),
 					Value: message,
 				}
-				
+
 				// Capture actualProducerID for the callback
 				currentProducerID := actualProducerID
 				client.Produce(ctx, record, func(record *kgo.Record, err error) {
@@ -549,10 +545,10 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 					// Return buffer to pool after message is sent
 					releaseMessageBuffer(record.Value)
 				})
-				
+
 				messageCounts[i]++
 			}
-			
+
 			// Reset timer for next batch of messages
 			timer.Reset(messageInterval)
 		}
@@ -561,19 +557,19 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 
 func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logger *LatencyLogger, consumerID int, readySignal chan<- struct{}, isWarmup bool) {
 	if isWarmup {
-		timestampedPrintf("🔥 Warm-up Consumer %d started (dedicated to partition %d)\n", consumerID, consumerID)
+		timestampedPrintf("🔥 Warm-up Consumer %d started (1:1 consumer-to-partition ratio)\n", consumerID)
 	} else {
-		timestampedPrintf("🚀 Consumer %d started (dedicated to partition %d)\n", consumerID, consumerID)
+		timestampedPrintf("🚀 Consumer %d started (1:1 consumer-to-partition ratio)\n", consumerID)
 	}
-	
+
 	// Signal that this consumer is ready
 	readySignal <- struct{}{}
-	
+
 	receivedCount := 0
-	
+
 	// Channel for communicating event counts to logging goroutine
 	countChan := make(chan int, 100)
-	
+
 	// Start logging goroutine that logs every 10k events
 	go func() {
 		lastLoggedCount := 0
@@ -589,14 +585,14 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 			}
 		}
 	}()
-	
+
 	for {
 		select {
 		case <-ctx.Done():
 			if isWarmup {
-				timestampedPrintf("🔥 Warm-up Consumer %d (partition %d) finished. Received %d messages\n", consumerID, consumerID, receivedCount)
+				timestampedPrintf("🔥 Warm-up Consumer %d finished. Received %d messages\n", consumerID, receivedCount)
 			} else {
-				timestampedPrintf("📥 Consumer %d (partition %d) finished. Received %d messages\n", consumerID, consumerID, receivedCount)
+				timestampedPrintf("📥 Consumer %d finished. Received %d messages\n", consumerID, receivedCount)
 			}
 			return
 		default:
@@ -609,18 +605,18 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 				}
 				continue
 			}
-			
+
 			fetches.EachPartition(func(p kgo.FetchTopicPartition) {
 				for _, record := range p.Records {
 					// ✅ Capture receive time immediately for each individual record
 					receiveTime := time.Now()
-					
+
 					sendTime := extractTimestampFromMessage(record.Value)
 					if !sendTime.IsZero() && !isWarmup {
 						// Only collect stats during main test, not warm-up
 						latency := receiveTime.Sub(sendTime)
 						stats.Add(latency)
-						
+
 						// Log to JSONL file
 						entry := LatencyLogEntry{
 							Timestamp:   receiveTime,
@@ -631,13 +627,13 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 							Partition:   record.Partition,
 							Offset:      record.Offset,
 						}
-						
+
 						if err := logger.LogLatency(entry); err != nil {
 							timestampedLogf("❌ Failed to log latency for consumer %d: %v", consumerID, err)
 						}
 					}
 					receivedCount++
-					
+
 					// Send count update to logging goroutine every 1000 events to avoid channel flooding
 					if receivedCount%1000 == 0 {
 						select {
@@ -656,148 +652,147 @@ func main() {
 	// Generate unique topic name
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
-	
+
 	timestampedPrintf("🎯 Redpanda Load Test - 16 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
 	timestampedPrintf("🔗 Brokers: %v\n", getBrokers())
 	timestampedPrintf("📝 Topic: %s\n", topicName)
 	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers (1:1 consumer-to-partition)\n", numPartitions, numProducers, numConsumers)
-	timestampedPrintf("🔑 Partition Keys: producer-{ID}-{UUID} format for message distribution\n")
 	timestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	timestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
 	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip)\n")
-	timestampedPrintf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines + numConsumers, numProducerGoroutines, numConsumers)
-	
+	timestampedPrintf("💻 CPU: %d cores, GOMAXPROCS=%d, %d goroutines total (%d producers + %d consumers)\n\n", runtime.NumCPU(), runtime.GOMAXPROCS(0), numProducerGoroutines+numConsumers, numProducerGoroutines, numConsumers)
+
 	stats := NewLatencyStats()
-	
+
 	// Create latency logger with 1-hour rotation and compression
 	latencyLogger, err := NewLatencyLogger("./logs")
 	if err != nil {
 		log.Fatalf("❌ Failed to create latency logger: %v", err)
 	}
 	defer latencyLogger.Close()
-	
+
 	// Producer client optimized for ULTRA-LOW latency (<50ms P99.99 goal)
 	producerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
-		kgo.RequiredAcks(kgo.LeaderAck()),      // ack=1 (lower latency than ack=all)
-		kgo.DisableIdempotentWrite(),           // Allow ack=1, reduce overhead
-		
-		// Optimized for write-cached topics: balance latency vs throughput
-		kgo.ProducerLinger(1 * time.Millisecond),    // 1ms linger for batching efficiency
-		kgo.ProducerBatchMaxBytes(50 * 1024),        // 50KB batches for better throughput
-		kgo.ProducerBatchCompression(kgo.SnappyCompression()), // Fast compression
-		
+		kgo.RequiredAcks(kgo.LeaderAck()), // ack=1 (lower latency than ack=all)
+		kgo.DisableIdempotentWrite(),      // Allow ack=1, reduce overhead
+
+		// Ultra-low latency optimizations
+		kgo.ProducerLinger(0),                             // Zero linger = immediate send
+		kgo.ProducerBatchMaxBytes(4096),                   // Very small batches (4KB)
+		kgo.ProducerBatchCompression(kgo.NoCompression()), // No compression for speed
+
 		// Aggressive timeouts for speed
 		kgo.ConnIdleTimeout(30 * time.Second),
 		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
 		kgo.RetryBackoffFn(func(tries int) time.Duration {
-			return time.Millisecond * 10        // Fast retries
+			return time.Millisecond * 10 // Fast retries
 		}),
 	}
-	
+
 	producerClient, err := kgo.NewClient(producerOpts...)
 	if err != nil {
 		log.Fatalf("❌ Failed to create producer: %v", err)
 	}
 	defer producerClient.Close()
-	
+
 	// Cleanup old loadtest topics before starting
 	err = cleanupOldLoadtestTopics(producerClient)
 	if err != nil {
 		timestampedPrintf("⚠️  Warning: Topic cleanup failed: %v\n", err)
 	}
-	
+
 	// Brief pause to let deletions process
 	if err == nil {
 		timestampedPrintf("⏳ Waiting for topic deletions to complete...\n")
 		time.Sleep(2 * time.Second)
 	}
-	
+
 	// Consumer client optimized for ULTRA-LOW latency & improved disconnect detection
 	consumerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(fmt.Sprintf("loadtest-group-%s", topicUUID)),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
-		
-		// Ultra-low latency fetch optimizations  
-		kgo.FetchMinBytes(1),                   // Don't wait for minimum bytes
+
+		// Ultra-low latency fetch optimizations
+		kgo.FetchMinBytes(1),                    // Don't wait for minimum bytes
 		kgo.FetchMaxWait(10 * time.Millisecond), // Minimum allowed max wait (10ms)
-		kgo.FetchMaxBytes(1024 * 1024),         // Reasonable max fetch (1MB)
-		
+		kgo.FetchMaxBytes(1024 * 1024),          // Reasonable max fetch (1MB)
+
 		// OPTIMAL disconnect detection - 10s session timeout (fastest stable setting)
-		kgo.SessionTimeout(10 * time.Second),    // 10s - optimal stable threshold (10x faster than 45s default)
-		kgo.HeartbeatInterval(3 * time.Second),  // 3s (~1/3 of 10s)
+		kgo.SessionTimeout(10 * time.Second),           // 10s - optimal stable threshold (10x faster than 45s default)
+		kgo.HeartbeatInterval(3 * time.Second),         // 3s (~1/3 of 10s)
 		kgo.AutoCommitInterval(100 * time.Millisecond), // Minimum allowed commit interval
-		
+
 		// Faster connection management for improved reconnection
-		kgo.ConnIdleTimeout(20 * time.Second),   // Reduced from 30s
+		kgo.ConnIdleTimeout(20 * time.Second),       // Reduced from 30s
 		kgo.RequestTimeoutOverhead(1 * time.Second), // Minimum allowed timeout
-		
+
 		// Faster retry backoff for quicker recovery
 		kgo.RetryBackoffFn(func(tries int) time.Duration {
 			return time.Millisecond * 100 // Reasonable backoff
 		}),
 		kgo.RetryTimeout(10 * time.Second),
-		
+
 		// Improved rebalancing for quicker group recovery
 		kgo.RebalanceTimeout(15 * time.Second),
-		
+
 		// More frequent metadata refresh
 		kgo.MetadataMaxAge(30 * time.Second),
 	}
-	
+
 	consumerClient, err := kgo.NewClient(consumerOpts...)
 	if err != nil {
 		log.Fatalf("❌ Failed to create consumer: %v", err)
 	}
 	defer consumerClient.Close()
-	
+
 	// Create topic with proper error handling
 	timestampedPrintf("🔧 Creating topic...\n")
 	err = createTopic(producerClient, topicName)
 	if err != nil {
 		log.Fatalf("❌ Failed to create topic: %v", err)
 	}
-	
+
 	// Verify all partitions are available with retry logic
 	timestampedPrintf("⏳ Verifying topic and partitions are ready...\n")
 	err = verifyTopicPartitions(producerClient, topicName, int32(numPartitions))
 	if err != nil {
 		log.Fatalf("❌ Topic verification failed: %v", err)
 	}
-	
+
 	// Force metadata refresh on both clients to ensure they have current partition info
 	timestampedPrintf("🔄 Ensuring clients have latest metadata...\n")
 	err = refreshClientMetadata(producerClient, topicName)
 	if err != nil {
 		log.Fatalf("❌ Producer metadata refresh failed: %v", err)
 	}
-	
+
 	err = refreshClientMetadata(consumerClient, topicName)
 	if err != nil {
 		log.Fatalf("❌ Consumer metadata refresh failed: %v", err)
 	}
-	
+
 	// Show partition details for debugging
 	debugTopicInfo(producerClient, topicName)
-	
+
 	timestampedPrintf("🔍 Debug: About to start warm-up phase with duration: %v\n", warmupDuration)
-	
+
 	// ========================================
 	// WARM-UP PHASE
 	// ========================================
 	timestampedPrintf("🔥 Starting %v warm-up phase...\n\n", warmupDuration)
-	
+
 	warmupCtx, warmupCancel := context.WithTimeout(context.Background(), warmupDuration)
 	defer warmupCancel()
-	
+
 	var warmupWg sync.WaitGroup
-	
+
 	// Channels for warm-up coordination
 	warmupConsumerReady := make(chan struct{}, numConsumers)
 	warmupProducerStart := make(chan struct{})
-	
+
 	// Start warm-up consumers
 	for i := 0; i < numConsumers; i++ {
 		warmupWg.Add(1)
@@ -806,16 +801,16 @@ func main() {
 			consumer(warmupCtx, consumerClient, stats, latencyLogger, consumerID, warmupConsumerReady, true) // true for warmup
 		}(i)
 	}
-	
+
 	// Wait for all warm-up consumers to be ready
 	go func() {
 		for i := 0; i < numConsumers; i++ {
 			<-warmupConsumerReady
 		}
-		timestampedPrintf("🔥 All %d consumers ready for warm-up (1 per partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
+		timestampedPrintf("🔥 All %d consumers ready for warm-up (1:1 consumer-to-partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(warmupProducerStart)
 	}()
-	
+
 	// Start multiple warm-up producer goroutines
 	for goroutineID := 0; goroutineID < numProducerGoroutines; goroutineID++ {
 		warmupWg.Add(1)
@@ -824,34 +819,34 @@ func main() {
 			producerGoroutine(warmupCtx, producerClient, stats, topicName, warmupProducerStart, gID, true) // true for warmup
 		}(goroutineID)
 	}
-	
+
 	warmupWg.Wait()
 	timestampedPrintf("\n🔥 Warm-up completed!\n\n")
-	
+
 	// Clean up warm-up stats and create fresh stats for actual test
 	stats.Close()
 	stats = NewLatencyStats()
-	
+
 	// ========================================
 	// MAIN LOAD TEST
 	// ========================================
 	timestampedPrintf("⏱️  Starting %v main load test...\n\n", testDuration)
-	
+
 	// Collect GC stats before test
 	var gcStatsBefore runtime.MemStats
 	runtime.ReadMemStats(&gcStatsBefore)
-	
+
 	startTime := time.Now()
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), testDuration)
 	defer cancel()
-	
+
 	var wg sync.WaitGroup
-	
+
 	// Channels for coordination
 	consumerReady := make(chan struct{}, numConsumers)
 	producerStart := make(chan struct{})
-	
+
 	// Start consumers first
 	for i := 0; i < numConsumers; i++ {
 		wg.Add(1)
@@ -860,16 +855,16 @@ func main() {
 			consumer(ctx, consumerClient, stats, latencyLogger, consumerID, consumerReady, false) // false for main test
 		}(i)
 	}
-	
+
 	// Wait for all consumers to be ready
 	go func() {
 		for i := 0; i < numConsumers; i++ {
 			<-consumerReady
 		}
-		timestampedPrintf("✅ All %d consumers ready (1 per partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
+		timestampedPrintf("✅ All %d consumers ready (1:1 consumer-to-partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(producerStart)
 	}()
-	
+
 	// Start multiple producer goroutines
 	for goroutineID := 0; goroutineID < numProducerGoroutines; goroutineID++ {
 		wg.Add(1)
@@ -878,22 +873,22 @@ func main() {
 			producerGoroutine(ctx, producerClient, stats, topicName, producerStart, gID, false) // false for main test
 		}(goroutineID)
 	}
-	
+
 	wg.Wait()
-	
+
 	actualDuration := time.Since(startTime)
 	timestampedPrintf("\n⏱️  Test completed in %v\n\n", actualDuration)
-	
+
 	// Collect GC stats after test
 	var gcStatsAfter runtime.MemStats
 	runtime.ReadMemStats(&gcStatsAfter)
-	
+
 	// Display results
 	results := stats.Calculate()
-	
+
 	timestampedPrintf("📊 LATENCY STATISTICS\n")
 	timestampedPrintf("═════════════════════\n")
-	
+
 	if count, ok := results["count"]; ok && count > 0 {
 		timestampedPrintf("Messages:  %d\n", int(count))
 		timestampedPrintf("Min:       %v\n", results["min"])
@@ -912,16 +907,16 @@ func main() {
 			timestampedPrintf("P99.999:   %v\n", p99999)
 		}
 		timestampedPrintf("Max:       %v\n", results["max"])
-		
+
 		throughput := float64(int(count)) / actualDuration.Seconds()
-		expectedThroughput := float64(numProducers) * 2.0  // 2 msg/s per producer = 2,048 msg/s total
-		dataThroughputKB := (throughput * 8) / 1024 // 8 bytes per message
+		expectedThroughput := float64(numProducers) * 2.0 // 2 msg/s per producer = 2,048 msg/s total
+		dataThroughputKB := (throughput * 8) / 1024       // 8 bytes per message
 		timestampedPrintf("\n📈 Throughput: %.2f messages/second\n", throughput)
 		timestampedPrintf("📊 Data throughput: %.2f KB/second\n", dataThroughputKB)
 		timestampedPrintf("📊 Per-producer: %.2f msg/sec (target: 2.0 msg/sec)\n", throughput/float64(numProducers))
 		timestampedPrintf("📊 Per-partition: %.2f msg/sec\n", throughput/float64(numPartitions))
 		timestampedPrintf("🎯 Expected total: %.2f msg/sec\n", expectedThroughput)
-		
+
 		// Display GC statistics
 		gcCollections := gcStatsAfter.NumGC - gcStatsBefore.NumGC
 		gcPauseTotal := time.Duration(gcStatsAfter.PauseTotalNs - gcStatsBefore.PauseTotalNs)
@@ -938,9 +933,9 @@ func main() {
 	} else {
 		timestampedPrintf("❌ No messages received - check cluster connectivity\n")
 	}
-	
+
 	timestampedPrintf("\n✅ Load test completed!\n")
-	
+
 	// Clean up the stats goroutine
 	stats.Close()
 }
