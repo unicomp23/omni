@@ -28,7 +28,7 @@ const (
 	numProducerGoroutines = 16  // 16 producer goroutines
 	producersPerGoroutine = 64  // 64 producers per goroutine
 	numProducers = numProducerGoroutines * producersPerGoroutine  // 1,024 total producers
-	numConsumers = 8
+	numConsumers = numPartitions  // 1 consumer per partition
 )
 
 func getBrokers() []string {
@@ -427,9 +427,9 @@ func producerGoroutine(ctx context.Context, client *kgo.Client, stats *LatencySt
 
 func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logger *LatencyLogger, consumerID int, readySignal chan<- struct{}, isWarmup bool) {
 	if isWarmup {
-		timestampedPrintf("🔥 Warm-up Consumer %d started\n", consumerID)
+		timestampedPrintf("🔥 Warm-up Consumer %d started (dedicated to partition %d)\n", consumerID, consumerID)
 	} else {
-		timestampedPrintf("🚀 Consumer %d started\n", consumerID)
+		timestampedPrintf("🚀 Consumer %d started (dedicated to partition %d)\n", consumerID, consumerID)
 	}
 	
 	// Signal that this consumer is ready
@@ -460,9 +460,9 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 		select {
 		case <-ctx.Done():
 			if isWarmup {
-				timestampedPrintf("🔥 Warm-up Consumer %d finished. Received %d messages\n", consumerID, receivedCount)
+				timestampedPrintf("🔥 Warm-up Consumer %d (partition %d) finished. Received %d messages\n", consumerID, consumerID, receivedCount)
 			} else {
-				timestampedPrintf("📥 Consumer %d finished. Received %d messages\n", consumerID, receivedCount)
+				timestampedPrintf("📥 Consumer %d (partition %d) finished. Received %d messages\n", consumerID, consumerID, receivedCount)
 			}
 			return
 		default:
@@ -526,7 +526,7 @@ func main() {
 	timestampedPrintf("🎯 Redpanda Load Test - 16 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
 	timestampedPrintf("🔗 Brokers: %v\n", getBrokers())
 	timestampedPrintf("📝 Topic: %s\n", topicName)
-	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers\n", numPartitions, numProducers, numConsumers)
+	timestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers (1:1 consumer-to-partition)\n", numPartitions, numProducers, numConsumers)
 	timestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	timestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
 	timestampedPrintf("📋 Logging: JSONL latency logs in ./logs/ (1 hr rotation + gzip)\n")
@@ -659,7 +659,7 @@ func main() {
 		for i := 0; i < numConsumers; i++ {
 			<-warmupConsumerReady
 		}
-		timestampedPrintf("🔥 All %d consumers ready for warm-up, starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
+		timestampedPrintf("🔥 All %d consumers ready for warm-up (1 per partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(warmupProducerStart)
 	}()
 	
@@ -713,7 +713,7 @@ func main() {
 		for i := 0; i < numConsumers; i++ {
 			<-consumerReady
 		}
-		timestampedPrintf("✅ All %d consumers ready, starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
+		timestampedPrintf("✅ All %d consumers ready (1 per partition), starting %d producer goroutines...\n\n", numConsumers, numProducerGoroutines)
 		close(producerStart)
 	}()
 	
