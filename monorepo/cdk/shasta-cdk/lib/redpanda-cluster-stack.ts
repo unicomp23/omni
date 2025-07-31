@@ -11,6 +11,7 @@ export const LOAD_TEST_INSTANCE_IP = 'LoadTestInstanceIP';
 
 /**
  * RedPanda Cluster Stack with m7g instances for high performance
+ * Single AZ deployment with 3 nodes for maximum performance
  * 
  * Performance characteristics with m7g.xlarge:
  * - CPU: 4 vCPUs with ARM64 Graviton3 processors for optimal price/performance
@@ -18,6 +19,7 @@ export const LOAD_TEST_INSTANCE_IP = 'LoadTestInstanceIP';
  * - Network: Up to 15 Gbps network performance for high-throughput messaging
  * - Storage: EBS GP3 volumes with consistent performance and durability
  * - Architecture: Latest generation Graviton3 with enhanced performance per watt
+ * - Deployment: Single AZ for ultra-low latency between nodes
  */
 export class RedPandaClusterStack extends Stack {
     static readonly keyName = "john.davis";
@@ -30,7 +32,7 @@ export class RedPandaClusterStack extends Stack {
         const vpc = new ec2.Vpc(this, 'RedPandaVpc', {
             vpcName: 'RedPandaVpc',
             ipAddresses: ec2.IpAddresses.cidr('10.1.0.0/16'),
-            maxAzs: 3,
+            maxAzs: 1, // Single AZ deployment for all 3 nodes
             subnetConfiguration: [
                 {
                     subnetType: ec2.SubnetType.PUBLIC,
@@ -200,18 +202,18 @@ export class RedPandaClusterStack extends Stack {
             cpuType: ec2.AmazonLinuxCpuType.ARM_64
         });
 
-        // Get public subnets for RedPanda cluster (one per AZ) - need public IPs for direct access
+        // Get public subnets for RedPanda cluster (single AZ deployment) - need public IPs for direct access
         const publicSubnets = vpc.selectSubnets({subnetType: ec2.SubnetType.PUBLIC}).subnets;
         
-        // Create RedPanda instances (one per AZ)
+        // Create 3 RedPanda instances in the same AZ
         const redpandaIPs: string[] = [];
         const redpandaPublicIPs: string[] = [];
-        const azCount = Math.min(3, publicSubnets.length);
+        const nodeCount = 3; // 3 nodes in single AZ
         
-        for (let i = 0; i < azCount; i++) {
+        for (let i = 0; i < nodeCount; i++) {
             const redpandaInstance = new ec2.Instance(this, `RedPandaNode${i}`, {
                 vpc,
-                vpcSubnets: { subnets: [publicSubnets[i]] },
+                vpcSubnets: { subnets: [publicSubnets[0]] }, // All nodes in same AZ subnet
                 instanceType: redpandaInstanceType,
                 machineImage: redpandaMachineImage,
                 securityGroup: redpandaSecurityGroup,
@@ -241,7 +243,7 @@ export class RedPandaClusterStack extends Stack {
             redpandaPublicIPs.push(redpandaInstance.instancePublicIp);
         }
 
-        // Create load testing instance in public subnet
+        // Create load testing instance in same AZ as RedPanda cluster
         // Using m7gd.8xlarge for high performance load testing with local NVMe storage
         const loadTestInstance = new ec2.Instance(this, 'LoadTestInstance', {
             vpc,
