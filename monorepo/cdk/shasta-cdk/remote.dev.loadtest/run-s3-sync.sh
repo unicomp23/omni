@@ -114,7 +114,7 @@ build_binary() {
     go mod tidy
     
     # Build the binary
-    if go build -o s3-sync s3-sync.go; then
+    if go build -o s3-sync ./cmd/s3-sync; then
         log_success "Binary built successfully: ./s3-sync"
     else
         log_error "Failed to build binary"
