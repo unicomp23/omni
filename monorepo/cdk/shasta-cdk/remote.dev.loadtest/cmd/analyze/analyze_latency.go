@@ -11,18 +11,11 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"loadtest/pkg/types"
 )
 
-// LatencyLogEntry matches the structure from the main load test
-type LatencyLogEntry struct {
-	Timestamp   time.Time `json:"timestamp"`
-	SendTime    time.Time `json:"send_time"`
-	ReceiveTime time.Time `json:"receive_time"`
-	LatencyMs   float64   `json:"latency_ms"`
-	ConsumerID  int       `json:"consumer_id"`
-	Partition   int32     `json:"partition"`
-	Offset      int64     `json:"offset"`
-}
+
 
 // LatencyAnalysis holds computed statistics
 type LatencyAnalysis struct {
@@ -56,15 +49,13 @@ func main() {
 	files, err := findLogFiles(logDir)
 	if err != nil {
 		fmt.Printf("❌ Failed to find log files: %v\n", err)
-		fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
-		fmt.Printf("💡 Or specify a different directory: go run analyze_latency.go /path/to/logs\n")
+		printUsageHelp()
 		os.Exit(1)
 	}
 
 	if len(files) == 0 {
 		fmt.Printf("❌ No log files found in %s\n", logDir)
-		fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
-		fmt.Printf("💡 Or specify a different directory: go run analyze_latency.go /path/to/logs\n")
+		printUsageHelp()
 		os.Exit(1)
 	}
 
@@ -148,8 +139,8 @@ func findLogFiles(logDir string) ([]string, error) {
 
 
 
-func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
-	var entries []LatencyLogEntry
+func parseLogFile(filePath string) ([]types.LatencyLogEntry, error) {
+	var entries []types.LatencyLogEntry
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -180,7 +171,7 @@ func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
 			continue
 		}
 
-		var entry LatencyLogEntry
+		var entry types.LatencyLogEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			// Log parsing errors but continue
 			fmt.Printf("   ⚠️  Line %d parse error: %v\n", lineNum, err)
@@ -201,7 +192,7 @@ func parseLogFile(filePath string) ([]LatencyLogEntry, error) {
 	return entries, nil
 }
 
-func analyzeLatencies(entries []LatencyLogEntry) LatencyAnalysis {
+func analyzeLatencies(entries []types.LatencyLogEntry) LatencyAnalysis {
 	if len(entries) == 0 {
 		return LatencyAnalysis{}
 	}
@@ -375,4 +366,10 @@ func displayResults(analysis LatencyAnalysis) {
 	if analysis.P99_99 > outlierThreshold {
 		fmt.Printf("• ⚠️  OUTLIER DETECTION: P99.99 is %.1fx higher than P99\n", analysis.P99_99/analysis.P99)
 	}
+}
+
+// printUsageHelp prints consistent usage help messages
+func printUsageHelp() {
+	fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
+	fmt.Printf("💡 Or specify a different directory: go run cmd/analyze/analyze_latency.go /path/to/logs\n")
 } 

@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	"loadtest/pkg/utils"
 )
 
 const (
@@ -76,7 +78,7 @@ func (s *S3Syncer) uploadFile(filePath, key string) error {
 		return fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	timestampedPrintf("📤 Uploading %s to s3://%s/%s (size: %.2f MB)", 
+	utils.TimestampedPrintfLn("📤 Uploading %s to s3://%s/%s (size: %.2f MB)", 
 		filepath.Base(filePath), s.bucket, key, float64(fileInfo.Size())/(1024*1024))
 
 	startTime := time.Now()
@@ -104,7 +106,7 @@ func (s *S3Syncer) uploadFile(filePath, key string) error {
 	}
 
 	uploadSpeedMBps := (float64(fileInfo.Size()) / (1024 * 1024)) / uploadDuration.Seconds()
-	timestampedPrintf("✅ Upload completed in %v (%.2f MB/s): %s", 
+	utils.TimestampedPrintfLn("✅ Upload completed in %v (%.2f MB/s): %s", 
 		uploadDuration, uploadSpeedMBps, result.Location)
 
 	return nil
@@ -127,14 +129,14 @@ func (s *S3Syncer) syncFile(filePath string) error {
 	}
 
 	if exists {
-		timestampedPrintf("⏭️  Skipping %s - already exists in S3", filepath.Base(filePath))
+		utils.TimestampedPrintfLn("⏭️  Skipping %s - already exists in S3", filepath.Base(filePath))
 		
 		// If cleanup is enabled and file exists in S3, remove local file
 		if s.cleanupLocal {
 			if err := os.Remove(filePath); err != nil {
-				timestampedPrintf("⚠️  Warning: failed to remove local file %s: %v", filePath, err)
+				utils.TimestampedPrintfLn("⚠️  Warning: failed to remove local file %s: %v", filePath, err)
 			} else {
-				timestampedPrintf("🗑️  Removed local file: %s", filepath.Base(filePath))
+				utils.TimestampedPrintfLn("🗑️  Removed local file: %s", filepath.Base(filePath))
 			}
 		}
 		return nil
@@ -148,9 +150,9 @@ func (s *S3Syncer) syncFile(filePath string) error {
 	// Remove local file if cleanup is enabled
 	if s.cleanupLocal {
 		if err := os.Remove(filePath); err != nil {
-			timestampedPrintf("⚠️  Warning: failed to remove local file %s after upload: %v", filePath, err)
+			utils.TimestampedPrintfLn("⚠️  Warning: failed to remove local file %s after upload: %v", filePath, err)
 		} else {
-			timestampedPrintf("🗑️  Removed local file after successful upload: %s", filepath.Base(filePath))
+			utils.TimestampedPrintfLn("🗑️  Removed local file after successful upload: %s", filepath.Base(filePath))
 		}
 	}
 
@@ -158,11 +160,11 @@ func (s *S3Syncer) syncFile(filePath string) error {
 }
 
 func (s *S3Syncer) scanAndSync() error {
-	timestampedPrintf("🔍 Scanning %s for .gz files...", s.logsDir)
+	utils.TimestampedPrintfLn("🔍 Scanning %s for .gz files...", s.logsDir)
 
 	// Check if logs directory exists
 	if _, err := os.Stat(s.logsDir); os.IsNotExist(err) {
-		timestampedPrintf("📁 Logs directory %s does not exist yet", s.logsDir)
+		utils.TimestampedPrintfLn("📁 Logs directory %s does not exist yet", s.logsDir)
 		return nil
 	}
 
@@ -186,61 +188,61 @@ func (s *S3Syncer) scanAndSync() error {
 	}
 
 	if len(gzFiles) == 0 {
-		timestampedPrintf("📂 No .gz files found in %s", s.logsDir)
+		utils.TimestampedPrintfLn("📂 No .gz files found in %s", s.logsDir)
 		return nil
 	}
 
-	timestampedPrintf("📋 Found %d .gz files to process", len(gzFiles))
+	utils.TimestampedPrintfLn("📋 Found %d .gz files to process", len(gzFiles))
 
 	// Process each file
 	successCount := 0
 	errorCount := 0
 	
 	for _, filePath := range gzFiles {
-		timestampedPrintf("🔄 Processing: %s", filepath.Base(filePath))
+		utils.TimestampedPrintfLn("🔄 Processing: %s", filepath.Base(filePath))
 		
 		if err := s.syncFile(filePath); err != nil {
-			timestampedPrintf("❌ Failed to sync %s: %v", filepath.Base(filePath), err)
+			utils.TimestampedPrintfLn("❌ Failed to sync %s: %v", filepath.Base(filePath), err)
 			errorCount++
 		} else {
 			successCount++
 		}
 	}
 
-	timestampedPrintf("📊 Sync summary: %d successful, %d errors", successCount, errorCount)
+	utils.TimestampedPrintfLn("📊 Sync summary: %d successful, %d errors", successCount, errorCount)
 	return nil
 }
 
 func (s *S3Syncer) runContinuous() {
-	timestampedPrintf("🚀 Starting continuous S3 sync service")
-	timestampedPrintf("📍 Bucket: s3://%s", s.bucket)
-	timestampedPrintf("📁 Local directory: %s", s.logsDir)
-	timestampedPrintf("🕐 Sync interval: %v", syncInterval)
-	timestampedPrintf("🗑️  Cleanup local files: %t", s.cleanupLocal)
-	timestampedPrintf("═══════════════════════════════════════\n")
+	utils.TimestampedPrintfLn("🚀 Starting continuous S3 sync service")
+	utils.TimestampedPrintfLn("📍 Bucket: s3://%s", s.bucket)
+	utils.TimestampedPrintfLn("📁 Local directory: %s", s.logsDir)
+	utils.TimestampedPrintfLn("🕐 Sync interval: %v", syncInterval)
+	utils.TimestampedPrintfLn("🗑️  Cleanup local files: %t", s.cleanupLocal)
+	utils.TimestampedPrintfLn("═══════════════════════════════════════\n")
 
 	ticker := time.NewTicker(syncInterval)
 	defer ticker.Stop()
 
 	// Initial sync
 	if err := s.scanAndSync(); err != nil {
-		timestampedPrintf("❌ Initial sync failed: %v", err)
+		utils.TimestampedPrintfLn("❌ Initial sync failed: %v", err)
 	}
 
 	// Continuous sync
 	for range ticker.C {
 		if err := s.scanAndSync(); err != nil {
-			timestampedPrintf("❌ Sync failed: %v", err)
+			utils.TimestampedPrintfLn("❌ Sync failed: %v", err)
 		}
 	}
 }
 
 func (s *S3Syncer) runOnce() error {
-	timestampedPrintf("🔄 Running one-time S3 sync")
-	timestampedPrintf("📍 Bucket: s3://%s", s.bucket)
-	timestampedPrintf("📁 Local directory: %s", s.logsDir)
-	timestampedPrintf("🗑️  Cleanup local files: %t", s.cleanupLocal)
-	timestampedPrintf("═══════════════════════════════════════\n")
+	utils.TimestampedPrintfLn("🔄 Running one-time S3 sync")
+	utils.TimestampedPrintfLn("📍 Bucket: s3://%s", s.bucket)
+	utils.TimestampedPrintfLn("📁 Local directory: %s", s.logsDir)
+	utils.TimestampedPrintfLn("🗑️  Cleanup local files: %t", s.cleanupLocal)
+	utils.TimestampedPrintfLn("═══════════════════════════════════════\n")
 
 	return s.scanAndSync()
 }
@@ -260,10 +262,7 @@ func getEnvOrDefault(envVar, defaultValue string) string {
 	return defaultValue
 }
 
-func timestampedPrintf(format string, args ...interface{}) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	fmt.Printf("[%s] %s\n", timestamp, fmt.Sprintf(format, args...))
-}
+
 
 func printUsage() {
 	fmt.Printf(`S3 Sync for RedPanda Load Test Logs
@@ -352,7 +351,7 @@ func main() {
 		if err := syncer.runOnce(); err != nil {
 			log.Fatalf("❌ Sync failed: %v", err)
 		}
-		timestampedPrintf("✅ One-time sync completed!")
+		utils.TimestampedPrintfLn("✅ One-time sync completed!")
 	} else {
 		syncer.runContinuous()
 	}

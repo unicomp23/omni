@@ -13,6 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+
+	"loadtest/pkg/utils"
 )
 
 const (
@@ -62,7 +64,7 @@ func NewS3Downloader(bucket, outputDir, region, prefix string) (*S3Downloader, e
 }
 
 func (d *S3Downloader) listObjects(maxResults int64) ([]S3Object, error) {
-	timestampedPrintf("🔍 Listing objects in s3://%s/%s", d.bucket, d.prefix)
+	utils.TimestampedPrintfLn("🔍 Listing objects in s3://%s/%s", d.bucket, d.prefix)
 
 	var objects []S3Object
 	
@@ -115,7 +117,7 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	
 	// Check if file already exists
 	if !overwrite && d.fileExists(localPath) {
-		timestampedPrintf("⏭️  Skipping %s - file already exists locally", filepath.Base(localPath))
+		utils.TimestampedPrintfLn("⏭️  Skipping %s - file already exists locally", filepath.Base(localPath))
 		return nil
 	}
 
@@ -131,7 +133,7 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	}
 	defer file.Close()
 
-	timestampedPrintf("⬇️  Downloading %s (%.2f MB)", 
+	utils.TimestampedPrintfLn("⬇️  Downloading %s (%.2f MB)", 
 		filepath.Base(localPath), float64(object.Size)/(1024*1024))
 
 	startTime := time.Now()
@@ -151,12 +153,12 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	}
 
 	downloadSpeedMBps := (float64(object.Size) / (1024 * 1024)) / downloadDuration.Seconds()
-	timestampedPrintf("✅ Download completed in %v (%.2f MB/s): %s", 
+	utils.TimestampedPrintfLn("✅ Download completed in %v (%.2f MB/s): %s", 
 		downloadDuration, downloadSpeedMBps, localPath)
 
 	// Preserve the original modification time
 	if err := os.Chtimes(localPath, object.LastModified, object.LastModified); err != nil {
-		timestampedPrintf("⚠️  Warning: failed to set file timestamps: %v", err)
+		utils.TimestampedPrintfLn("⚠️  Warning: failed to set file timestamps: %v", err)
 	}
 
 	return nil
@@ -170,7 +172,7 @@ func (d *S3Downloader) downloadAll(pattern string, maxFiles int, overwrite bool)
 	}
 
 	if len(objects) == 0 {
-		timestampedPrintf("📂 No objects found in s3://%s/%s", d.bucket, d.prefix)
+		utils.TimestampedPrintfLn("📂 No objects found in s3://%s/%s", d.bucket, d.prefix)
 		return nil
 	}
 
@@ -183,17 +185,17 @@ func (d *S3Downloader) downloadAll(pattern string, maxFiles int, overwrite bool)
 	}
 
 	if len(filteredObjects) == 0 {
-		timestampedPrintf("📂 No objects matching pattern '%s'", pattern)
+		utils.TimestampedPrintfLn("📂 No objects matching pattern '%s'", pattern)
 		return nil
 	}
 
 	// Limit number of files if specified
 	if maxFiles > 0 && len(filteredObjects) > maxFiles {
 		filteredObjects = filteredObjects[:maxFiles]
-		timestampedPrintf("📋 Limiting to %d most recent files", maxFiles)
+		utils.TimestampedPrintfLn("📋 Limiting to %d most recent files", maxFiles)
 	}
 
-	timestampedPrintf("📋 Found %d files to download", len(filteredObjects))
+	utils.TimestampedPrintfLn("📋 Found %d files to download", len(filteredObjects))
 
 	// Create output directory
 	if err := os.MkdirAll(d.outputDir, 0755); err != nil {
@@ -205,17 +207,17 @@ func (d *S3Downloader) downloadAll(pattern string, maxFiles int, overwrite bool)
 	errorCount := 0
 
 	for i, obj := range filteredObjects {
-		timestampedPrintf("🔄 Processing %d/%d: %s", i+1, len(filteredObjects), filepath.Base(obj.Key))
+		utils.TimestampedPrintfLn("🔄 Processing %d/%d: %s", i+1, len(filteredObjects), filepath.Base(obj.Key))
 		
 		if err := d.downloadFile(obj, overwrite); err != nil {
-			timestampedPrintf("❌ Failed to download %s: %v", filepath.Base(obj.Key), err)
+			utils.TimestampedPrintfLn("❌ Failed to download %s: %v", filepath.Base(obj.Key), err)
 			errorCount++
 		} else {
 			successCount++
 		}
 	}
 
-	timestampedPrintf("📊 Download summary: %d successful, %d errors", successCount, errorCount)
+	utils.TimestampedPrintfLn("📊 Download summary: %d successful, %d errors", successCount, errorCount)
 	return nil
 }
 
@@ -226,7 +228,7 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 	}
 
 	if len(objects) == 0 {
-		timestampedPrintf("📂 No objects found in s3://%s/%s", d.bucket, d.prefix)
+		utils.TimestampedPrintfLn("📂 No objects found in s3://%s/%s", d.bucket, d.prefix)
 		return nil
 	}
 
@@ -239,7 +241,7 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 	}
 
 	if len(filteredObjects) == 0 {
-		timestampedPrintf("📂 No objects matching pattern '%s'", pattern)
+		utils.TimestampedPrintfLn("📂 No objects matching pattern '%s'", pattern)
 		return nil
 	}
 
@@ -248,7 +250,7 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 		filteredObjects = filteredObjects[:maxFiles]
 	}
 
-	timestampedPrintf("📋 Found %d objects in s3://%s/%s", len(filteredObjects), d.bucket, d.prefix)
+	utils.TimestampedPrintfLn("📋 Found %d objects in s3://%s/%s", len(filteredObjects), d.bucket, d.prefix)
 	fmt.Printf("\n")
 
 	totalSize := int64(0)
@@ -276,10 +278,7 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 	return nil
 }
 
-func timestampedPrintf(format string, args ...interface{}) {
-	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	fmt.Printf("[%s] %s\n", timestamp, fmt.Sprintf(format, args...))
-}
+
 
 func getEnvOrDefault(envVar, defaultValue string) string {
 	if value := os.Getenv(envVar); value != "" {
@@ -404,12 +403,12 @@ func main() {
 
 	// Run operation
 	if listOnly {
-		timestampedPrintf("📋 Listing files in s3://%s/%s", bucket, prefix)
+		utils.TimestampedPrintfLn("📋 Listing files in s3://%s/%s", bucket, prefix)
 		if pattern != "" {
-			timestampedPrintf("🔍 Filter pattern: %s", pattern)
+			utils.TimestampedPrintfLn("🔍 Filter pattern: %s", pattern)
 		}
 		if maxFiles > 0 {
-			timestampedPrintf("📏 Max files: %d", maxFiles)
+			utils.TimestampedPrintfLn("📏 Max files: %d", maxFiles)
 		}
 		fmt.Printf("\n")
 		
@@ -417,20 +416,20 @@ func main() {
 			log.Fatalf("❌ List failed: %v", err)
 		}
 	} else {
-		timestampedPrintf("⬇️  Starting download from s3://%s/%s", bucket, prefix)
-		timestampedPrintf("📁 Output directory: %s", outputDir)
+		utils.TimestampedPrintfLn("⬇️  Starting download from s3://%s/%s", bucket, prefix)
+		utils.TimestampedPrintfLn("📁 Output directory: %s", outputDir)
 		if pattern != "" {
-			timestampedPrintf("🔍 Filter pattern: %s", pattern)
+			utils.TimestampedPrintfLn("🔍 Filter pattern: %s", pattern)
 		}
 		if maxFiles > 0 {
-			timestampedPrintf("📏 Max files: %d", maxFiles)
+			utils.TimestampedPrintfLn("📏 Max files: %d", maxFiles)
 		}
-		timestampedPrintf("🔄 Overwrite existing: %t", overwrite)
-		timestampedPrintf("═══════════════════════════════════════\n")
+		utils.TimestampedPrintfLn("🔄 Overwrite existing: %t", overwrite)
+		utils.TimestampedPrintfLn("═══════════════════════════════════════\n")
 
 		if err := downloader.downloadAll(pattern, maxFiles, overwrite); err != nil {
 			log.Fatalf("❌ Download failed: %v", err)
 		}
-		timestampedPrintf("✅ Download operation completed!")
+		utils.TimestampedPrintfLn("✅ Download operation completed!")
 	}
 } 

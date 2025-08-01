@@ -52,8 +52,8 @@ logs/
 /bin/
 
 # Compiled binaries (project-specific)
-s3-sync
-s3-download
+# s3-sync
+# s3-download
 
 # S3 sync daemon files
 s3-sync.log
@@ -65,4 +65,6 @@ downloads/
 
 # Temporary files
 tmp/
-temp/ 
+temp/
+
+loadtest
