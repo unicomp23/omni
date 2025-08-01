@@ -130,7 +130,7 @@ build_binary() {
     go mod tidy
     
     # Build the binary
-    if go build -o s3-download s3-download.go; then
+    if go build -o s3-download ./cmd/s3-download; then
         log_success "Binary built successfully: ./s3-download"
     else
         log_error "Failed to build binary"
