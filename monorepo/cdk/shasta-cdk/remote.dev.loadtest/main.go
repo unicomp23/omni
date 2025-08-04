@@ -49,8 +49,6 @@ var messageBufferPool = sync.Pool{
 	},
 }
 
-
-
 // LatencyLogger handles JSONL logging with 1-hour rotation and compression
 type LatencyLogger struct {
 	logDir      string
@@ -939,5 +937,3 @@ func main() {
 	// Clean up the stats goroutine
 	stats.Close()
 }
-
-

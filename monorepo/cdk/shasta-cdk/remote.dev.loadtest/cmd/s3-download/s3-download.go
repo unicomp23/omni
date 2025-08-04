@@ -47,7 +47,7 @@ func NewS3Downloader(bucket, outputDir, region, prefix string) (*S3Downloader, e
 			Region: aws.String(region),
 		},
 		SharedConfigState: session.SharedConfigEnable,
-		Profile:          getEnvOrDefault("AWS_PROFILE", "358474168551_admin"),
+		Profile:           getEnvOrDefault("AWS_PROFILE", "358474168551_admin"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AWS session: %w", err)
@@ -67,12 +67,12 @@ func (d *S3Downloader) listObjects(maxResults int64) ([]S3Object, error) {
 	utils.TimestampedPrintfLn("🔍 Listing objects in s3://%s/%s", d.bucket, d.prefix)
 
 	var objects []S3Object
-	
+
 	input := &s3.ListObjectsV2Input{
 		Bucket: aws.String(d.bucket),
 		Prefix: aws.String(d.prefix),
 	}
-	
+
 	if maxResults > 0 {
 		input.MaxKeys = aws.Int64(maxResults)
 	}
@@ -112,9 +112,9 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	if relPath == "" {
 		relPath = filepath.Base(object.Key)
 	}
-	
+
 	localPath := filepath.Join(d.outputDir, relPath)
-	
+
 	// Check if file already exists
 	if !overwrite && d.fileExists(localPath) {
 		utils.TimestampedPrintfLn("⏭️  Skipping %s - file already exists locally", filepath.Base(localPath))
@@ -133,7 +133,7 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	}
 	defer file.Close()
 
-	utils.TimestampedPrintfLn("⬇️  Downloading %s (%.2f MB)", 
+	utils.TimestampedPrintfLn("⬇️  Downloading %s (%.2f MB)",
 		filepath.Base(localPath), float64(object.Size)/(1024*1024))
 
 	startTime := time.Now()
@@ -153,7 +153,7 @@ func (d *S3Downloader) downloadFile(object S3Object, overwrite bool) error {
 	}
 
 	downloadSpeedMBps := (float64(object.Size) / (1024 * 1024)) / downloadDuration.Seconds()
-	utils.TimestampedPrintfLn("✅ Download completed in %v (%.2f MB/s): %s", 
+	utils.TimestampedPrintfLn("✅ Download completed in %v (%.2f MB/s): %s",
 		downloadDuration, downloadSpeedMBps, localPath)
 
 	// Preserve the original modification time
@@ -208,7 +208,7 @@ func (d *S3Downloader) downloadAll(pattern string, maxFiles int, overwrite bool)
 
 	for i, obj := range filteredObjects {
 		utils.TimestampedPrintfLn("🔄 Processing %d/%d: %s", i+1, len(filteredObjects), filepath.Base(obj.Key))
-		
+
 		if err := d.downloadFile(obj, overwrite); err != nil {
 			utils.TimestampedPrintfLn("❌ Failed to download %s: %v", filepath.Base(obj.Key), err)
 			errorCount++
@@ -257,17 +257,17 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 	for i, obj := range filteredObjects {
 		totalSize += obj.Size
 		filename := filepath.Base(obj.Key)
-		
+
 		if detailed {
-			fmt.Printf("%3d. %-50s %8.2f MB  %s  %s\n", 
-				i+1, 
+			fmt.Printf("%3d. %-50s %8.2f MB  %s  %s\n",
+				i+1,
 				filename,
 				float64(obj.Size)/(1024*1024),
 				obj.LastModified.Format("2006-01-02 15:04:05"),
 				obj.ETag)
 		} else {
-			fmt.Printf("%3d. %-50s %8.2f MB  %s\n", 
-				i+1, 
+			fmt.Printf("%3d. %-50s %8.2f MB  %s\n",
+				i+1,
 				filename,
 				float64(obj.Size)/(1024*1024),
 				obj.LastModified.Format("2006-01-02 15:04:05"))
@@ -277,8 +277,6 @@ func (d *S3Downloader) listOnly(pattern string, maxFiles int, detailed bool) err
 	fmt.Printf("\n📊 Total: %d files, %.2f MB\n", len(filteredObjects), float64(totalSize)/(1024*1024))
 	return nil
 }
-
-
 
 func getEnvOrDefault(envVar, defaultValue string) string {
 	if value := os.Getenv(envVar); value != "" {
@@ -336,21 +334,21 @@ EXAMPLES:
   # List with detailed information
   %s -list -detailed -max 20
 `, os.Args[0], defaultBucketName, defaultOutputDir, defaultRegion, defaultPrefix,
-	os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
+		os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0], os.Args[0])
 }
 
 func main() {
 	// Parse environment variables
 	var (
-		bucket     = getEnvOrDefault("S3_BUCKET", defaultBucketName)
-		outputDir  = getEnvOrDefault("OUTPUT_DIR", defaultOutputDir)
-		region     = getEnvOrDefault("AWS_REGION", defaultRegion)
-		prefix     = getEnvOrDefault("S3_PREFIX", defaultPrefix)
-		pattern    = getEnvOrDefault("PATTERN", "")
-		maxFiles   = 0
-		overwrite  = strings.ToLower(getEnvOrDefault("OVERWRITE_FILES", "false")) == "true"
-		listOnly   = false
-		detailed   = false
+		bucket    = getEnvOrDefault("S3_BUCKET", defaultBucketName)
+		outputDir = getEnvOrDefault("OUTPUT_DIR", defaultOutputDir)
+		region    = getEnvOrDefault("AWS_REGION", defaultRegion)
+		prefix    = getEnvOrDefault("S3_PREFIX", defaultPrefix)
+		pattern   = getEnvOrDefault("PATTERN", "")
+		maxFiles  = 0
+		overwrite = strings.ToLower(getEnvOrDefault("OVERWRITE_FILES", "false")) == "true"
+		listOnly  = false
+		detailed  = false
 	)
 
 	// Simple argument parsing
@@ -411,7 +409,7 @@ func main() {
 			utils.TimestampedPrintfLn("📏 Max files: %d", maxFiles)
 		}
 		fmt.Printf("\n")
-		
+
 		if err := downloader.listOnly(pattern, maxFiles, detailed); err != nil {
 			log.Fatalf("❌ List failed: %v", err)
 		}
@@ -432,4 +430,4 @@ func main() {
 		}
 		utils.TimestampedPrintfLn("✅ Download operation completed!")
 	}
-} 
+}

@@ -24,11 +24,11 @@ const (
 )
 
 type S3Syncer struct {
-	bucket     string
-	logsDir    string
-	region     string
-	uploader   *s3manager.Uploader
-	s3Client   *s3.S3
+	bucket       string
+	logsDir      string
+	region       string
+	uploader     *s3manager.Uploader
+	s3Client     *s3.S3
 	cleanupLocal bool
 }
 
@@ -78,11 +78,11 @@ func (s *S3Syncer) uploadFile(filePath, key string) error {
 		return fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	utils.TimestampedPrintfLn("📤 Uploading %s to s3://%s/%s (size: %.2f MB)", 
+	utils.TimestampedPrintfLn("📤 Uploading %s to s3://%s/%s (size: %.2f MB)",
 		filepath.Base(filePath), s.bucket, key, float64(fileInfo.Size())/(1024*1024))
 
 	startTime := time.Now()
-	
+
 	// Upload the file
 	result, err := s.uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(s.bucket),
@@ -98,15 +98,15 @@ func (s *S3Syncer) uploadFile(filePath, key string) error {
 		ContentEncoding: aws.String("gzip"),
 		StorageClass:    aws.String("STANDARD_IA"), // Use Infrequent Access for cost optimization
 	})
-	
+
 	uploadDuration := time.Since(startTime)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to upload file: %w", err)
 	}
 
 	uploadSpeedMBps := (float64(fileInfo.Size()) / (1024 * 1024)) / uploadDuration.Seconds()
-	utils.TimestampedPrintfLn("✅ Upload completed in %v (%.2f MB/s): %s", 
+	utils.TimestampedPrintfLn("✅ Upload completed in %v (%.2f MB/s): %s",
 		uploadDuration, uploadSpeedMBps, result.Location)
 
 	return nil
@@ -118,7 +118,7 @@ func (s *S3Syncer) syncFile(filePath string) error {
 	if err != nil {
 		relPath = filepath.Base(filePath)
 	}
-	
+
 	// Use a prefix to organize files by date
 	key := fmt.Sprintf("latency-logs/%s", relPath)
 
@@ -130,7 +130,7 @@ func (s *S3Syncer) syncFile(filePath string) error {
 
 	if exists {
 		utils.TimestampedPrintfLn("⏭️  Skipping %s - already exists in S3", filepath.Base(filePath))
-		
+
 		// If cleanup is enabled and file exists in S3, remove local file
 		if s.cleanupLocal {
 			if err := os.Remove(filePath); err != nil {
@@ -169,7 +169,7 @@ func (s *S3Syncer) scanAndSync() error {
 	}
 
 	var gzFiles []string
-	
+
 	err := filepath.Walk(s.logsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -197,10 +197,10 @@ func (s *S3Syncer) scanAndSync() error {
 	// Process each file
 	successCount := 0
 	errorCount := 0
-	
+
 	for _, filePath := range gzFiles {
 		utils.TimestampedPrintfLn("🔄 Processing: %s", filepath.Base(filePath))
-		
+
 		if err := s.syncFile(filePath); err != nil {
 			utils.TimestampedPrintfLn("❌ Failed to sync %s: %v", filepath.Base(filePath), err)
 			errorCount++
@@ -262,8 +262,6 @@ func getEnvOrDefault(envVar, defaultValue string) string {
 	return defaultValue
 }
 
-
-
 func printUsage() {
 	fmt.Printf(`S3 Sync for RedPanda Load Test Logs
 ═══════════════════════════════════
@@ -305,11 +303,11 @@ EXAMPLES:
 func main() {
 	// Parse command line arguments (simple parsing)
 	var (
-		bucket      = getEnvOrDefault("S3_BUCKET", defaultBucketName)
-		logsDir     = getEnvOrDefault("LOGS_DIR", defaultLogsDir)
-		region      = getEnvOrDefault("AWS_REGION", defaultRegion)
+		bucket       = getEnvOrDefault("S3_BUCKET", defaultBucketName)
+		logsDir      = getEnvOrDefault("LOGS_DIR", defaultLogsDir)
+		region       = getEnvOrDefault("AWS_REGION", defaultRegion)
 		cleanupLocal = strings.ToLower(getEnvOrDefault("CLEANUP_LOCAL", "false")) == "true"
-		runOnce     = strings.ToLower(getEnvOrDefault("SYNC_ONCE", "false")) == "true"
+		runOnce      = strings.ToLower(getEnvOrDefault("SYNC_ONCE", "false")) == "true"
 	)
 
 	// Simple argument parsing
@@ -355,4 +353,4 @@ func main() {
 	} else {
 		syncer.runContinuous()
 	}
-} 
+}

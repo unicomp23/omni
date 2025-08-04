@@ -15,8 +15,6 @@ import (
 	"loadtest/pkg/types"
 )
 
-
-
 // PartitionLatencyStats holds latency statistics for a single partition
 type PartitionLatencyStats struct {
 	Partition    int32
@@ -35,21 +33,21 @@ type PartitionLatencyStats struct {
 
 // LatencyAnalysis holds computed statistics
 type LatencyAnalysis struct {
-	TotalMessages    int
-	TimeSpan         time.Duration
-	ThroughputMsgSec float64
-	MinLatency       float64
-	MaxLatency       float64
-	AvgLatency       float64
-	P50              float64
-	P90              float64
-	P95              float64
-	P99              float64
-	P99_9            float64
-	P99_99           float64
-	P99_999          float64
-	ConsumerBreakdown map[int]int
-	PartitionBreakdown map[int32]int
+	TotalMessages         int
+	TimeSpan              time.Duration
+	ThroughputMsgSec      float64
+	MinLatency            float64
+	MaxLatency            float64
+	AvgLatency            float64
+	P50                   float64
+	P90                   float64
+	P95                   float64
+	P99                   float64
+	P99_9                 float64
+	P99_99                float64
+	P99_999               float64
+	ConsumerBreakdown     map[int]int
+	PartitionBreakdown    map[int32]int
 	PartitionLatencyStats []PartitionLatencyStats
 }
 
@@ -85,37 +83,37 @@ func main() {
 	// Parse and analyze each file individually
 	fmt.Println("📊 INDIVIDUAL FILE ANALYSIS")
 	fmt.Println("═══════════════════════════════════")
-	
+
 	totalEntries := 0
 	filesProcessed := 0
-	
+
 	for _, filePath := range files {
 		fmt.Printf("\n📖 Analyzing: %s\n", filepath.Base(filePath))
-		
+
 		entries, err := parseLogFile(filePath)
 		if err != nil {
 			fmt.Printf("❌ Failed to parse %s: %v\n", filePath, err)
 			continue
 		}
-		
+
 		if len(entries) == 0 {
 			fmt.Printf("   ⚠️  No valid entries found\n")
 			continue
 		}
-		
+
 		fmt.Printf("   ✅ Loaded %d entries\n", len(entries))
-		
+
 		// Analyze this file individually
 		fileAnalysis := analyzeLatencies(entries)
 		displayFileResults(filepath.Base(filePath), fileAnalysis)
-		
+
 		// Display per-partition latency analysis for rebalance study
 		displayPartitionLatencyStats(fileAnalysis.PartitionLatencyStats)
-		
+
 		// Track totals for summary
 		totalEntries += len(entries)
 		filesProcessed++
-		
+
 		// Free memory immediately after processing each file
 		entries = nil
 	}
@@ -143,8 +141,8 @@ func findLogFiles(logDir string) ([]string, error) {
 
 		if !info.IsDir() {
 			name := info.Name()
-			if strings.HasPrefix(name, "latency-") && 
-			   (strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".jsonl.gz")) {
+			if strings.HasPrefix(name, "latency-") &&
+				(strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".jsonl.gz")) {
 				files = append(files, path)
 			}
 		}
@@ -156,8 +154,6 @@ func findLogFiles(logDir string) ([]string, error) {
 
 	return files, err
 }
-
-
 
 func parseLogFile(filePath string) ([]types.LatencyLogEntry, error) {
 	var entries []types.LatencyLogEntry
@@ -186,7 +182,7 @@ func parseLogFile(filePath string) ([]types.LatencyLogEntry, error) {
 	for scanner.Scan() {
 		lineNum++
 		line := scanner.Text()
-		
+
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
@@ -222,21 +218,21 @@ func analyzeLatencies(entries []types.LatencyLogEntry) LatencyAnalysis {
 	consumerCounts := make(map[int]int)
 	partitionCounts := make(map[int32]int)
 	partitionLatencies := make(map[int32][]float64)
-	
+
 	var minTime, maxTime time.Time
 	var totalLatency float64
 
 	for i, entry := range entries {
 		latencies[i] = entry.LatencyMs
 		totalLatency += entry.LatencyMs
-		
+
 		// Track consumer and partition distribution
 		consumerCounts[entry.ConsumerID]++
 		partitionCounts[entry.Partition]++
-		
+
 		// Track latencies per partition for detailed analysis
 		partitionLatencies[entry.Partition] = append(partitionLatencies[entry.Partition], entry.LatencyMs)
-		
+
 		// Track time span
 		if minTime.IsZero() || entry.Timestamp.Before(minTime) {
 			minTime = entry.Timestamp
@@ -256,21 +252,21 @@ func analyzeLatencies(entries []types.LatencyLogEntry) LatencyAnalysis {
 	partitionStats := calculatePartitionLatencyStats(partitionLatencies)
 
 	analysis := LatencyAnalysis{
-		TotalMessages:      count,
-		TimeSpan:          timeSpan,
-		ThroughputMsgSec:  throughput,
-		MinLatency:        latencies[0],
-		MaxLatency:        latencies[count-1],
-		AvgLatency:        totalLatency / float64(count),
-		P50:               percentile(latencies, 50.0),
-		P90:               percentile(latencies, 90.0),
-		P95:               percentile(latencies, 95.0),
-		P99:               percentile(latencies, 99.0),
-		P99_9:             percentile(latencies, 99.9),
-		P99_99:            percentile(latencies, 99.99),
-		P99_999:           percentile(latencies, 99.999),
-		ConsumerBreakdown: consumerCounts,
-		PartitionBreakdown: partitionCounts,
+		TotalMessages:         count,
+		TimeSpan:              timeSpan,
+		ThroughputMsgSec:      throughput,
+		MinLatency:            latencies[0],
+		MaxLatency:            latencies[count-1],
+		AvgLatency:            totalLatency / float64(count),
+		P50:                   percentile(latencies, 50.0),
+		P90:                   percentile(latencies, 90.0),
+		P95:                   percentile(latencies, 95.0),
+		P99:                   percentile(latencies, 99.0),
+		P99_9:                 percentile(latencies, 99.9),
+		P99_99:                percentile(latencies, 99.99),
+		P99_999:               percentile(latencies, 99.999),
+		ConsumerBreakdown:     consumerCounts,
+		PartitionBreakdown:    partitionCounts,
 		PartitionLatencyStats: partitionStats,
 	}
 
@@ -280,23 +276,23 @@ func analyzeLatencies(entries []types.LatencyLogEntry) LatencyAnalysis {
 // calculatePartitionLatencyStats computes latency statistics for each partition
 func calculatePartitionLatencyStats(partitionLatencies map[int32][]float64) []PartitionLatencyStats {
 	var stats []PartitionLatencyStats
-	
+
 	for partition, latencies := range partitionLatencies {
 		if len(latencies) == 0 {
 			continue
 		}
-		
+
 		// Sort latencies for percentile calculation
 		sortedLatencies := make([]float64, len(latencies))
 		copy(sortedLatencies, latencies)
 		sort.Float64s(sortedLatencies)
-		
+
 		// Calculate average
 		var total float64
 		for _, latency := range latencies {
 			total += latency
 		}
-		
+
 		stat := PartitionLatencyStats{
 			Partition:    partition,
 			MessageCount: len(latencies),
@@ -311,15 +307,15 @@ func calculatePartitionLatencyStats(partitionLatencies map[int32][]float64) []Pa
 			P99_99:       percentile(sortedLatencies, 99.99),
 			P99_999:      percentile(sortedLatencies, 99.999),
 		}
-		
+
 		stats = append(stats, stat)
 	}
-	
+
 	// Sort by partition ID for consistent output
 	sort.Slice(stats, func(i, j int) bool {
 		return stats[i].Partition < stats[j].Partition
 	})
-	
+
 	return stats
 }
 
@@ -350,7 +346,7 @@ func percentile(sortedData []float64, p float64) float64 {
 }
 
 func displayFileResults(filename string, analysis LatencyAnalysis) {
-	fmt.Printf("   📈 Messages: %d | Span: %v | Throughput: %.1f msg/sec\n", 
+	fmt.Printf("   📈 Messages: %d | Span: %v | Throughput: %.1f msg/sec\n",
 		analysis.TotalMessages, analysis.TimeSpan, analysis.ThroughputMsgSec)
 	fmt.Printf("   🎯 Latency: P50=%.2f P95=%.2f P99=%.2f P99.9=%.2f P99.99=%.2f ms\n",
 		analysis.P50, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
@@ -365,7 +361,7 @@ func displayResults(analysis LatencyAnalysis) {
 	fmt.Printf("Time Span:         %v\n", analysis.TimeSpan)
 	fmt.Printf("Throughput:        %.2f msg/sec\n", analysis.ThroughputMsgSec)
 	fmt.Println()
-	
+
 	fmt.Println("🎯 LATENCY PERCENTILES (milliseconds)")
 	fmt.Println("════════════════════════════════════")
 	fmt.Printf("Min:               %.6f ms\n", analysis.MinLatency)
@@ -382,7 +378,7 @@ func displayResults(analysis LatencyAnalysis) {
 
 	fmt.Println("📈 DISTRIBUTION BREAKDOWN")
 	fmt.Println("═════════════════════════")
-	
+
 	// Consumer breakdown
 	fmt.Println("By Consumer:")
 	for consumerID := 0; consumerID < 8; consumerID++ {
@@ -398,16 +394,16 @@ func displayResults(analysis LatencyAnalysis) {
 		partition int32
 		count     int
 	}
-	
+
 	var partitions []partitionCount
 	for partition, count := range analysis.PartitionBreakdown {
 		partitions = append(partitions, partitionCount{partition, count})
 	}
-	
+
 	sort.Slice(partitions, func(i, j int) bool {
 		return partitions[i].count > partitions[j].count
 	})
-	
+
 	for i, pc := range partitions {
 		if i >= 10 {
 			break
@@ -415,7 +411,7 @@ func displayResults(analysis LatencyAnalysis) {
 		percentage := float64(pc.count) / float64(analysis.TotalMessages) * 100
 		fmt.Printf("  Partition %2d:     %7d messages (%.1f%%)\n", pc.partition, pc.count, percentage)
 	}
-	
+
 	if len(partitions) > 10 {
 		fmt.Printf("  ... and %d more partitions\n", len(partitions)-10)
 	}
@@ -427,7 +423,7 @@ func displayResults(analysis LatencyAnalysis) {
 	fmt.Printf("• 50%% of messages processed in under %.3f ms\n", analysis.P50)
 	fmt.Printf("• 99%% of messages processed in under %.3f ms\n", analysis.P99)
 	fmt.Printf("• 99.99%% of messages processed in under %.3f ms ⭐\n", analysis.P99_99)
-	
+
 	if analysis.P99_99 < 10.0 {
 		fmt.Println("• 🏆 EXCELLENT: P99.99 latency under 10ms!")
 	} else if analysis.P99_99 < 50.0 {
@@ -435,7 +431,7 @@ func displayResults(analysis LatencyAnalysis) {
 	} else {
 		fmt.Println("• ⚠️  NEEDS OPTIMIZATION: P99.99 latency above 50ms")
 	}
-	
+
 	outlierThreshold := analysis.P99 * 2
 	if analysis.P99_99 > outlierThreshold {
 		fmt.Printf("• ⚠️  OUTLIER DETECTION: P99.99 is %.1fx higher than P99\n", analysis.P99_99/analysis.P99)
@@ -447,20 +443,20 @@ func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
 	if len(stats) == 0 {
 		return
 	}
-	
+
 	fmt.Println("\n🎯 PER-PARTITION LATENCY ANALYSIS (Rebalance Study)")
 	fmt.Println("═══════════════════════════════════════════════════")
-	fmt.Printf("%-9s %8s %8s %8s %8s %8s %8s %10s ⭐\n", 
+	fmt.Printf("%-9s %8s %8s %8s %8s %8s %8s %10s ⭐\n",
 		"Partition", "Messages", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
 	fmt.Println("─────────────────────────────────────────────────────────────────────────────")
-	
+
 	// Sort by P99.99 descending to highlight problematic partitions
 	sortedStats := make([]PartitionLatencyStats, len(stats))
 	copy(sortedStats, stats)
 	sort.Slice(sortedStats, func(i, j int) bool {
 		return sortedStats[i].P99_99 > sortedStats[j].P99_99
 	})
-	
+
 	for _, stat := range sortedStats {
 		// Highlight partitions with high P99.99 latency
 		icon := "  "
@@ -469,21 +465,21 @@ func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
 		} else if stat.P99_99 > 100.0 {
 			icon = "🔴"
 		}
-		
+
 		fmt.Printf("%s%7d %8d %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
 			icon, stat.Partition, stat.MessageCount,
 			stat.P50, stat.P90, stat.P95, stat.P99, stat.P99_9, stat.P99_99)
 	}
-	
+
 	// Summary insights for rebalance analysis
 	fmt.Println("\n💡 REBALANCE ANALYSIS INSIGHTS")
 	fmt.Println("═════════════════════════════")
-	
+
 	// Find partition with highest P99.99
 	var maxP9999 PartitionLatencyStats
 	var minP9999 PartitionLatencyStats
 	var avgP9999 float64
-	
+
 	for i, stat := range stats {
 		avgP9999 += stat.P99_99
 		if i == 0 || stat.P99_99 > maxP9999.P99_99 {
@@ -494,12 +490,12 @@ func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
 		}
 	}
 	avgP9999 /= float64(len(stats))
-	
+
 	fmt.Printf("• Highest P99.99 latency: Partition %d (%.2f ms)\n", maxP9999.Partition, maxP9999.P99_99)
 	fmt.Printf("• Lowest P99.99 latency:  Partition %d (%.2f ms)\n", minP9999.Partition, minP9999.P99_99)
 	fmt.Printf("• Average P99.99 latency: %.2f ms\n", avgP9999)
 	fmt.Printf("• Latency spread (max/min): %.1fx\n", maxP9999.P99_99/minP9999.P99_99)
-	
+
 	// Count problematic partitions
 	highLatencyCount := 0
 	for _, stat := range stats {
@@ -507,14 +503,14 @@ func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
 			highLatencyCount++
 		}
 	}
-	
+
 	if highLatencyCount > 0 {
-		fmt.Printf("• ⚠️  %d/%d partitions have P99.99 > 50ms (potential rebalance impact)\n", 
+		fmt.Printf("• ⚠️  %d/%d partitions have P99.99 > 50ms (potential rebalance impact)\n",
 			highLatencyCount, len(stats))
 	} else {
 		fmt.Printf("• ✅ All partitions have P99.99 < 50ms (healthy during rebalance)\n")
 	}
-	
+
 	if maxP9999.P99_99/minP9999.P99_99 > 3.0 {
 		fmt.Printf("• ⚠️  High latency variance detected - investigate partition %d\n", maxP9999.Partition)
 	}
@@ -524,4 +520,4 @@ func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
 func printUsageHelp() {
 	fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
 	fmt.Printf("💡 Or specify a different directory: go run cmd/analyze/analyze_latency.go /path/to/logs\n")
-} 
+}

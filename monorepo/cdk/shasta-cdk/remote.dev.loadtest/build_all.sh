@@ -30,7 +30,7 @@ cd cmd/rebalance-trigger && go build -v -o ../../rebalance_consumer main.go && c
 
 # Build partition-based rebalancer
 echo "🔨 Building partition rebalancer..."
-go build -v -o rebalance_partition partition_rebalancer.go
+cd cmd/partition-rebalancer && go build -v -o ../../rebalance_partition main.go && cd ../..
 
 # Build timing test versions
 echo "🔨 Building timing test binaries..."

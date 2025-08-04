@@ -16,7 +16,7 @@ rm -f rebalance_partition
 
 # Build from source with verbose output
 echo "🔨 Building partition rebalancer from source..."
-go build -v -o rebalance_partition partition_rebalancer.go
+cd cmd/partition-rebalancer && go build -v -o ../../rebalance_partition main.go && cd ../..
 
 echo "✅ Partition rebalancer rebuilt successfully"
 

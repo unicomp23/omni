@@ -11,7 +11,7 @@ This guide explains how to cause rebalances in your Redpanda cluster once per ho
 - **Predictability**: High - consistent rebalance timing
 
 ### **Option 2: Partition Reassignment Approach**
-- **File**: `partition_rebalancer.go` 
+- **File**: `cmd/partition-rebalancer/main.go` 
 - **Method**: Uses Kafka admin API to reassign partitions
 - **Safety**: Medium - affects data placement
 - **Impact**: Higher - causes actual data movement

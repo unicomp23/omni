@@ -21,7 +21,7 @@ if [ "$REBALANCE_TYPE" = "consumer" ]; then
     cd cmd/rebalance-trigger && go build -v -o ../../rebalance_service main.go && cd ../..
 elif [ "$REBALANCE_TYPE" = "partition" ]; then
     echo "🔨 Building partition-based rebalance trigger from source..."
-    go build -v -o rebalance_service partition_rebalancer.go
+    cd cmd/partition-rebalancer && go build -v -o ../../rebalance_service main.go && cd ../..
 else
     echo "❌ Invalid rebalance type: $REBALANCE_TYPE (use 'consumer' or 'partition')"
     exit 1

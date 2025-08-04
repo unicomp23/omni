@@ -1,5 +1,8 @@
 package main
 
+// This file should be run as a standalone program
+// Build with: go build -o rebalance_partition partition_rebalancer.go
+
 import (
 	"context"
 	"fmt"
