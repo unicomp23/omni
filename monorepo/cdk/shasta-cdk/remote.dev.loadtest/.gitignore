@@ -67,4 +67,18 @@ downloads/
 tmp/
 temp/
 
+# Load test binaries (all variants)
 loadtest
+loadtest_standalone
+loadtest_timing
+
+# Rebalance trigger binaries
+rebalance_consumer
+rebalance_partition
+rebalance_service
+rebalance_test
+
+# Any other generated binaries from our scripts
+analyze
+s3-download
+s3-sync
