@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -20,10 +21,22 @@ import (
 // This approach forces metadata refresh which can trigger consumer rebalancing
 // when combined with consumer group changes
 
+const (
+	sharedInfoFile = "loadtest-info.json" // Shared file with test info
+)
+
+// SharedTestInfo matches the structure from main.go
+type SharedTestInfo struct {
+	TopicName     string `json:"topic_name"`
+	ConsumerGroup string `json:"consumer_group"`
+	UUID          string `json:"uuid"`
+	StartTime     string `json:"start_time"`
+}
+
 type PartitionRebalancer struct {
-	client    *kgo.Client
-	topicName string
-	interval  time.Duration
+	client       *kgo.Client
+	interval     time.Duration
+	lastTestInfo *SharedTestInfo
 }
 
 func NewPartitionRebalancer() (*PartitionRebalancer, error) {
@@ -44,17 +57,60 @@ func NewPartitionRebalancer() (*PartitionRebalancer, error) {
 	}
 
 	return &PartitionRebalancer{
-		client:    client,
-		topicName: "loadtest-topic",
-		interval:  interval,
+		client:       client,
+		interval:     interval,
+		lastTestInfo: nil,
 	}, nil
+}
+
+// readSharedTestInfo reads the current test info from the shared file
+func (pr *PartitionRebalancer) readSharedTestInfo() (*SharedTestInfo, error) {
+	data, err := os.ReadFile(sharedInfoFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var info SharedTestInfo
+	if err := json.Unmarshal(data, &info); err != nil {
+		return nil, err
+	}
+
+	return &info, nil
+}
+
+// getCurrentTestInfo gets current test info and checks if it's changed
+func (pr *PartitionRebalancer) getCurrentTestInfo() (*SharedTestInfo, bool) {
+	info, err := pr.readSharedTestInfo()
+	if err != nil {
+		log.Printf("⚠️  Failed to read shared test info: %v", err)
+		return nil, false
+	}
+
+	// Check if this is a new test run
+	changed := pr.lastTestInfo == nil ||
+		pr.lastTestInfo.UUID != info.UUID ||
+		pr.lastTestInfo.TopicName != info.TopicName ||
+		pr.lastTestInfo.ConsumerGroup != info.ConsumerGroup
+
+	if changed {
+		log.Printf("📄 Test info updated: Topic=%s, Group=%s, UUID=%s",
+			info.TopicName, info.ConsumerGroup, info.UUID)
+		pr.lastTestInfo = info
+	}
+
+	return info, true
 }
 
 func (pr *PartitionRebalancer) Start(ctx context.Context) {
 	log.Printf("🔄 Partition rebalancer started - will trigger rebalance every %v", pr.interval)
+	log.Printf("📄 Polling %s for test info...", sharedInfoFile)
 
 	ticker := time.NewTicker(pr.interval)
 	defer ticker.Stop()
+
+	// Poll for test info every 30 seconds to detect new test runs
+	pollTicker := time.NewTicker(30 * time.Second)
+	defer pollTicker.Stop()
 
 	// Initial delay to let the main load test stabilize
 	initialTimer := time.NewTimer(2 * time.Minute)
@@ -66,6 +122,9 @@ func (pr *PartitionRebalancer) Start(ctx context.Context) {
 			log.Printf("🔄 Partition rebalancer stopping...")
 			pr.client.Close()
 			return
+		case <-pollTicker.C:
+			// Just poll to update our test info, don't trigger rebalance
+			pr.getCurrentTestInfo()
 		case <-initialTimer.C:
 			log.Printf("🔄 Triggering initial partition rebalance...")
 			pr.triggerMetadataRefresh(ctx)
@@ -77,11 +136,18 @@ func (pr *PartitionRebalancer) Start(ctx context.Context) {
 }
 
 func (pr *PartitionRebalancer) triggerMetadataRefresh(ctx context.Context) {
-	log.Printf("🔄 Forcing metadata refresh to encourage rebalancing...")
+	// Get current test info
+	testInfo, ok := pr.getCurrentTestInfo()
+	if !ok || testInfo == nil {
+		log.Printf("❌ No valid test info available, skipping metadata refresh")
+		return
+	}
+
+	log.Printf("🔄 Forcing metadata refresh for topic=%s to encourage rebalancing...", testInfo.TopicName)
 
 	// Method 1: Force metadata refresh by requesting topic metadata
 	metaReq := kmsg.NewMetadataRequest()
-	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &pr.topicName}}
+	metaReq.Topics = []kmsg.MetadataRequestTopic{{Topic: &testInfo.TopicName}}
 
 	metaResp, err := metaReq.RequestWith(ctx, pr.client)
 	if err != nil {
@@ -91,8 +157,8 @@ func (pr *PartitionRebalancer) triggerMetadataRefresh(ctx context.Context) {
 
 	// Log current topic state
 	for _, topic := range metaResp.Topics {
-		if topic.Topic != nil && *topic.Topic == pr.topicName {
-			log.Printf("🔍 Topic %s has %d partitions", pr.topicName, len(topic.Partitions))
+		if topic.Topic != nil && *topic.Topic == testInfo.TopicName {
+			log.Printf("🔍 Topic %s has %d partitions", testInfo.TopicName, len(topic.Partitions))
 			for _, partition := range topic.Partitions {
 				log.Printf("  Partition %d: Leader=%d, Replicas=%v",
 					partition.Partition, partition.Leader, partition.Replicas)
@@ -101,19 +167,19 @@ func (pr *PartitionRebalancer) triggerMetadataRefresh(ctx context.Context) {
 	}
 
 	// Method 2: Create a brief consumer that will trigger group coordinator interaction
-	pr.triggerConsumerGroupInteraction(ctx)
+	pr.triggerConsumerGroupInteraction(ctx, testInfo)
 
 	log.Printf("✅ Metadata refresh completed")
 }
 
-func (pr *PartitionRebalancer) triggerConsumerGroupInteraction(ctx context.Context) {
-	log.Printf("🔄 Creating brief consumer interaction to trigger coordinator refresh...")
+func (pr *PartitionRebalancer) triggerConsumerGroupInteraction(ctx context.Context, testInfo *SharedTestInfo) {
+	log.Printf("🔄 Creating brief consumer interaction to trigger coordinator refresh for group=%s...", testInfo.ConsumerGroup)
 
 	// Create a very short-lived consumer to interact with group coordinator
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokersForPartition()...),
-		kgo.ConsumeTopics(pr.topicName),
-		kgo.ConsumerGroup("loadtest-group-metadata-trigger"),
+		kgo.ConsumeTopics(testInfo.TopicName),
+		kgo.ConsumerGroup(testInfo.ConsumerGroup + "-metadata-trigger"),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
 
 		// Very short timeouts for quick interaction

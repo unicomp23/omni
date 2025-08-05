@@ -8,11 +8,13 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
@@ -646,14 +648,74 @@ func consumer(ctx context.Context, client *kgo.Client, stats *LatencyStats, logg
 	}
 }
 
+// SharedTestInfo represents the test configuration shared with rebalance triggers
+type SharedTestInfo struct {
+	TopicName     string `json:"topic_name"`
+	ConsumerGroup string `json:"consumer_group"`
+	UUID          string `json:"uuid"`
+	StartTime     string `json:"start_time"`
+}
+
+// writeSharedTestInfo writes test info to a shared file for rebalance triggers
+func writeSharedTestInfo(topicName, consumerGroup, uuid string) error {
+	info := SharedTestInfo{
+		TopicName:     topicName,
+		ConsumerGroup: consumerGroup,
+		UUID:          uuid,
+		StartTime:     time.Now().Format(time.RFC3339),
+	}
+
+	data, err := json.MarshalIndent(info, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal test info: %w", err)
+	}
+
+	// Write to shared file that rebalance triggers can poll
+	if err := os.WriteFile("loadtest-info.json", data, 0644); err != nil {
+		return fmt.Errorf("failed to write shared test info: %w", err)
+	}
+
+	return nil
+}
+
+// cleanupSharedFile removes the shared test info file
+func cleanupSharedFile() {
+	if err := os.Remove("loadtest-info.json"); err != nil {
+		if !os.IsNotExist(err) {
+			utils.TimestampedPrintf("⚠️  Warning: Failed to clean up shared test info file: %v\n", err)
+		}
+	} else {
+		utils.TimestampedPrintf("🧹 Cleaned up shared test info file\n")
+	}
+}
+
 func main() {
 	// Generate unique topic name
 	topicUUID := uuid.New().String()[:8]
 	topicName := fmt.Sprintf("loadtest-topic-%s", topicUUID)
+	consumerGroup := fmt.Sprintf("loadtest-group-%s", topicUUID)
+
+	// Write shared test info for rebalance triggers
+	if err := writeSharedTestInfo(topicName, consumerGroup, topicUUID); err != nil {
+		log.Printf("⚠️  Warning: Failed to write shared test info: %v", err)
+	} else {
+		utils.TimestampedPrintf("📄 Shared test info written to loadtest-info.json\n")
+	}
+
+	// Set up graceful shutdown to clean up shared file
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		utils.TimestampedPrintf("\n🛑 Received shutdown signal, cleaning up...\n")
+		cleanupSharedFile()
+		os.Exit(0)
+	}()
 
 	utils.TimestampedPrintf("🎯 Redpanda Load Test - 16 PRODUCER GOROUTINES, 2 msg/s per producer, ack=1\n")
 	utils.TimestampedPrintf("🔗 Brokers: %v\n", getBrokers())
 	utils.TimestampedPrintf("📝 Topic: %s\n", topicName)
+	utils.TimestampedPrintf("👥 Consumer Group: %s\n", consumerGroup)
 	utils.TimestampedPrintf("📊 Config: %d partitions, %d producers, %d consumers (1:1 consumer-to-partition)\n", numPartitions, numProducers, numConsumers)
 	utils.TimestampedPrintf("📦 Message size: 8 bytes (timestamp only)\n")
 	utils.TimestampedPrintf("⏱️  Message interval: %v (2 msg/s per producer)\n", messageInterval)
@@ -710,7 +772,7 @@ func main() {
 	consumerOpts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokers()...),
 		kgo.ConsumeTopics(topicName),
-		kgo.ConsumerGroup(fmt.Sprintf("loadtest-group-%s", topicUUID)),
+		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
 
 		// Ultra-low latency fetch optimizations
@@ -876,6 +938,9 @@ func main() {
 
 	actualDuration := time.Since(startTime)
 	utils.TimestampedPrintf("\n⏱️  Test completed in %v\n\n", actualDuration)
+
+	// Clean up shared test info file
+	cleanupSharedFile()
 
 	// Collect GC stats after test
 	var gcStatsAfter runtime.MemStats
