@@ -175,12 +175,15 @@ func (pr *PartitionRebalancer) triggerMetadataRefresh(ctx context.Context) {
 func (pr *PartitionRebalancer) triggerConsumerGroupInteraction(ctx context.Context, testInfo *SharedTestInfo) {
 	log.Printf("🔄 Creating brief consumer interaction to trigger coordinator refresh for group=%s...", testInfo.ConsumerGroup)
 
-	// Create a very short-lived consumer to interact with group coordinator
+	// Create a very short-lived consumer to interact with SAME group coordinator
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(getBrokersForPartition()...),
 		kgo.ConsumeTopics(testInfo.TopicName),
-		kgo.ConsumerGroup(testInfo.ConsumerGroup + "-metadata-trigger"),
+		kgo.ConsumerGroup(testInfo.ConsumerGroup), // Same group for actual rebalance impact
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+
+		// Use different instance ID to distinguish from main consumers
+		kgo.InstanceID("partition-metadata-trigger"),
 
 		// Very short timeouts for quick interaction
 		kgo.SessionTimeout(6 * time.Second),

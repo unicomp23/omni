@@ -121,12 +121,15 @@ func (rt *RebalanceTrigger) triggerRebalance(ctx context.Context) {
 	log.Printf("🔄 Creating temporary consumer to trigger rebalance on topic=%s, group=%s...",
 		testInfo.TopicName, testInfo.ConsumerGroup)
 
-	// Consumer client with same group but different client ID
+	// Consumer client with SAME group (critical for triggering actual rebalance)
 	opts := []kgo.Opt{
 		kgo.SeedBrokers(rt.brokers...),
 		kgo.ConsumeTopics(testInfo.TopicName),
-		kgo.ConsumerGroup(testInfo.ConsumerGroup + "-rebalance-trigger"),
+		kgo.ConsumerGroup(testInfo.ConsumerGroup), // Same group = actual rebalance!
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+
+		// Use different instance ID to distinguish from main consumers
+		kgo.InstanceID("rebalance-trigger-consumer"),
 
 		// Use similar settings to main consumers but shorter timeouts
 		kgo.SessionTimeout(6 * time.Second),
@@ -148,7 +151,8 @@ func (rt *RebalanceTrigger) triggerRebalance(ctx context.Context) {
 	rebalanceCtx, cancel := context.WithTimeout(ctx, consumerLifetime+10*time.Second)
 	defer cancel()
 
-	log.Printf("🔄 Temporary consumer joining group (will stay for %v)...", consumerLifetime)
+	log.Printf("🔄 Temporary consumer joining SAME GROUP '%s' (will force rebalance, stay for %v)...",
+		testInfo.ConsumerGroup, consumerLifetime)
 
 	// Start consuming briefly to join the group
 	go func() {
@@ -174,15 +178,15 @@ func (rt *RebalanceTrigger) triggerRebalance(ctx context.Context) {
 	// Stay in the group for the specified lifetime
 	select {
 	case <-time.After(consumerLifetime):
-		log.Printf("🔄 Temporary consumer leaving group to trigger rebalance...")
+		log.Printf("🔄 Temporary consumer leaving group '%s' to trigger 2nd rebalance...", testInfo.ConsumerGroup)
 	case <-rebalanceCtx.Done():
 		log.Printf("🔄 Rebalance operation cancelled")
 		return
 	}
 
-	// Close the client to leave the group, triggering rebalance
+	// Close the client to leave the group, triggering another rebalance
 	client.Close()
-	log.Printf("✅ Rebalance triggered successfully")
+	log.Printf("✅ Rebalance cycle complete: JOIN (rebalance 1) → STAY %v → LEAVE (rebalance 2)", consumerLifetime)
 }
 
 func main() {
