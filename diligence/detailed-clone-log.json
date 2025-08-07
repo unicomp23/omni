@@ -1,0 +1,4513 @@
+{
+  "startTime": "2025-08-07T21:50:16.043Z",
+  "organizations": {
+    "yoinc": {
+      "repositories": {
+        "bixby": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "devops": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libtecate": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "certs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tecate": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "deps": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tecate-pinger": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "metrics-collector": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "build": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "challenge": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libvpx": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jenkins": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gitscripts": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "GPUImage": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "oh-common": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "500px-android-blur": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "at-node-common": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jack": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bixby-client": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "opsworks-chef": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dengue": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "typhoid": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "crass": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bbc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vagrant": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "okh-chef": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "betabuilder": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "yellowfever": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "websocketpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "oksplash": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "neo4j": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "static-files": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "socket.IO-objc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protobuf-cmake": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-mirror": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dynamodb-model": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "nodeunit": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ya-csv": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "git-review": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-newrelic": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sr": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protobuf": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fpe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "buildspeex": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "beer8": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dogfish": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "licode": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dogfishWeb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "socket.io": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protobuf-objc-iOS5": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "matcher": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "issues": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "socket.io-client": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "VideoTest": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ws": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ffmpeg": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "snowball": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "statusbot": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "super3": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "crtmpserver": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "orison": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vp8test": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "flvtool-pp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "oms": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rtmplite": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "homebrew-tap": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tornado": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "erly_archive": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "nx": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "reporting": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "chef": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pg13": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "video": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sr808": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cookbooks": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "JucheTime": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "srdb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "facedetect": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rtmpplay": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libav": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "proto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jenkins-old": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libphutil": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "arcanist": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "crawler": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "citrie": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "monsr": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mog": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "srxmpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "thruster": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bubble-grinder": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "thrift": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "statsd": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "loadbot": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airstats": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "stats-snippets": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "interfaces": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "util": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "scribe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fb303": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "phabricator-config": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cron": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cijoe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "knife_forge": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "knife-ec2": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "matcher-simulation": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tornado-redis": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mmgeoip": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "package": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "thriftdefs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bottime-gae": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "atsim": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ops": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "channel": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "erlang": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "snapshot-test": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pbs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "puppet": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mochiweb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "exmpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "statsc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "erlsha2": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "closure-linter": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "closure-library": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "python-geoip": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "goose": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "deploy": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gaepytz": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "monitor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "google-diff-match-patch": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rietveld": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "google_appengine": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "speex": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "unittest2": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cpplint": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pychecker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "as3corelib": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "scribe_log": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        }
+      },
+      "summary": {
+        "totalRepos": 143,
+        "successfulClones": 0,
+        "failedClones": 0,
+        "skippedClones": 143
+      }
+    },
+    "vline": {
+      "repositories": {
+        "vline-webrtc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-devops": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-javautils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "github-demo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "graphene-js": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libcxx": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "at-webview": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-master": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "llvm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-router": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "compiler-rt": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "clang": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-relay": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-jenkins": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libcxxabi": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "lldb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-webrtc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-signalserver": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "recorder": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "navcodec": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ios-sdk": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "nclosure": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "soynode": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "SocketRocket": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-phonegap": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "speex": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "room-service": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node.js-closure-compiler-externs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-phonegap-android": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "salesforce-demo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "closure-library": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-room-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-php-example-internal": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cometd": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-graphics": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "servo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-libjingle": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sjcl": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "shell-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "thrift": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jsontoken": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jsdoc-toolkit": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-htmlcompressor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "exhibitor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "closure": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-jwt": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "puppet-loggly": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-geochat-example-internal": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-node-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-php-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-rails-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-rails-example-internal": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-django-example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-rails": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-rails-internal": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "prefinery-lib": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-web": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "loggly-python": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-hello": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-webapp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-rtcjs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-eventlog": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-extensions": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "scratch": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "zookeeper": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "curator": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-sdk": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-twui": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-firebreath": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-openfire": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline.me": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vline-java-sdk": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        }
+      },
+      "summary": {
+        "totalRepos": 73,
+        "successfulClones": 0,
+        "failedClones": 0,
+        "skippedClones": 73
+      }
+    },
+    "airtimemedia": {
+      "repositories": {
+        "portkey": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bigsur-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boca": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "backend": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fett": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "p2v-server": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "yoda": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-terraform-sumologic": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "Primus": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "R2D2": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "Megatron": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bigsur": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "the-force": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-admin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "image-analyzer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "deathstar": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard-looker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "text-research": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-terraform": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tahoe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-schemas": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pineridge": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media-ansible": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rogriss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protoc-gen-openapi-lint": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bor-gullet": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rey": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "latentsync-truss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "wildcat": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "LatentSync-Turbo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "android-core-ui": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 315,
+          "repoSize": null,
+          "language": "private"
+        },
+        "SonarChatUI-Android": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "krennic": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jocasta-nu": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-metrics": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "caramello": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "carmela": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantinasync-rs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "snoke": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jango": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "phantom-menace": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ig-11": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "recommendations": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "final-order": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-avatar-lib": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "yuba": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media-lambda": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "stormtrooper": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "darthvader": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "metalorn": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bogan": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sarlacc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sdxl-photorealistic-avatar-truss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pit-droids": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bot-video-creator-prototype": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-xtts": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rancor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "goldie": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "wampa": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "greedo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hyperspace": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "palpatine": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "skywalker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ventress": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "render": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hal-9000": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hi-chew": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "redondo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-admin-terraform": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "caramilk": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "clockyclock": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pipeline-library": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pfeiffer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "flux-photorealistic-avatar-truss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-media-utils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "TwinPeaks": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "umunhum": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-pgpool": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "backend-client-js": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-avatar-truss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dynamo-media-utils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard-mongo-sync": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ventana-worker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ventana-master": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "EmergentTTS-Eval-public": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "thayer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "Sparkplug": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-client": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dooku": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "kefalonia": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pubsub-service": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "eastwood-core": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "FFmpeg": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rtmpdump": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dev-console-backend": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "lipsync-dashboard": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jangle": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "turn-monitor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "coit-tower": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "redondo-view": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-metrics-package": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "redondo-reference-docs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "stockton": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "portkey-certificates": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-ios-staging-certificates": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-deploy": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "quest-intake": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "eureka": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mendocino": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "kamino": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "chios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bigsur-reference-docs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mediacore": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sumo-log-collector": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "AsilomarTestApp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-circleci": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "oakland": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "goldengate": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bakersfield": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar-swiftui": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "express-media-utils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "quest-ground-truth": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "yosemite": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-meet": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-lite": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "simulatormic": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "oboe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "super-troopers": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "chatterbox": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "multiplatform-paging": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hollister": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "marin-devserver": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "marin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "obispo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bixby-load-test": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libcxx-rpm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "merced": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-api": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "selfie-debug-service": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "scotia-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "stockton-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "goldengate-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "notifications": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "turn-watchdog": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "shasta": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "coturn": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mos-eisley": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-ops": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard-segment-process": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "app-bridge": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "quest-data-tools": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "classifier-image-downloader": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media-certificates": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard-base": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "picard-monitoring": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "quest-job": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-cli": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "csm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "highwayone": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "go-diagnostics": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hive-resolution-testing": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ai-gamer": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 303,
+          "repoSize": null,
+          "language": "private"
+        },
+        "stormtrooper-emails": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "MetalPetal": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "espeak-ng": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "phantom-menace-external": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "user-prompt-analysis": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "eslint-config-empire": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boca-sync-prototype": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "devops-terraform": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bixby-monitor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "napa": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bixby-proto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "skia": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ffmpeg-video-renderer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-prompt-optimizer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "carmel": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "activities": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-zk-utils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protobuf": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boringssl": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "endor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-model-builder": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "rtc-analyzer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "clang-rpm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-avatar-xl-truss": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "golang-docker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media_team_cpp_example": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "kitkat": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar-sample": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "scotia": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "llvm-rpm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "kafka-poc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "deploy-lambda": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sumo-rds-log-collector": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "PlatformBots": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "zkcpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "truckee": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "snappy": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "eastwood-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "eastwood": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "huron": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fresno": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libdmtx": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "zk-web": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "apprunner": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bigsur-release": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "fort-mason": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hollywood": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "presidio": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "zookeeper": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "paloalto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "nicasio": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "riverside": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "riverside-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "carmel-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "napa-test-app": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dev-console-rds-bootstrap": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media-tools-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "client-report-processor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vandenberg-addon": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gt-image-task": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "label-task-gen": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-trt-converter": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "epoxy-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sawdust": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tc-configuration": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "feed-ranker": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-addon-support": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "llm-model-training": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "js-build": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-release": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-mirror": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "typescript-linting-rules": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "butterfinger": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "kinesis-data-warehouse": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "interview": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "grpc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "stt-eastwood": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "shasta.calent.shared": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-docs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar-reference-docs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "darthbane": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "yuba-proto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sd-avatar-preview": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "harfbuzz": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "hand-gesture-recognition-mediapipe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pg-hammer": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-ios-chat": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-ios-ui": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "voice-cloning-service": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "freetype": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-growth-asset-remotion": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "remotion-service": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "x264": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "carmela-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vmaf": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libsvm": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mentos": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sdk-admin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "pch": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "braze-campaigns": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "dependabot-automerge": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-filesystem": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-thread": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "armadillo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-test": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "boost-asio": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-analytics": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "image-processor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "visqol": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "property_tree": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "tecate-proto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "reconnecting-websocket": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bot-conversation-analysis": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cantina-growth-asset-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "follows-of-follows": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-terraform": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "paloalto-bin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vandenberg": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sqlc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "ventana-libs": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "AFNetworking": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "malibu": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "empire-serverless-apps": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "opengl": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "useragent": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "telos": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "vandenberg-monitor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "abrt": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-metrics-utils": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "protoc-gen-go-zap-objectmarshaler": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "redondo-sample": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "FirebaseCrashlyticsOnly": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "mediapipe": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "libyuv": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-ios-testing": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "shasta-proto": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "team-boggle": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "never-have-i-ever": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "what-are-you-talking-about": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "drawn-out": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gaming-orb": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "shareable-asset-generator": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "websocketpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "portkey-certificates-adhoc": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "game-shared": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gaming-shared-cdk": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "game-client-shared": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "opus": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "jsoncpp": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "gtest-parallel": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "asilomar-unity": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "sam-sandbox": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "media-panel-chrome-extension": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bigbasin": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "android-native": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cpufeatures": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "web-empire": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "chat-gpt-dj": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "cuda": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-panel-sdk-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "Fabric.framework": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-panel-sdk-android": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "node-monitor-components": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "transcription-demo": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "grogu-external": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "madera": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-protos": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-ios-time": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "botbuilder": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "bot_trait_gen_web": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "aircore-media-panel-ios": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "barharbor": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "portkey-certificates-enterprise": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "CocoaLumberjack": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "homebrew-devtools": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "atflow": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "grogu": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "AirtimeMedia-iOS": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airtime-node": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "plyr": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "airthage": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 317,
+          "repoSize": null,
+          "language": "private"
+        },
+        "grogu-nextgen": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 314,
+          "repoSize": null,
+          "language": "private"
+        },
+        "HamAir": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 336,
+          "repoSize": null,
+          "language": "private"
+        },
+        "huddle": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 327,
+          "repoSize": null,
+          "language": "private"
+        },
+        "android-automation-test": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 296,
+          "repoSize": null,
+          "language": "private"
+        },
+        "snoke-client": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 305,
+          "repoSize": null,
+          "language": "private"
+        },
+        "uichallenge-android": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 310,
+          "repoSize": null,
+          "language": "private"
+        },
+        "dev-console": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 304,
+          "repoSize": null,
+          "language": "private"
+        },
+        "Ne10": {
+          "success": false,
+          "skipped": false,
+          "error": "ENOENT: no such file or directory, stat 'cloned-repos/airtimemedia/Ne10'",
+          "cloneTime": 312
+        },
+        "empire-jwks-rotation-lambda": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 310,
+          "repoSize": null,
+          "language": "private"
+        },
+        "app.chassis": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 322,
+          "repoSize": null,
+          "language": "private, fork"
+        },
+        "depot_tools": {
+          "success": true,
+          "skipped": true,
+          "reason": "Already exists"
+        },
+        "platform-rate-limit-api": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 291,
+          "repoSize": null,
+          "language": "private"
+        },
+        "guinan": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "picard-reporting-mongo": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 299,
+          "repoSize": null,
+          "language": "private"
+        },
+        "phasma": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "kyloren": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "billaba": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "boba": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "bogan-external": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private"
+        },
+        "darthmaul": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 290,
+          "repoSize": null,
+          "language": "private"
+        },
+        "empire-flows": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 301,
+          "repoSize": null,
+          "language": "private"
+        },
+        "deathstar-client": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 281,
+          "repoSize": null,
+          "language": "private"
+        },
+        "darthnox": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 290,
+          "repoSize": null,
+          "language": "private"
+        },
+        "abtest-client": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "morro-proto": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 290,
+          "repoSize": null,
+          "language": "private"
+        },
+        "morro-client-js": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "Flak": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 277,
+          "repoSize": null,
+          "language": "private"
+        },
+        "flak-chat-proto": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 286,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-ios-forks-snapshot-testing": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 935,
+          "repoSize": null,
+          "language": "public, fork, archived"
+        },
+        "CMakeFrameworkMinimal": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 312,
+          "repoSize": null,
+          "language": "private"
+        },
+        "monterey": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 316,
+          "repoSize": null,
+          "language": "private"
+        },
+        "morro-server": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 271,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-ios-logger": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 286,
+          "repoSize": null,
+          "language": "private"
+        },
+        "avalon": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 289,
+          "repoSize": null,
+          "language": "private"
+        },
+        "emma": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 287,
+          "repoSize": null,
+          "language": "private"
+        },
+        "lexa": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 275,
+          "repoSize": null,
+          "language": "private"
+        },
+        "voyager": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 274,
+          "repoSize": null,
+          "language": "private"
+        },
+        "andromeda": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 299,
+          "repoSize": null,
+          "language": "private"
+        },
+        "majel": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 270,
+          "repoSize": null,
+          "language": "private"
+        },
+        "domino-squad": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 264,
+          "repoSize": null,
+          "language": "private"
+        },
+        "delta-squad": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "evergreen": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 279,
+          "repoSize": null,
+          "language": "private"
+        },
+        "game-starter-template": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 270,
+          "repoSize": null,
+          "language": "private"
+        },
+        "clovis": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 294,
+          "repoSize": null,
+          "language": "private"
+        },
+        "UIKit-Playground": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 275,
+          "repoSize": null,
+          "language": "private"
+        },
+        "airtime-ios-staging-certs": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 283,
+          "repoSize": null,
+          "language": "private"
+        },
+        "pffft": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private"
+        },
+        "hubot": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 340,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ccache-rpm": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 293,
+          "repoSize": null,
+          "language": "private"
+        },
+        "nyc-config-empire": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 282,
+          "repoSize": null,
+          "language": "private"
+        },
+        "polyjuice": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 275,
+          "repoSize": null,
+          "language": "private"
+        },
+        "tarkin": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 285,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "ProtoBuf.js": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 605,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "prestoplay": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private"
+        },
+        "firebase": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "beatTime": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private"
+        },
+        "in-app-purchase": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 277,
+          "repoSize": null,
+          "language": "private"
+        },
+        "backend-testing-challenge": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 327,
+          "repoSize": null,
+          "language": "private"
+        },
+        "chewie": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 326,
+          "repoSize": null,
+          "language": "private"
+        },
+        "eslint-plugin-airtime": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 312,
+          "repoSize": null,
+          "language": "private"
+        },
+        "windu": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 372,
+          "repoSize": null,
+          "language": "private"
+        },
+        "windu-external": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 304,
+          "repoSize": null,
+          "language": "private"
+        },
+        "enterprise": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 262,
+          "repoSize": null,
+          "language": "private"
+        },
+        "r8brain-free-src": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 262,
+          "repoSize": null,
+          "language": "private"
+        },
+        "jesse-datalayer-exploration": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 278,
+          "repoSize": null,
+          "language": "private"
+        },
+        "dundermifflin": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 263,
+          "repoSize": null,
+          "language": "private"
+        },
+        "r2d2-red-liner": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 283,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ptkcarmel": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 327,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "backend-data-modeling-challenge": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 323,
+          "repoSize": null,
+          "language": "private"
+        },
+        "dart-maul": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "portkey-thermal-analysis": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 327,
+          "repoSize": null,
+          "language": "private"
+        },
+        "alcatraz": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 326,
+          "repoSize": null,
+          "language": "private"
+        },
+        "libPhoneNumber-iOS": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 1330,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "santacruz": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "analytics-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 563,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "snap-kit-carthage": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 29239,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "empire-loadtest": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private"
+        },
+        "amazon-product-api": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 472,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "node-oom-heapdump": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 331,
+          "repoSize": null,
+          "language": "private"
+        },
+        "modesto": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 348,
+          "repoSize": null,
+          "language": "private"
+        },
+        "tiktok-experiment": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 329,
+          "repoSize": null,
+          "language": "private"
+        },
+        "plutoFetcher": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 323,
+          "repoSize": null,
+          "language": "private"
+        },
+        "Ne10-old": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 641,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "cmake-rpm": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 274,
+          "repoSize": null,
+          "language": "private"
+        },
+        "bothan": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 272,
+          "repoSize": null,
+          "language": "private"
+        },
+        "libsrtp": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 662,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "ptkfoundation": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 280,
+          "repoSize": null,
+          "language": "private"
+        },
+        "darthrevan": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 312,
+          "repoSize": null,
+          "language": "private"
+        },
+        "greatschools-xml-to-json": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 283,
+          "repoSize": null,
+          "language": "private"
+        },
+        "uichallenge-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "AMPopTip": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 628,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "SDWebImage": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 703,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "FLAnimatedImage": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 740,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "ventana": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 307,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ios-tests": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 314,
+          "repoSize": null,
+          "language": "private"
+        },
+        "RazzleDazzle": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "tanya-experiments": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "garbanzo": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 314,
+          "repoSize": null,
+          "language": "private"
+        },
+        "pluto-channels": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 296,
+          "repoSize": null,
+          "language": "private"
+        },
+        "djtsto": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "at-xwalk": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 300,
+          "repoSize": null,
+          "language": "private"
+        },
+        "crosswalk": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 342,
+          "repoSize": null,
+          "language": "private"
+        },
+        "chromium-crosswalk": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 314,
+          "repoSize": null,
+          "language": "private"
+        },
+        "sith": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 304,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ventress-admin": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "manifest": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 311,
+          "repoSize": null,
+          "language": "private"
+        },
+        "android-transcoder": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 511,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "admin-web-components": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 309,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "schedule": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 296,
+          "repoSize": null,
+          "language": "private"
+        },
+        "portkey-apn-certificates": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 312,
+          "repoSize": null,
+          "language": "private"
+        },
+        "snoke-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 299,
+          "repoSize": null,
+          "language": "private"
+        },
+        "mock-proto-server": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 316,
+          "repoSize": null,
+          "language": "private"
+        },
+        "appboy-ios-sdk": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 311,
+          "repoSize": null,
+          "language": "private"
+        },
+        "socket.io-redis": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 439,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "monit": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 334,
+          "repoSize": null,
+          "language": "private"
+        },
+        "sidious": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 308,
+          "repoSize": null,
+          "language": "private"
+        },
+        "xwing": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 328,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "starfleet": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "kinesis": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 291,
+          "repoSize": null,
+          "language": "private"
+        },
+        "dynamodb": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 304,
+          "repoSize": null,
+          "language": "private"
+        },
+        "eslint-plugin-chai-expect": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 427,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "nexu": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 300,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "edwards-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 336,
+          "repoSize": null,
+          "language": "private"
+        },
+        "edwards-generator": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ashla-electron": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "snoke-admin": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 317,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "kitha": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 303,
+          "repoSize": null,
+          "language": "private"
+        },
+        "notepack": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 504,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "media-tests": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 293,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "solvang": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 313,
+          "repoSize": null,
+          "language": "private"
+        },
+        "lightsaber": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 312,
+          "repoSize": null,
+          "language": "private"
+        },
+        "kenner": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 304,
+          "repoSize": null,
+          "language": "private"
+        },
+        "airtime-desktop-design": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 300,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "ashla": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 368,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "snitch": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 302,
+          "repoSize": null,
+          "language": "private"
+        },
+        "cocon-experiment": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 299,
+          "repoSize": null,
+          "language": "private"
+        },
+        "node-http2": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 473,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "node-apn": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 490,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "appboy-segment-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 466,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "closure": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 292,
+          "repoSize": null,
+          "language": "private"
+        },
+        "C3P0": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 293,
+          "repoSize": null,
+          "language": "private"
+        },
+        "c3p0-admin": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 337,
+          "repoSize": null,
+          "language": "private"
+        },
+        "snoke-js-build": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 301,
+          "repoSize": null,
+          "language": "private"
+        },
+        "kash": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 270,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "snoke-js": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 294,
+          "repoSize": null,
+          "language": "private"
+        },
+        "web-ui-challenge": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 276,
+          "repoSize": null,
+          "language": "private"
+        },
+        "snoke-android": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 285,
+          "repoSize": null,
+          "language": "private"
+        },
+        "malpaso": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 309,
+          "repoSize": null,
+          "language": "private"
+        },
+        "kyloren-client": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 322,
+          "repoSize": null,
+          "language": "private"
+        },
+        "media": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 318,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "jabba": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "narcissus": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 296,
+          "repoSize": null,
+          "language": "private"
+        },
+        "SWTableViewCell": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 634,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "satyr": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 636,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "airtime-site": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 321,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "apn-stub": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 322,
+          "repoSize": null,
+          "language": "private"
+        },
+        "analytics-node": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 464,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "llvm": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 4915,
+          "repoSize": null,
+          "language": "public"
+        },
+        "libcxxabi": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 606,
+          "repoSize": null,
+          "language": "public"
+        },
+        "boba-static": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "senate": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 311,
+          "repoSize": null,
+          "language": "private"
+        },
+        "sw-precache": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 427,
+          "repoSize": null,
+          "language": "public, fork, archived"
+        },
+        "karma-closure": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 755,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "ios-upload-benchmarks": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private"
+        },
+        "mongoose-beautiful-unique-validation": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 412,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "Signal-Soundcloud": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 293,
+          "repoSize": null,
+          "language": "private"
+        },
+        "tatooine": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 283,
+          "repoSize": null,
+          "language": "private"
+        },
+        "electron-prebuilt": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 373,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "Squirrel.Windows": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 2514,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "Indicative-iOS": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 448,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "marauders-map": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "signal-giphy": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 307,
+          "repoSize": null,
+          "language": "private"
+        },
+        "ccache-package": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 298,
+          "repoSize": null,
+          "language": "private"
+        },
+        "augmented-traffic-control": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 516,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "carmel-test-app": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "react-dengue-prototype": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 297,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "presence": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 276,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "Xcodeproj": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 515,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "streamfilter": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 262,
+          "repoSize": null,
+          "language": "private"
+        },
+        "Indicative-Android": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 407,
+          "repoSize": null,
+          "language": "public, fork"
+        },
+        "ses-email-bounce": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "graph": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 282,
+          "repoSize": null,
+          "language": "private, archived"
+        },
+        "CMake": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 1620,
+          "repoSize": null,
+          "language": "public, fork, archived"
+        }
+      },
+      "summary": {
+        "totalRepos": 531,
+        "successfulClones": 184,
+        "failedClones": 1,
+        "skippedClones": 346
+      }
+    },
+    "aircoreio": {
+      "repositories": {
+        "aircore-media-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 630,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-logging-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 360,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-android-sample": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 511,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-sync-web-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 607,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-panel-flutter": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 295,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-chat-panel-ios-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 453,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-chat-panel-android-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 557,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-panel-android-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 549,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-chat-panel-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 1226,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-panel-ios-internal": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 296,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-media-ios-sample": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 467,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-panel-ios-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 456,
+          "repoSize": null,
+          "language": "public"
+        },
+        "aircore-media-panel-web-samples": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 466,
+          "repoSize": null,
+          "language": "public"
+        },
+        "air-live-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 303,
+          "repoSize": null,
+          "language": "private"
+        },
+        "air-live-android": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-media-panel-ios": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 1519,
+          "repoSize": null,
+          "language": "public"
+        },
+        "RockPaperScissors": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 333,
+          "repoSize": null,
+          "language": "private, fork"
+        },
+        "aircore-media-panel-web-internal": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 306,
+          "repoSize": null,
+          "language": "private"
+        },
+        "aircore-media-panel-ios-samples-internal": {
+          "success": true,
+          "skipped": false,
+          "cloneTime": 324,
+          "repoSize": null,
+          "language": "private"
+        }
+      },
+      "summary": {
+        "totalRepos": 19,
+        "successfulClones": 19,
+        "failedClones": 0,
+        "skippedClones": 0
+      }
+    }
+  },
+  "summary": {
+    "totalOrgs": 4,
+    "totalRepos": 766,
+    "successfulClones": 45,
+    "failedClones": 1,
+    "skippedClones": 721,
+    "httpRequests": 0,
+    "httpErrors": 0
+  },
+  "httpLog": [],
+  "errors": [
+    {
+      "timestamp": "2025-08-07T21:50:17.243Z",
+      "level": "ERROR",
+      "message": "Command failed after 43ms: Command failed: gh repo list yoinc --limit 1000 --json name,sshUrl,cloneUrl,size,language,updatedAt\nUnknown JSON field: \"cloneUrl\"\nAvailable fields:\n  assignableUsers\n  codeOfConduct\n  contactLinks\n  createdAt\n  defaultBranchRef\n  deleteBranchOnMerge\n  description\n  diskUsage\n  forkCount\n  fundingLinks\n  hasDiscussionsEnabled\n  hasIssuesEnabled\n  hasProjectsEnabled\n  hasWikiEnabled\n  homepageUrl\n  id\n  isArchived\n  isBlankIssuesEnabled\n  isEmpty\n  isFork\n  isInOrganization\n  isMirror\n  isPrivate\n  isSecurityPolicyEnabled\n  isTemplate\n  isUserConfigurationRepository\n  issueTemplates\n  issues\n  labels\n  languages\n  latestRelease\n  licenseInfo\n  mentionableUsers\n  mergeCommitAllowed\n  milestones\n  mirrorUrl\n  name\n  nameWithOwner\n  openGraphImageUrl\n  owner\n  parent\n  primaryLanguage\n  projects\n  pullRequestTemplates\n  pullRequests\n  pushedAt\n  rebaseMergeAllowed\n  repositoryTopics\n  securityPolicyUrl\n  squashMergeAllowed\n  sshUrl\n  stargazerCount\n  templateRepository\n  updatedAt\n  url\n  usesCustomOpenGraphImage\n  viewerCanAdminister\n  viewerDefaultCommitEmail\n  viewerDefaultMergeMethod\n  viewerHasStarred\n  viewerPermission\n  viewerPossibleCommitEmails\n  viewerSubscription\n  visibility\n  watchers\n"
+    },
+    {
+      "timestamp": "2025-08-07T21:50:46.399Z",
+      "level": "ERROR",
+      "message": "Command failed after 46ms: Command failed: gh repo list vline --limit 1000 --json name,sshUrl,cloneUrl,size,language,updatedAt\nUnknown JSON field: \"cloneUrl\"\nAvailable fields:\n  assignableUsers\n  codeOfConduct\n  contactLinks\n  createdAt\n  defaultBranchRef\n  deleteBranchOnMerge\n  description\n  diskUsage\n  forkCount\n  fundingLinks\n  hasDiscussionsEnabled\n  hasIssuesEnabled\n  hasProjectsEnabled\n  hasWikiEnabled\n  homepageUrl\n  id\n  isArchived\n  isBlankIssuesEnabled\n  isEmpty\n  isFork\n  isInOrganization\n  isMirror\n  isPrivate\n  isSecurityPolicyEnabled\n  isTemplate\n  isUserConfigurationRepository\n  issueTemplates\n  issues\n  labels\n  languages\n  latestRelease\n  licenseInfo\n  mentionableUsers\n  mergeCommitAllowed\n  milestones\n  mirrorUrl\n  name\n  nameWithOwner\n  openGraphImageUrl\n  owner\n  parent\n  primaryLanguage\n  projects\n  pullRequestTemplates\n  pullRequests\n  pushedAt\n  rebaseMergeAllowed\n  repositoryTopics\n  securityPolicyUrl\n  squashMergeAllowed\n  sshUrl\n  stargazerCount\n  templateRepository\n  updatedAt\n  url\n  usesCustomOpenGraphImage\n  viewerCanAdminister\n  viewerDefaultCommitEmail\n  viewerDefaultMergeMethod\n  viewerHasStarred\n  viewerPermission\n  viewerPossibleCommitEmails\n  viewerSubscription\n  visibility\n  watchers\n"
+    },
+    {
+      "timestamp": "2025-08-07T21:51:01.201Z",
+      "level": "ERROR",
+      "message": "Command failed after 47ms: Command failed: gh repo list airtimemedia --limit 1000 --json name,sshUrl,cloneUrl,size,language,updatedAt\nUnknown JSON field: \"cloneUrl\"\nAvailable fields:\n  assignableUsers\n  codeOfConduct\n  contactLinks\n  createdAt\n  defaultBranchRef\n  deleteBranchOnMerge\n  description\n  diskUsage\n  forkCount\n  fundingLinks\n  hasDiscussionsEnabled\n  hasIssuesEnabled\n  hasProjectsEnabled\n  hasWikiEnabled\n  homepageUrl\n  id\n  isArchived\n  isBlankIssuesEnabled\n  isEmpty\n  isFork\n  isInOrganization\n  isMirror\n  isPrivate\n  isSecurityPolicyEnabled\n  isTemplate\n  isUserConfigurationRepository\n  issueTemplates\n  issues\n  labels\n  languages\n  latestRelease\n  licenseInfo\n  mentionableUsers\n  mergeCommitAllowed\n  milestones\n  mirrorUrl\n  name\n  nameWithOwner\n  openGraphImageUrl\n  owner\n  parent\n  primaryLanguage\n  projects\n  pullRequestTemplates\n  pullRequests\n  pushedAt\n  rebaseMergeAllowed\n  repositoryTopics\n  securityPolicyUrl\n  squashMergeAllowed\n  sshUrl\n  stargazerCount\n  templateRepository\n  updatedAt\n  url\n  usesCustomOpenGraphImage\n  viewerCanAdminister\n  viewerDefaultCommitEmail\n  viewerDefaultMergeMethod\n  viewerHasStarred\n  viewerPermission\n  viewerPossibleCommitEmails\n  viewerSubscription\n  visibility\n  watchers\n"
+    },
+    {
+      "timestamp": "2025-08-07T21:52:17.289Z",
+      "level": "ERROR",
+      "message": "❌ Failed to clone airtimemedia/Ne10: ENOENT: no such file or directory, stat 'cloned-repos/airtimemedia/Ne10'"
+    },
+    {
+      "timestamp": "2025-08-07T21:53:44.993Z",
+      "level": "ERROR",
+      "message": "Command failed after 24ms: Command failed: gh repo list aircoreio --limit 1000 --json name,sshUrl,cloneUrl,size,language,updatedAt\nUnknown JSON field: \"cloneUrl\"\nAvailable fields:\n  assignableUsers\n  codeOfConduct\n  contactLinks\n  createdAt\n  defaultBranchRef\n  deleteBranchOnMerge\n  description\n  diskUsage\n  forkCount\n  fundingLinks\n  hasDiscussionsEnabled\n  hasIssuesEnabled\n  hasProjectsEnabled\n  hasWikiEnabled\n  homepageUrl\n  id\n  isArchived\n  isBlankIssuesEnabled\n  isEmpty\n  isFork\n  isInOrganization\n  isMirror\n  isPrivate\n  isSecurityPolicyEnabled\n  isTemplate\n  isUserConfigurationRepository\n  issueTemplates\n  issues\n  labels\n  languages\n  latestRelease\n  licenseInfo\n  mentionableUsers\n  mergeCommitAllowed\n  milestones\n  mirrorUrl\n  name\n  nameWithOwner\n  openGraphImageUrl\n  owner\n  parent\n  primaryLanguage\n  projects\n  pullRequestTemplates\n  pullRequests\n  pushedAt\n  rebaseMergeAllowed\n  repositoryTopics\n  securityPolicyUrl\n  squashMergeAllowed\n  sshUrl\n  stargazerCount\n  templateRepository\n  updatedAt\n  url\n  usesCustomOpenGraphImage\n  viewerCanAdminister\n  viewerDefaultCommitEmail\n  viewerDefaultMergeMethod\n  viewerHasStarred\n  viewerPermission\n  viewerPossibleCommitEmails\n  viewerSubscription\n  visibility\n  watchers\n"
+    }
+  ],
+  "initialRateLimit": {
+    "resources": {
+      "core": {
+        "limit": 5000,
+        "used": 4,
+        "remaining": 4996,
+        "reset": 1754604809
+      },
+      "search": {
+        "limit": 30,
+        "used": 0,
+        "remaining": 30,
+        "reset": 1754603692
+      },
+      "graphql": {
+        "limit": 5000,
+        "used": 42,
+        "remaining": 4958,
+        "reset": 1754604809
+      },
+      "integration_manifest": {
+        "limit": 5000,
+        "used": 0,
+        "remaining": 5000,
+        "reset": 1754607232
+      },
+      "source_import": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "code_scanning_upload": {
+        "limit": 5000,
+        "used": 4,
+        "remaining": 4996,
+        "reset": 1754604809
+      },
+      "code_scanning_autofix": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1754603692
+      },
+      "actions_runner_registration": {
+        "limit": 10000,
+        "used": 0,
+        "remaining": 10000,
+        "reset": 1754607232
+      },
+      "scim": {
+        "limit": 15000,
+        "used": 0,
+        "remaining": 15000,
+        "reset": 1754607232
+      },
+      "dependency_snapshots": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "dependency_sbom": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "audit_log": {
+        "limit": 1750,
+        "used": 0,
+        "remaining": 1750,
+        "reset": 1754607232
+      },
+      "audit_log_streaming": {
+        "limit": 15,
+        "used": 0,
+        "remaining": 15,
+        "reset": 1754607232
+      },
+      "code_search": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1754603692
+      }
+    },
+    "rate": {
+      "limit": 5000,
+      "used": 4,
+      "remaining": 4996,
+      "reset": 1754604809
+    }
+  },
+  "finalRateLimit": {
+    "resources": {
+      "core": {
+        "limit": 5000,
+        "used": 4,
+        "remaining": 4996,
+        "reset": 1754604809
+      },
+      "search": {
+        "limit": 30,
+        "used": 0,
+        "remaining": 30,
+        "reset": 1754603692
+      },
+      "graphql": {
+        "limit": 5000,
+        "used": 42,
+        "remaining": 4958,
+        "reset": 1754604809
+      },
+      "integration_manifest": {
+        "limit": 5000,
+        "used": 0,
+        "remaining": 5000,
+        "reset": 1754607232
+      },
+      "source_import": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "code_scanning_upload": {
+        "limit": 5000,
+        "used": 4,
+        "remaining": 4996,
+        "reset": 1754604809
+      },
+      "code_scanning_autofix": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1754603692
+      },
+      "actions_runner_registration": {
+        "limit": 10000,
+        "used": 0,
+        "remaining": 10000,
+        "reset": 1754607232
+      },
+      "scim": {
+        "limit": 15000,
+        "used": 0,
+        "remaining": 15000,
+        "reset": 1754607232
+      },
+      "dependency_snapshots": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "dependency_sbom": {
+        "limit": 100,
+        "used": 0,
+        "remaining": 100,
+        "reset": 1754603692
+      },
+      "audit_log": {
+        "limit": 1750,
+        "used": 0,
+        "remaining": 1750,
+        "reset": 1754607232
+      },
+      "audit_log_streaming": {
+        "limit": 15,
+        "used": 0,
+        "remaining": 15,
+        "reset": 1754607232
+      },
+      "code_search": {
+        "limit": 10,
+        "used": 0,
+        "remaining": 10,
+        "reset": 1754603692
+      }
+    },
+    "rate": {
+      "limit": 5000,
+      "used": 4,
+      "remaining": 4996,
+      "reset": 1754604809
+    }
+  },
+  "apiUsage": {
+    "core": 0,
+    "search": 0
+  },
+  "endTime": "2025-08-07T21:53:52.535Z",
+  "duration": 216492
+}
