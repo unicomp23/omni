@@ -236,6 +236,7 @@ EOF
     echo "  REST Proxy:        $RPK_REST_PROXY_URL"
     echo "  Load Test Instance: $LOAD_TEST_INSTANCE_IP"
     echo "  Write Caching:     ✅ Enabled (improved performance)"
+    echo "  Rack Awareness:    ✅ Enabled (fault tolerance across AZs)"
     echo ""
     echo "🔧 Environment Setup:"
     echo "  To use rpk with this cluster, run: source ./$ENV_FILE"

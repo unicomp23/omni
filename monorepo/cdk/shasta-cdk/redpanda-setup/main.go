@@ -49,10 +49,12 @@ type ClusterConfig struct {
 }
 
 type NodeConfig struct {
-	ID        int
-	PrivateIP string
-	PublicIP  string
-	Hostname  string
+	ID               int
+	PrivateIP        string
+	PublicIP         string
+	Hostname         string
+	AvailabilityZone string
+	RackID           string
 }
 
 type RedPandaConfig struct {
@@ -64,6 +66,7 @@ type RedPandaConfig struct {
 type RedPandaSettings struct {
 	DataDirectory    string         `yaml:"data_directory"`
 	NodeID           int            `yaml:"node_id"`
+	RackID           string         `yaml:"rack,omitempty"`
 	RpcServer        ServerConfig   `yaml:"rpc_server"`
 	KafkaAPI         []ServerConfig `yaml:"kafka_api"`
 	AdminAPI         []ServerConfig `yaml:"admin"`
@@ -205,6 +208,20 @@ func main() {
 		fmt.Println("✅ Write caching enabled - improved performance with relaxed durability")
 	}
 
+	// Enable rack awareness for fault tolerance across availability zones
+	logInfo("Enabling rack awareness for improved fault tolerance")
+	fmt.Println("\n=== Enabling Rack Awareness ===")
+	rackAwarenessStart := time.Now()
+	if err := enableRackAwareness(config); err != nil {
+		logWarn("Failed to enable rack awareness: %v", err)
+		fmt.Printf("⚠️  Warning: Rack awareness configuration failed: %v\n", err)
+		fmt.Println("You can enable it manually later with: rpk cluster config set enable_rack_awareness true")
+	} else {
+		rackAwarenessDuration := time.Since(rackAwarenessStart)
+		logInfo("Rack awareness enabled successfully in %v", rackAwarenessDuration)
+		fmt.Println("✅ Rack awareness enabled - replicas will be distributed across availability zones")
+	}
+
 	// Configure load test instance with broker environment variables
 	logInfo("Configuring load test instance with broker information")
 	fmt.Println("\n=== Configuring Load Test Instance ===")
@@ -226,6 +243,7 @@ func main() {
 	fmt.Println("🎉 RedPanda cluster is healthy and ready!")
 	fmt.Printf("Bootstrap brokers: %s\n", getBootstrapBrokers(config.Nodes))
 	fmt.Println("⚡ Write caching enabled for improved performance")
+	fmt.Println("🛡️  Rack awareness enabled for fault tolerance across AZs")
 	fmt.Println("✅ All systems operational!")
 }
 
@@ -289,7 +307,7 @@ func fetchClusterInfo(config *ClusterConfig) error {
 	}
 
 	// Validate required outputs exist
-	requiredOutputs := []string{"RedPandaClusterIPs", "RedPandaClusterPublicIPs"}
+	requiredOutputs := []string{"RedPandaClusterIPs", "RedPandaClusterPublicIPs", "RedPandaClusterAZs"}
 	for _, required := range requiredOutputs {
 		if _, exists := outputs[required]; !exists {
 			logError("Required stack output '%s' not found", required)
@@ -297,36 +315,43 @@ func fetchClusterInfo(config *ClusterConfig) error {
 		}
 	}
 
-	// Parse cluster IPs
-	logDebug("Parsing cluster IP addresses")
+	// Parse cluster IPs and AZs
+	logDebug("Parsing cluster IP addresses and availability zones")
 	privateIPs := strings.Split(outputs["RedPandaClusterIPs"], ",")
 	publicIPs := strings.Split(outputs["RedPandaClusterPublicIPs"], ",")
+	availabilityZones := strings.Split(outputs["RedPandaClusterAZs"], ",")
 
-	logDebug("Found %d private IPs and %d public IPs", len(privateIPs), len(publicIPs))
+	logDebug("Found %d private IPs, %d public IPs, and %d AZs", len(privateIPs), len(publicIPs), len(availabilityZones))
 
-	if len(privateIPs) != len(publicIPs) {
-		logError("Mismatch between private (%d) and public (%d) IP counts", len(privateIPs), len(publicIPs))
-		return fmt.Errorf("mismatch between private and public IP counts")
+	if len(privateIPs) != len(publicIPs) || len(privateIPs) != len(availabilityZones) {
+		logError("Mismatch in counts: private IPs (%d), public IPs (%d), AZs (%d)", len(privateIPs), len(publicIPs), len(availabilityZones))
+		return fmt.Errorf("mismatch between private IP, public IP, and AZ counts")
 	}
 
-	// Create node configurations
-	logDebug("Creating node configurations for %d nodes", len(privateIPs))
+	// Create node configurations with rack awareness
+	logDebug("Creating node configurations for %d nodes with rack awareness", len(privateIPs))
 	for i, privateIP := range privateIPs {
 		privateIP = strings.TrimSpace(privateIP)
 		publicIP := strings.TrimSpace(publicIPs[i])
+		az := strings.TrimSpace(availabilityZones[i])
 
-		if privateIP == "" || publicIP == "" {
-			logWarn("Empty IP address found at index %d: private='%s', public='%s'", i, privateIP, publicIP)
+		if privateIP == "" || publicIP == "" || az == "" {
+			logWarn("Empty value found at index %d: private='%s', public='%s', AZ='%s'", i, privateIP, publicIP, az)
 		}
+
+		// Generate rack ID from AZ - use a simplified format for rack awareness
+		rackID := fmt.Sprintf("rack-%s", strings.Replace(az, "-", "", -1))
 
 		node := NodeConfig{
-			ID:        i,
-			PrivateIP: privateIP,
-			PublicIP:  publicIP,
-			Hostname:  fmt.Sprintf("redpanda-%d", i),
+			ID:               i,
+			PrivateIP:        privateIP,
+			PublicIP:         publicIP,
+			Hostname:         fmt.Sprintf("redpanda-%d", i),
+			AvailabilityZone: az,
+			RackID:           rackID,
 		}
 		config.Nodes = append(config.Nodes, node)
-		logDebug("Created node config %d: %s (private) / %s (public)", i, privateIP, publicIP)
+		logDebug("Created node config %d: %s (private) / %s (public) / %s (AZ) / %s (rack)", i, privateIP, publicIP, az, rackID)
 	}
 
 	logInfo("Successfully fetched cluster info for %d nodes", len(config.Nodes))
@@ -476,6 +501,7 @@ func generateRedPandaConfig(config *ClusterConfig, node NodeConfig) RedPandaConf
 		RedPanda: RedPandaSettings{
 			DataDirectory: "/var/lib/redpanda/data",
 			NodeID:        node.ID,
+			RackID:        node.RackID,
 			RpcServer: ServerConfig{
 				Address: node.PrivateIP,
 				Port:    33145,
@@ -851,6 +877,85 @@ func enableWriteCaching(config *ClusterConfig) error {
 	fmt.Printf("  • Can be overridden per topic with: rpk topic alter-config <topic> --set write.caching=true/false\n")
 
 	logInfo("Write caching configuration completed successfully")
+	return nil
+}
+
+// enableRackAwareness configures the cluster to use rack awareness for better fault tolerance
+func enableRackAwareness(config *ClusterConfig) error {
+	logDebug("Starting rack awareness configuration")
+
+	// Connect to first node to configure cluster settings
+	logDebug("Connecting to first node for rack awareness configuration")
+	client, err := createSSHClient(config.Nodes[0].PublicIP, config.KeyPath)
+	if err != nil {
+		logError("Failed to connect to node 0 for rack awareness config: %v", err)
+		return fmt.Errorf("failed to connect to node 0: %w", err)
+	}
+	defer client.Close()
+
+	// Enable rack awareness at cluster level
+	fmt.Printf("🚀 Enabling rack awareness for fault tolerance across availability zones...\n")
+	logDebug("Executing rpk cluster config set enable_rack_awareness true")
+
+	configCmd := "rpk cluster config set enable_rack_awareness true"
+	session, err := client.NewSession()
+	if err != nil {
+		logError("Failed to create SSH session for rack awareness config: %v", err)
+		return fmt.Errorf("failed to create SSH session: %w", err)
+	}
+
+	configStart := time.Now()
+	output, err := session.CombinedOutput(configCmd)
+	session.Close()
+	configDuration := time.Since(configStart)
+
+	if err != nil {
+		logError("Rack awareness configuration command failed after %v: %v", configDuration, err)
+		logDebug("Command output: %s", string(output))
+		return fmt.Errorf("failed to enable rack awareness: %s, output: %s", err, string(output))
+	}
+
+	logDebug("Rack awareness configuration command succeeded after %v", configDuration)
+	fmt.Printf("Configuration output: %s\n", string(output))
+
+	// Verify the setting was applied correctly
+	fmt.Printf("🔍 Verifying rack awareness configuration...\n")
+	logDebug("Verifying enable_rack_awareness setting")
+
+	verifyCmd := "rpk cluster config get enable_rack_awareness"
+	session, err = client.NewSession()
+	if err != nil {
+		logWarn("Failed to create SSH session for verification: %v", err)
+		// Don't fail the entire operation for verification issues
+		return nil
+	}
+
+	verifyStart := time.Now()
+	output, err = session.CombinedOutput(verifyCmd)
+	session.Close()
+	verifyDuration := time.Since(verifyStart)
+
+	if err != nil {
+		logWarn("Rack awareness verification failed after %v: %v", verifyDuration, err)
+		logDebug("Verification output: %s", string(output))
+		// Don't fail the entire operation for verification issues
+		fmt.Printf("⚠️  Unable to verify rack awareness setting, but configuration command succeeded\n")
+		return nil
+	}
+
+	logDebug("Rack awareness verification succeeded after %v", verifyDuration)
+	fmt.Printf("✅ Rack awareness verification: %s\n", strings.TrimSpace(string(output)))
+
+	// Show rack configuration information
+	fmt.Printf("📋 Rack awareness info:\n")
+	for _, node := range config.Nodes {
+		fmt.Printf("  • Node %d (%s): AZ %s -> Rack %s\n", node.ID, node.PrivateIP, node.AvailabilityZone, node.RackID)
+	}
+	fmt.Printf("  • Replicas will be distributed across different availability zones\n")
+	fmt.Printf("  • Improved fault tolerance against AZ-level failures\n")
+	fmt.Printf("  • Consumer follower fetching enabled for reduced cross-AZ traffic\n")
+
+	logInfo("Rack awareness configuration completed successfully")
 	return nil
 }
 

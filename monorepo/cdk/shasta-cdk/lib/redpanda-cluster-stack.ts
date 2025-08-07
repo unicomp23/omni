@@ -206,6 +206,7 @@ export class RedPandaClusterStack extends Stack {
         // Create RedPanda instances (one per AZ)
         const redpandaIPs: string[] = [];
         const redpandaPublicIPs: string[] = [];
+        const redpandaAZs: string[] = [];
         const azCount = Math.min(3, publicSubnets.length);
         
         for (let i = 0; i < azCount; i++) {
@@ -232,13 +233,15 @@ export class RedPandaClusterStack extends Stack {
             const basicConfig = this.generateBasicUserData(i);
             redpandaInstance.addUserData(...basicConfig);
 
-            // Tag the instance
+            // Tag the instance with rack awareness information
             cdk.Tags.of(redpandaInstance).add('shasta-role', 'redpanda-node');
             cdk.Tags.of(redpandaInstance).add('redpanda-node-id', i.toString());
+            cdk.Tags.of(redpandaInstance).add('redpanda-rack-id', `rack-${i}`);
             
             this.redpandaInstances.push(redpandaInstance);
             redpandaIPs.push(redpandaInstance.instancePrivateIp);
             redpandaPublicIPs.push(redpandaInstance.instancePublicIp);
+            redpandaAZs.push(publicSubnets[i].availabilityZone);
         }
 
         // Create load testing instance in public subnet
@@ -285,6 +288,12 @@ export class RedPandaClusterStack extends Stack {
             value: redpandaPublicIPs.join(','),
             description: 'RedPanda cluster node public IP addresses',
             exportName: 'RedPandaClusterPublicIPs'
+        });
+
+        new cdk.CfnOutput(this, 'RedPandaClusterAZs', {
+            value: redpandaAZs.join(','),
+            description: 'RedPanda cluster node availability zones for rack awareness',
+            exportName: 'RedPandaClusterAZs'
         });
 
         new cdk.CfnOutput(this, LOAD_TEST_INSTANCE_IP, {
