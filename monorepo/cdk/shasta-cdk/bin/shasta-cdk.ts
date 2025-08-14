@@ -7,7 +7,7 @@ import { RedPandaClusterStack } from '../lib/redpanda-cluster-stack';
 const env = {
     // calent: 060795946368
     // eng: 358474168551
-    account: "358474168551",
+    account: "060795946368",
     region: 'us-east-1'
 };
 
