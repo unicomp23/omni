@@ -37,8 +37,8 @@ start_time=$(date +%s)
 
 # Default configuration
 export STACK_NAME="${STACK_NAME:-RedPandaClusterStack}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
-export KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.pem}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-2}"
+export KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.calent-2.pem}"
 export REDPANDA_VERSION="${REDPANDA_VERSION:-v23.3.3}"
 export NON_INTERACTIVE="${NON_INTERACTIVE:-false}"
 

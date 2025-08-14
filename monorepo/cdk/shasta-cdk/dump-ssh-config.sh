@@ -4,10 +4,10 @@ set -e
 
 # Configuration
 STACK_NAME=${STACK_NAME:-RedPandaClusterStack}
-AWS_PROFILE=${AWS_PROFILE:-358474168551_admin}
-AWS_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+AWS_PROFILE=${AWS_PROFILE:-default}
+AWS_REGION=${AWS_DEFAULT_REGION:-us-east-2}
 KEY_NAME="john.davis"
-KEY_PATH="${HOME}/.ssh/${KEY_NAME}.pem"
+KEY_PATH="/data/.ssh/${KEY_NAME}.calent-2.pem"
 
 # Colors for output
 RED='\033[0;31m'

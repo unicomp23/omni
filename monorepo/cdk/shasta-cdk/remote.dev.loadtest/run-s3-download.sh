@@ -9,9 +9,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Default configuration
-DEFAULT_BUCKET="redpanda-load-test-358474168551-us-east-1"
+DEFAULT_BUCKET="redpanda-load-test-060795946368-us-east-2"
 DEFAULT_OUTPUT_DIR="./downloads"
-DEFAULT_REGION="us-east-1"
+DEFAULT_REGION="us-east-2"
 DEFAULT_PREFIX="latency-logs/"
 
 # Colors for output
@@ -63,7 +63,7 @@ ENVIRONMENT VARIABLES:
     S3_BUCKET               Override default bucket
     OUTPUT_DIR              Override default output directory
     AWS_REGION              Override default AWS region
-    AWS_PROFILE             AWS profile name (default: 358474168551_admin)
+    AWS_PROFILE             AWS profile name (default: default)
     S3_PREFIX               Override default S3 prefix
     PATTERN                 Filter pattern for files
     MAX_FILES               Maximum number of files to process

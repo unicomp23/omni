@@ -217,8 +217,8 @@ PRODUCERS=8 CONSUMERS=8 ./run-complete-load-test.sh
 ### Environment Variables
 ```bash
 # Complete Automation
-export AWS_PROFILE="358474168551_admin"      # AWS profile
-export AWS_DEFAULT_REGION="us-east-1"        # AWS region
+export AWS_PROFILE="default"      # AWS profile
+export AWS_DEFAULT_REGION="us-east-2"        # AWS region
 export STACK_NAME="RedPandaClusterStack"     # CloudFormation stack
 export KEY_PATH="/data/.ssh/john.davis.pem"  # SSH key path
 
@@ -250,7 +250,7 @@ chmod +x run-complete-load-test.sh
 
 **AWS Credentials**
 ```bash
-export AWS_PROFILE=358474168551_admin
+export AWS_PROFILE=default
 aws sts get-caller-identity  # Verify credentials
 ```
 
