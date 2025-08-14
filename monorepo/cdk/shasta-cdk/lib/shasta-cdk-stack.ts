@@ -40,7 +40,7 @@ const vpcProps = {
             cidrMask: 24,
         },
     ],
-    availabilityZones: ['us-east-1a', 'us-east-1b', 'us-east-1d'],
+    availabilityZones: ['us-east-2a', 'us-east-2b', 'us-east-2c'],
 } as ec2.VpcProps;
 
 export class ShastaCdkStackL1 extends Stack {
