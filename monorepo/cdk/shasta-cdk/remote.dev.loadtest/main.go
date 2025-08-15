@@ -20,6 +20,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/kmsg"
+	"github.com/twmb/franz-go/pkg/sasl/scram"
+	"crypto/tls"
 
 	"loadtest/pkg/types"
 	"loadtest/pkg/utils"
@@ -40,8 +42,8 @@ func getBrokers() []string {
 	if brokersEnv := os.Getenv("REDPANDA_BROKERS"); brokersEnv != "" {
 		return strings.Split(brokersEnv, ",")
 	}
-	// Fallback to hardcoded brokers
-	return []string{"10.1.0.217:9092", "10.1.1.237:9092", "10.1.2.12:9092"}
+	// Fallback to Private Link bootstrap URL
+	return []string{"seed-beced2e2.d2f15c48ljef72usrte0.byoc.prd.cloud.redpanda.com:30292"}
 }
 
 // Buffer pool to reduce GC pressure from message allocations
@@ -737,6 +739,15 @@ func main() {
 		kgo.RequiredAcks(kgo.LeaderAck()), // ack=1 (lower latency than ack=all)
 		kgo.DisableIdempotentWrite(),      // Allow ack=1, reduce overhead
 
+		// TLS configuration for SASL_SSL
+		kgo.DialTLSConfig(&tls.Config{}),
+
+		// SASL/SCRAM authentication
+		kgo.SASL(scram.Auth{
+			User: "superuser",
+			Pass: "secretpassword",
+		}.AsSha256Mechanism()),
+
 		// Ultra-low latency optimizations
 		kgo.ProducerLinger(0),                             // Zero linger = immediate send
 		kgo.ProducerBatchMaxBytes(1024),                   // ULTRA-small batches (1KB) for lowest latency
@@ -774,6 +785,15 @@ func main() {
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+
+		// TLS configuration for SASL_SSL
+		kgo.DialTLSConfig(&tls.Config{}),
+
+		// SASL/SCRAM authentication
+		kgo.SASL(scram.Auth{
+			User: "superuser",
+			Pass: "secretpassword",
+		}.AsSha256Mechanism()),
 
 		// Ultra-low latency fetch optimizations
 		kgo.FetchMinBytes(1),                    // Don't wait for minimum bytes
