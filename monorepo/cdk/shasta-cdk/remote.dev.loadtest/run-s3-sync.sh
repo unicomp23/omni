@@ -9,9 +9,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Default configuration
-DEFAULT_BUCKET="redpanda-load-test-358474168551-us-east-1"
+DEFAULT_BUCKET="redpanda-load-test-060795946368-us-east-2"
 DEFAULT_LOGS_DIR="./logs"
-DEFAULT_REGION="us-east-1"
+DEFAULT_REGION="us-east-2"
 
 # Colors for output
 RED='\033[0;31m'

@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	defaultBucketName = "redpanda-load-test-358474168551-us-east-1"
+	defaultBucketName = "redpanda-load-test-060795946368-us-east-2"
 	defaultLogsDir    = "./logs"
-	defaultRegion     = "us-east-1"
+	defaultRegion     = "us-east-2"
 	syncInterval      = 60 * time.Second // Check for new files every minute
 )
 
