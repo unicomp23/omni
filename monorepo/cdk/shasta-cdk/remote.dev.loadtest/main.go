@@ -46,6 +46,16 @@ func getBrokers() []string {
 	return []string{"seed-beced2e2.d2f15c48ljef72usrte0.byoc.prd.cloud.redpanda.com:30292"}
 }
 
+func requiresTLS(brokers []string) bool {
+	// Check if using cloud or privatelink endpoints that require TLS
+	for _, broker := range brokers {
+		if strings.Contains(broker, ".cloud.redpanda.com") || strings.Contains(broker, ":30292") {
+			return true
+		}
+	}
+	return false
+}
+
 // Buffer pool to reduce GC pressure from message allocations
 var messageBufferPool = sync.Pool{
 	New: func() interface{} {
@@ -734,20 +744,28 @@ func main() {
 	defer latencyLogger.Close()
 
 	// Producer client optimized for ULTRA-LOW latency (<50ms P99.99 goal)
+	brokers := getBrokers()
 	producerOpts := []kgo.Opt{
-		kgo.SeedBrokers(getBrokers()...),
+		kgo.SeedBrokers(brokers...),
 		kgo.RequiredAcks(kgo.LeaderAck()), // ack=1 (lower latency than ack=all)
 		kgo.DisableIdempotentWrite(),      // Allow ack=1, reduce overhead
+	}
 
-		// TLS configuration for SASL_SSL
-		kgo.DialTLSConfig(&tls.Config{}),
+	// Add TLS and SASL only if required
+	if requiresTLS(brokers) {
+		producerOpts = append(producerOpts,
+			// TLS configuration for SASL_SSL
+			kgo.DialTLSConfig(&tls.Config{}),
+			// SASL/SCRAM authentication
+			kgo.SASL(scram.Auth{
+				User: "superuser",
+				Pass: "secretpassword",
+			}.AsSha256Mechanism()),
+		)
+	}
 
-		// SASL/SCRAM authentication
-		kgo.SASL(scram.Auth{
-			User: "superuser",
-			Pass: "secretpassword",
-		}.AsSha256Mechanism()),
-
+	// Add remaining producer optimizations
+	producerOpts = append(producerOpts,
 		// Ultra-low latency optimizations
 		kgo.ProducerLinger(0),                             // Zero linger = immediate send
 		kgo.ProducerBatchMaxBytes(1024),                   // ULTRA-small batches (1KB) for lowest latency
@@ -759,7 +777,7 @@ func main() {
 		kgo.RetryBackoffFn(func(tries int) time.Duration {
 			return time.Millisecond * 5 // Ultra-fast retries
 		}),
-	}
+	)
 
 	producerClient, err := kgo.NewClient(producerOpts...)
 	if err != nil {
@@ -781,19 +799,27 @@ func main() {
 
 	// Consumer client optimized for ULTRA-LOW latency & improved disconnect detection
 	consumerOpts := []kgo.Opt{
-		kgo.SeedBrokers(getBrokers()...),
+		kgo.SeedBrokers(brokers...),
 		kgo.ConsumeTopics(topicName),
 		kgo.ConsumerGroup(consumerGroup),
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
+	}
 
-		// TLS configuration for SASL_SSL
-		kgo.DialTLSConfig(&tls.Config{}),
+	// Add TLS and SASL only if required
+	if requiresTLS(brokers) {
+		consumerOpts = append(consumerOpts,
+			// TLS configuration for SASL_SSL
+			kgo.DialTLSConfig(&tls.Config{}),
+			// SASL/SCRAM authentication
+			kgo.SASL(scram.Auth{
+				User: "superuser",
+				Pass: "secretpassword",
+			}.AsSha256Mechanism()),
+		)
+	}
 
-		// SASL/SCRAM authentication
-		kgo.SASL(scram.Auth{
-			User: "superuser",
-			Pass: "secretpassword",
-		}.AsSha256Mechanism()),
+	// Add remaining consumer optimizations
+	consumerOpts = append(consumerOpts,
 
 		// Ultra-low latency fetch optimizations
 		kgo.FetchMinBytes(1),                    // Don't wait for minimum bytes
@@ -820,7 +846,7 @@ func main() {
 
 		// More frequent metadata refresh
 		kgo.MetadataMaxAge(30 * time.Second),
-	}
+	)
 
 	consumerClient, err := kgo.NewClient(consumerOpts...)
 	if err != nil {
