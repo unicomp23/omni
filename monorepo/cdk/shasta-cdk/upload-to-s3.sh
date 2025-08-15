@@ -9,8 +9,8 @@ echo "RedPanda Load Test S3 Upload"
 echo "============================"
 
 # Configuration
-export AWS_PROFILE="${AWS_PROFILE:-358474168551_admin}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}"
+export AWS_PROFILE="${AWS_PROFILE:-default}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-2}"
 export STACK_NAME="${STACK_NAME:-RedPandaClusterStack}"
 
 # Get S3 bucket name from CloudFormation if not provided
@@ -76,7 +76,7 @@ echo "Manual Steps (if needed):"
 echo "=========================================="
 echo ""
 echo "1. SSH to your load test instance:"
-echo "   ssh -i /data/.ssh/john.davis.pem ec2-user@{load-test-instance-ip}"
+echo "   ssh -i /data/.ssh/john.davis.calent-2.pem ec2-user@{load-test-instance-ip}"
 echo ""
 echo "2. Download from S3:"
 echo "   aws s3 sync s3://$BUCKET_NAME/ ~/load-test-scripts/"

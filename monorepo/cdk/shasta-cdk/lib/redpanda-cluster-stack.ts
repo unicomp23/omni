@@ -118,7 +118,7 @@ export class RedPandaClusterStack extends Stack {
 
         // Add EC2 Instance Connect Endpoint support (optional but recommended)
         redpandaSecurityGroup.addIngressRule(
-            ec2.Peer.prefixList('pl-02cd2c6b'),  // EC2 Instance Connect service prefix list for us-east-1
+            ec2.Peer.prefixList('pl-03915406641cb1f53'),  // EC2 Instance Connect service prefix list for us-east-2
             ec2.Port.tcp(22),
             'EC2 Instance Connect service access'
         );

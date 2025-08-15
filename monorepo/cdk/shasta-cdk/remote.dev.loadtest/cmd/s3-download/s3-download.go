@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	defaultBucketName = "redpanda-load-test-358474168551-us-east-1"
+	defaultBucketName = "redpanda-load-test-060795946368-us-east-2"
 	defaultOutputDir  = "./downloads"
-	defaultRegion     = "us-east-1"
+	defaultRegion     = "us-east-2"
 	defaultPrefix     = "latency-logs/"
 )
 
@@ -47,7 +47,7 @@ func NewS3Downloader(bucket, outputDir, region, prefix string) (*S3Downloader, e
 			Region: aws.String(region),
 		},
 		SharedConfigState: session.SharedConfigEnable,
-		Profile:           getEnvOrDefault("AWS_PROFILE", "358474168551_admin"),
+		Profile:           getEnvOrDefault("AWS_PROFILE", "default"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create AWS session: %w", err)
@@ -307,7 +307,7 @@ ENVIRONMENT VARIABLES:
   S3_BUCKET         Override default bucket name
   OUTPUT_DIR        Override default output directory
   AWS_REGION        Override default AWS region
-  AWS_PROFILE       AWS profile name (default: 358474168551_admin)
+  AWS_PROFILE       AWS profile name (default: default)
   S3_PREFIX         Override default S3 prefix
   MAX_FILES         Maximum number of files to process
   OVERWRITE_FILES   Set to 'true' to overwrite existing files

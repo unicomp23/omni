@@ -86,8 +86,8 @@ ssh -i /data/.ssh/john.davis.pem ec2-user@{instance-ip}
 All automation scripts support these environment variables:
 
 ### **Infrastructure**
-- `AWS_PROFILE` - AWS credentials profile (default: 358474168551_admin)
-- `AWS_DEFAULT_REGION` - AWS region (default: us-east-1) 
+- `AWS_PROFILE` - AWS credentials profile (default: default)
+- `AWS_DEFAULT_REGION` - AWS region (default: us-east-2) 
 - `STACK_NAME` - CloudFormation stack (default: RedPandaClusterStack)
 - `KEY_PATH` - SSH key path (default: /data/.ssh/john.davis.pem)
 

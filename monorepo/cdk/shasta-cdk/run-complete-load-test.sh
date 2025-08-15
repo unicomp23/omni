@@ -23,10 +23,10 @@ echo "RedPanda Ultra-Low Latency Load Test (p99.99 < 20ms)"
 echo "========================================================="
 
 # Configuration
-export AWS_PROFILE="${AWS_PROFILE:-358474168551_admin}"
-export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-1}" 
+export AWS_PROFILE="${AWS_PROFILE:-default}"
+export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-us-east-2}" 
 export STACK_NAME="${STACK_NAME:-RedPandaClusterStack}"
-export KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.pem}"
+export KEY_PATH="${KEY_PATH:-/data/.ssh/john.davis.calent-2.pem}"
 
 echo "Configuration:"
 echo "  AWS Profile: $AWS_PROFILE"
