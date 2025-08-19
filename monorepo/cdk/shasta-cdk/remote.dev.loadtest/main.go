@@ -46,6 +46,19 @@ func getBrokers() []string {
 	return []string{"seed-beced2e2.d2f15c48ljef72usrte0.byoc.prd.cloud.redpanda.com:30292"}
 }
 
+func getEnvOrDefault(envVar, defaultValue string) string {
+	if value := os.Getenv(envVar); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func getCredentials() (string, string) {
+	user := getEnvOrDefault("REDPANDA_USER", "superuser")
+	pass := getEnvOrDefault("REDPANDA_PASS", "secretpassword")
+	return user, pass
+}
+
 func requiresTLS(brokers []string) bool {
 	// Check if using cloud or privatelink endpoints that require TLS
 	for _, broker := range brokers {
@@ -753,13 +766,14 @@ func main() {
 
 	// Add TLS and SASL only if required
 	if requiresTLS(brokers) {
+		user, pass := getCredentials()
 		producerOpts = append(producerOpts,
 			// TLS configuration for SASL_SSL
 			kgo.DialTLSConfig(&tls.Config{}),
 			// SASL/SCRAM authentication
 			kgo.SASL(scram.Auth{
-				User: "superuser",
-				Pass: "secretpassword",
+				User: user,
+				Pass: pass,
 			}.AsSha256Mechanism()),
 		)
 	}
@@ -807,13 +821,14 @@ func main() {
 
 	// Add TLS and SASL only if required
 	if requiresTLS(brokers) {
+		user, pass := getCredentials()
 		consumerOpts = append(consumerOpts,
 			// TLS configuration for SASL_SSL
 			kgo.DialTLSConfig(&tls.Config{}),
 			// SASL/SCRAM authentication
 			kgo.SASL(scram.Auth{
-				User: "superuser",
-				Pass: "secretpassword",
+				User: user,
+				Pass: pass,
 			}.AsSha256Mechanism()),
 		)
 	}

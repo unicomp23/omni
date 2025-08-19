@@ -36,6 +36,8 @@ echo ""
 echo "🔧 Configuration:"
 echo "   Broker: $REDPANDA_BROKERS"
 echo "   TLS: Enabled (cloud endpoint detected)"
+echo "   User: ${REDPANDA_USER:-using defaults}"
+echo "   Authentication: ${REDPANDA_PASS:+✓ Password Set}"
 echo ""
 
 # Run the load test
