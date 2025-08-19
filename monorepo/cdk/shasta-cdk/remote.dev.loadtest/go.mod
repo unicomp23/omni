@@ -13,6 +13,7 @@ require (
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	golang.org/x/crypto v0.38.0 // indirect
 )
 
 replace loadtest => ./
