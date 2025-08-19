@@ -60,7 +60,34 @@ func getCredentials() (string, string) {
 }
 
 func requiresTLS(brokers []string) bool {
-	// Check if using cloud or privatelink endpoints that require TLS
+	// Check if TLS is explicitly enabled via environment variable
+	if tlsEnabled := os.Getenv("REDPANDA_TLS_ENABLED"); tlsEnabled == "true" {
+		return true
+	}
+	
+	// Auto-detect for cloud or privatelink endpoints
+	for _, broker := range brokers {
+		if strings.Contains(broker, ".cloud.redpanda.com") || strings.Contains(broker, ":30292") {
+			return true
+		}
+	}
+	return false
+}
+
+func requiresSASL(brokers []string) bool {
+	// Check if SASL is explicitly enabled via environment variable
+	if saslEnabled := os.Getenv("REDPANDA_SASL_ENABLED"); saslEnabled == "true" {
+		return true
+	}
+	
+	// Check if credentials are provided (indicates SASL is needed)
+	if user := os.Getenv("REDPANDA_USER"); user != "" {
+		if pass := os.Getenv("REDPANDA_PASS"); pass != "" {
+			return true
+		}
+	}
+	
+	// Auto-detect for cloud or privatelink endpoints
 	for _, broker := range brokers {
 		if strings.Contains(broker, ".cloud.redpanda.com") || strings.Contains(broker, ":30292") {
 			return true
@@ -764,12 +791,18 @@ func main() {
 		kgo.DisableIdempotentWrite(),      // Allow ack=1, reduce overhead
 	}
 
-	// Add TLS and SASL only if required
+	// Add TLS if required
 	if requiresTLS(brokers) {
+		producerOpts = append(producerOpts,
+			// TLS configuration
+			kgo.DialTLSConfig(&tls.Config{}),
+		)
+	}
+	
+	// Add SASL if required
+	if requiresSASL(brokers) {
 		user, pass := getCredentials()
 		producerOpts = append(producerOpts,
-			// TLS configuration for SASL_SSL
-			kgo.DialTLSConfig(&tls.Config{}),
 			// SASL/SCRAM authentication
 			kgo.SASL(scram.Auth{
 				User: user,
@@ -819,12 +852,18 @@ func main() {
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtEnd()),
 	}
 
-	// Add TLS and SASL only if required
+	// Add TLS if required
 	if requiresTLS(brokers) {
+		consumerOpts = append(consumerOpts,
+			// TLS configuration
+			kgo.DialTLSConfig(&tls.Config{}),
+		)
+	}
+	
+	// Add SASL if required
+	if requiresSASL(brokers) {
 		user, pass := getCredentials()
 		consumerOpts = append(consumerOpts,
-			// TLS configuration for SASL_SSL
-			kgo.DialTLSConfig(&tls.Config{}),
 			// SASL/SCRAM authentication
 			kgo.SASL(scram.Auth{
 				User: user,

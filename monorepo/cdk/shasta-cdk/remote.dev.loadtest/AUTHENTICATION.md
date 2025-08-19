@@ -12,6 +12,26 @@ The load test now supports environment variables for all authentication credenti
 | `REDPANDA_USER` | SASL username (producer & consumer) | `superuser` |
 | `REDPANDA_PASS` | SASL password (producer & consumer) | `secretpassword` |
 
+### Optional Control Variables
+
+| Variable | Description | Auto-Detection |
+|----------|-------------|----------------|
+| `REDPANDA_TLS_ENABLED=true` | Force TLS encryption | Auto-enabled for cloud endpoints |
+| `REDPANDA_SASL_ENABLED=true` | Force SASL authentication | Auto-enabled when credentials provided |
+
+### Smart Authentication Detection
+
+**NEW**: The code now automatically detects when to use authentication:
+
+1. **SASL Authentication** is enabled when:
+   - `REDPANDA_SASL_ENABLED=true`, OR
+   - `REDPANDA_USER` and `REDPANDA_PASS` are both set, OR  
+   - Cloud/PrivateLink endpoints detected
+
+2. **TLS Encryption** is enabled when:
+   - `REDPANDA_TLS_ENABLED=true`, OR
+   - Cloud/PrivateLink endpoints detected
+
 ### Setup Methods
 
 #### Method 1: Use Environment File (Recommended)
