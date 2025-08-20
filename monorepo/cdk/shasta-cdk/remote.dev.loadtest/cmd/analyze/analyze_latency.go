@@ -59,6 +59,12 @@ type FiveMinuteBucket struct {
 	EndTime               time.Time
 	TotalMessages         int
 	PartitionLatencyStats []PartitionLatencyStats
+	OverallAvg            float64 // Overall average latency across all partitions in this bucket
+	OverallP50            float64 // Overall P50 (median) across all partitions in this bucket
+	OverallP90            float64 // Overall P90 across all partitions in this bucket
+	OverallP95            float64 // Overall P95 across all partitions in this bucket
+	OverallP99            float64 // Overall P99 across all partitions in this bucket
+	OverallP99_9          float64 // Overall P99.9 across all partitions in this bucket
 	OverallP99_99         float64 // Overall P99.99 across all partitions in this bucket
 }
 
@@ -434,9 +440,23 @@ func analyzeFiveMinuteBuckets(entries []types.LatencyLogEntry) []FiveMinuteBucke
 
 		fiveMinBucket.PartitionLatencyStats = calculatePartitionLatencyStats(partitionLatencies)
 		
-		// Calculate overall P99.99 for this bucket
+		// Calculate overall percentiles for this bucket
 		if len(allLatencies) > 0 {
 			sort.Float64s(allLatencies)
+			
+			// Calculate average
+			var totalLatency float64
+			for _, latency := range allLatencies {
+				totalLatency += latency
+			}
+			fiveMinBucket.OverallAvg = totalLatency / float64(len(allLatencies))
+			
+			// Calculate percentiles
+			fiveMinBucket.OverallP50 = percentile(allLatencies, 50.0)
+			fiveMinBucket.OverallP90 = percentile(allLatencies, 90.0)
+			fiveMinBucket.OverallP95 = percentile(allLatencies, 95.0)
+			fiveMinBucket.OverallP99 = percentile(allLatencies, 99.0)
+			fiveMinBucket.OverallP99_9 = percentile(allLatencies, 99.9)
 			fiveMinBucket.OverallP99_99 = percentile(allLatencies, 99.99)
 		}
 
@@ -668,18 +688,21 @@ func displayFiveMinuteBucketAnalysis(buckets []FiveMinuteBucket) {
 	}
 
 	fmt.Println("\n⏰ 5-MINUTE BUCKET ANALYSIS (99.99% Availability)")
-	fmt.Println("═══════════════════════════════════════════════")
+	fmt.Println("══════════════════════════════════════════════════════════════════════════════════════════")
 	
 	// Display header for bucket table
-	fmt.Printf("%-6s %-10s %-10s %8s %10s\n", "Bucket", "Start", "End", "Messages", "P99.99 ms")
-	fmt.Println("────────────────────────────────────────────────────")
+	fmt.Printf("%-6s %-10s %-10s %8s %8s %8s %8s %8s %8s %8s %10s ⭐\n", 
+		"Bucket", "Start", "End", "Messages", "Avg ms", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
+	fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────")
 	
 	for i, bucket := range buckets {
 		startStr := bucket.StartTime.Format("15:04:05")
 		endStr := bucket.EndTime.Format("15:04:05")
 		
-		fmt.Printf("%-6d %-10s %-10s %8d %10.2f\n",
-			i+1, startStr, endStr, bucket.TotalMessages, bucket.OverallP99_99)
+		fmt.Printf("%-6d %-10s %-10s %8d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
+			i+1, startStr, endStr, bucket.TotalMessages, 
+			bucket.OverallAvg, bucket.OverallP50, bucket.OverallP90, bucket.OverallP95, 
+			bucket.OverallP99, bucket.OverallP99_9, bucket.OverallP99_99)
 	}
 }
 
