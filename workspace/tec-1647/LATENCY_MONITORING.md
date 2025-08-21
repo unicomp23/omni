@@ -5,31 +5,31 @@ This document describes how to monitor and analyze latency between Bixby and Tec
 
 ## Implementation Details
 
-### Correlation IDs
-- Each RegisterStream and NotifyStream request from Bixby includes a unique UUID correlation ID
-- The correlation ID allows tracking a single request from Bixby through to Master processing
-- Correlation IDs are logged at key points to measure latency
+### Latency IDs
+- Each RegisterStream and NotifyStream request from Bixby includes a unique UUID latency ID
+- The latency ID allows tracking a single request from Bixby through to Master processing
+- Latency IDs are logged at key points to measure latency
 
 ### Log Points
 
 #### Bixby Side
 1. **Request Sent**: Logged when Bixby sends the request
-   - Fields: `correlationId`, `streamUrl`, `startTimeMs`, `type=request_sent`
+   - Fields: `latencyId`, `streamUrl`, `startTimeMs`, `type=request_sent`
 2. **Response Received**: Logged when Bixby receives the response
-   - Fields: `correlationId`, `latencyMs`, `endTimeMs`, `type=response_received`
+   - Fields: `latencyId`, `latencyMs`, `endTimeMs`, `type=response_received`
 
 #### Master Side
 1. **Request Received**: Logged when Master receives the request
-   - Fields: `correlationId`, `streamUrl`, `receiveTimeMs`, `type=request_received`
+   - Fields: `latencyId`, `streamUrl`, `receiveTimeMs`, `type=request_received`
 2. **Processing Start**: Logged just before application business logic runs
-   - Fields: `correlationId`, `streamUrl`, `processingStartMs`, `networkLatencyMs`, `type=processing_start`
+   - Fields: `latencyId`, `streamUrl`, `processingStartMs`, `networkLatencyMs`, `type=processing_start`
 
 ## Sumo Logic Queries
 
 ### 1. RegisterStream Latency Distribution (5-minute window)
 ```
 _sourceCategory=bixby/logs "RegisterStream COMPLETE"
-| parse "correlationId=* " as correlationId
+| parse "latencyId=* " as latencyId
 | parse "latencyMs=* " as latency
 | timeslice 5m
 | num(latency) as latency_ms
@@ -50,7 +50,7 @@ _sourceCategory=bixby/logs "RegisterStream COMPLETE"
 ### 2. NotifyStream Latency Distribution (5-minute window)
 ```
 _sourceCategory=bixby/logs "NotifyStream COMPLETE"
-| parse "correlationId=* " as correlationId
+| parse "latencyId=* " as latencyId
 | parse "latencyMs=* " as latency
 | timeslice 5m
 | num(latency) as latency_ms
@@ -71,7 +71,7 @@ _sourceCategory=bixby/logs "NotifyStream COMPLETE"
 ### 3. Combined RegisterStream and NotifyStream Latency (Hourly)
 ```
 (_sourceCategory=bixby/logs "RegisterStream COMPLETE") OR (_sourceCategory=bixby/logs "NotifyStream COMPLETE")
-| parse "correlationId=* " as correlationId
+| parse "latencyId=* " as latencyId
 | parse "latencyMs=* " as latency
 | parse regex "(?<operation>RegisterStream|NotifyStream) COMPLETE"
 | timeslice 1h
@@ -93,7 +93,7 @@ _sourceCategory=bixby/logs "NotifyStream COMPLETE"
 ### 4. Network vs Processing Latency Analysis (Master Side)
 ```
 _sourceCategory=tecate/master "PROCESSING"
-| parse "correlationId=* " as correlationId
+| parse "latencyId=* " as latencyId
 | parse "networkLatencyMs=* " as network_latency
 | parse regex "(?<operation>RegisterStream|NotifyStream) PROCESSING"
 | timeslice 5m
@@ -107,7 +107,7 @@ _sourceCategory=tecate/master "PROCESSING"
 
 ### 5. Trace Individual Request (Using Correlation ID)
 ```
-"correlationId=YOUR_CORRELATION_ID_HERE"
+"latencyId=YOUR_LATENCY_ID_HERE"
 | sort by _messagetime asc
 | fields _messagetime, _raw
 ```
@@ -115,12 +115,12 @@ _sourceCategory=tecate/master "PROCESSING"
 ### 6. High Latency Requests (>100ms)
 ```
 _sourceCategory=bixby/logs ("RegisterStream COMPLETE" OR "NotifyStream COMPLETE")
-| parse "correlationId=* " as correlationId
+| parse "latencyId=* " as latencyId
 | parse "latencyMs=* " as latency
 | parse "streamUrl=* " as streamUrl
 | parse regex "(?<operation>RegisterStream|NotifyStream) COMPLETE"
 | where num(latency) > 100
-| fields _messagetime, operation, correlationId, streamUrl, latency
+| fields _messagetime, operation, latencyId, streamUrl, latency
 | sort by latency desc
 ```
 
@@ -155,16 +155,16 @@ Set up alerts for:
 
 ## Troubleshooting
 
-### Missing Correlation IDs
-If you see `correlationId=no-correlation-id` in logs, it means:
-- Client is using an older version without correlation ID support
+### Missing Latency IDs
+If you see `latencyId=no-latency-id` in logs, it means:
+- Client is using an older version without latency ID support
 - Proto files are not properly synchronized between Bixby and Tecate
 
 ### Calculating End-to-End Latency
 To calculate true end-to-end latency including Master processing:
 1. Find the request sent time from Bixby logs
 2. Find the processing complete time from Master logs
-3. Join on correlation ID to calculate total latency
+3. Join on latency ID to calculate total latency
 
 ### Network Latency Analysis
 The `networkLatencyMs` field in Master logs represents:
