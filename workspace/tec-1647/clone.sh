@@ -1,3 +1,3 @@
-git clone git@github.com:airtimemedia/media-ansible.git dev/media-ansible
-git clone git@github.com:yoinc/tecate.git
-git clone git@github.com:yoinc/bixby.git
+git clone git@github.com:airtimemedia/media-ansible.git repo/media-ansible
+git clone git@github.com:yoinc/tecate.git repo/tecate
+git clone git@github.com:yoinc/bixby.git repo/bixby
