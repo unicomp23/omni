@@ -7,7 +7,7 @@ vmType: "vz"
 # VM resources
 cpus: 4
 memory: "16GiB"
-disk: "100GiB"
+disk: "128GiB"
 
 # Use Ubuntu latest ARM64 image
 images:
