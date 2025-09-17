@@ -78,8 +78,17 @@ type TimeBucket struct {
 func main() {
 	// Command line flags
 	var fiveMinChunks bool
+	var jsonlOutput bool
 	flag.BoolVar(&fiveMinChunks, "5min", false, "Enable 5-minute bucket analysis for 99.99% availability reporting")
+	flag.BoolVar(&jsonlOutput, "jsonl", false, "Write JSONL records for each 5-minute bucket to file")
 	flag.Parse()
+	
+	// Validate flag combinations
+	if jsonlOutput && !fiveMinChunks {
+		fmt.Printf("❌ Error: -jsonl flag requires -5min flag to be enabled\n")
+		fmt.Printf("💡 Use: go run cmd/analyze/analyze_latency.go -5min -jsonl [directory]\n")
+		os.Exit(1)
+	}
 	
 	// Default to downloads folder (where S3 download script puts files)
 	logDir := "./downloads"
@@ -89,7 +98,11 @@ func main() {
 	}
 
 	if fiveMinChunks {
-		fmt.Printf("🔍 Analyzing latency logs with 5-minute buckets in: %s\n\n", logDir)
+		if jsonlOutput {
+			fmt.Printf("🔍 Analyzing latency logs with 5-minute buckets and JSONL output in: %s\n\n", logDir)
+		} else {
+			fmt.Printf("🔍 Analyzing latency logs with 5-minute buckets in: %s\n\n", logDir)
+		}
 	} else {
 		fmt.Printf("🔍 Analyzing latency logs in: %s\n\n", logDir)
 	}
@@ -122,6 +135,22 @@ func main() {
 
 	totalEntries := 0
 	filesProcessed := 0
+	var jsonlFile *os.File
+	var jsonlEncoder *json.Encoder
+	
+	// Create single JSONL output file if requested
+	if jsonlOutput {
+		jsonlOutputFile := "bucket_analysis.jsonl"
+		var err error
+		jsonlFile, err = os.Create(jsonlOutputFile)
+		if err != nil {
+			fmt.Printf("❌ Failed to create JSONL output file: %v\n", err)
+			os.Exit(1)
+		}
+		defer jsonlFile.Close()
+		jsonlEncoder = json.NewEncoder(jsonlFile)
+		fmt.Printf("📝 Writing JSONL records to: %s\n\n", jsonlOutputFile)
+	}
 
 	for _, filePath := range files {
 		if !fiveMinChunks {
@@ -153,6 +182,13 @@ func main() {
 			if len(fileAnalysis.FiveMinuteBuckets) > 0 {
 				fmt.Printf("\n📖 File: %s (%d entries)\n", filepath.Base(filePath), len(entries))
 				displayFiveMinuteBucketAnalysis(fileAnalysis.FiveMinuteBuckets)
+				
+				// Write JSONL output if requested
+				if jsonlOutput {
+					if err := writeJSONLRecordsToFile(filepath.Base(filePath), fileAnalysis.FiveMinuteBuckets, jsonlEncoder, jsonlFile); err != nil {
+						fmt.Printf("⚠️  Failed to write JSONL for %s: %v\n", filepath.Base(filePath), err)
+					}
+				}
 			}
 		} else {
 			// Show regular analysis when -5min flag is NOT used
@@ -176,6 +212,8 @@ func main() {
 	if !fiveMinChunks {
 		fmt.Printf("\n📊 Successfully processed %d files with %d total entries\n", filesProcessed, totalEntries)
 		fmt.Println("💡 Individual file analysis complete - memory optimized!")
+	} else if jsonlOutput {
+		fmt.Printf("\n📝 JSONL output complete - all bucket records written to bucket_analysis.jsonl\n")
 	}
 }
 
@@ -706,9 +744,59 @@ func displayFiveMinuteBucketAnalysis(buckets []FiveMinuteBucket) {
 	}
 }
 
+// BucketJSONLRecord represents a JSONL record for a 5-minute bucket
+type BucketJSONLRecord struct {
+	Filename              string                    `json:"filename"`
+	BucketIndex           int                       `json:"bucket_index"`
+	StartTime             time.Time                 `json:"start_time"`
+	EndTime               time.Time                 `json:"end_time"`
+	TotalMessages         int                       `json:"total_messages"`
+	PartitionLatencyStats []PartitionLatencyStats   `json:"partition_latency_stats"`
+	OverallAvg            float64                   `json:"overall_avg_ms"`
+	OverallP50            float64                   `json:"overall_p50_ms"`
+	OverallP90            float64                   `json:"overall_p90_ms"`
+	OverallP95            float64                   `json:"overall_p95_ms"`
+	OverallP99            float64                   `json:"overall_p99_ms"`
+	OverallP99_9          float64                   `json:"overall_p99_9_ms"`
+	OverallP99_99         float64                   `json:"overall_p99_99_ms"`
+}
+
+// writeJSONLRecordsToFile writes bucket analysis as JSONL records to the shared output file
+func writeJSONLRecordsToFile(filename string, buckets []FiveMinuteBucket, encoder *json.Encoder, file *os.File) error {
+	for i, bucket := range buckets {
+		record := BucketJSONLRecord{
+			Filename:              filename,
+			BucketIndex:           i + 1,
+			StartTime:             bucket.StartTime,
+			EndTime:               bucket.EndTime,
+			TotalMessages:         bucket.TotalMessages,
+			PartitionLatencyStats: bucket.PartitionLatencyStats,
+			OverallAvg:            bucket.OverallAvg,
+			OverallP50:            bucket.OverallP50,
+			OverallP90:            bucket.OverallP90,
+			OverallP95:            bucket.OverallP95,
+			OverallP99:            bucket.OverallP99,
+			OverallP99_9:          bucket.OverallP99_9,
+			OverallP99_99:         bucket.OverallP99_99,
+		}
+		
+		if err := encoder.Encode(record); err != nil {
+			return fmt.Errorf("failed to encode JSONL record: %v", err)
+		}
+		
+		// Flush after each record to make it immediately visible to tail -f
+		if err := file.Sync(); err != nil {
+			return fmt.Errorf("failed to flush JSONL record: %v", err)
+		}
+	}
+	
+	return nil
+}
+
 // printUsageHelp prints consistent usage help messages
 func printUsageHelp() {
 	fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
 	fmt.Printf("💡 Or specify a different directory: go run cmd/analyze/analyze_latency.go /path/to/logs\n")
 	fmt.Printf("💡 For 5-minute bucket analysis: go run cmd/analyze/analyze_latency.go -5min [/path/to/logs]\n")
+	fmt.Printf("💡 For JSONL output: go run cmd/analyze/analyze_latency.go -5min -jsonl [/path/to/logs]\n")
 }
