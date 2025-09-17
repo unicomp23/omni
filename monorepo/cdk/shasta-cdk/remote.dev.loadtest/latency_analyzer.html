@@ -183,7 +183,159 @@
         .p50 { color: #1f77b4; }
         .p95 { color: #2ca02c; }
         .p99 { color: #ff7f0e; }
+        .p999 { color: #e377c2; }
         .p9999 { color: #d62728; }
+
+        /* Tooltip styles */
+        .tooltip-bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.98);
+            border: 2px solid #333;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            pointer-events: none;
+            z-index: 1000;
+            min-width: 280px;
+            display: none;
+            animation: fadeIn 0.2s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .tooltip-header {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 13px;
+        }
+
+        .tooltip-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .tooltip-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+        }
+
+        .tooltip-label {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .tooltip-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .tooltip-messages {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        #partitionContainer {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .partition-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .partition-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .partition-info {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .partition-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .partition-table th {
+            background: #f8f9fa;
+            padding: 8px;
+            text-align: left;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .partition-table td {
+            padding: 8px;
+            font-size: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .partition-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .partition-id {
+            font-weight: bold;
+            background: #e3f2fd;
+            padding: 2px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .latency-cell {
+            font-weight: 500;
+            text-align: right;
+        }
+
+        .latency-high {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        .latency-medium {
+            color: #ff9800;
+        }
+
+        .latency-low {
+            color: #2e7d32;
+        }
+
+        .message-count {
+            text-align: right;
+            color: #666;
+        }
+
+        .no-partition-data {
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -256,11 +408,12 @@
         <div class="percentile-grid" id="percentileGrid"></div>
     </div>
 
-    <div class="chart-container" id="chartContainer" style="display:none;">
+    <div class="chart-container" id="chartContainer" style="display:none; position: relative;">
         <h3>Latency Trends <span id="chartInfo" style="font-size: 12px; color: #666; font-weight: normal;"></span></h3>
-        <div class="chart-scroll-container">
+        <div class="chart-scroll-container" id="chartScrollContainer" style="position: relative;">
             <canvas id="latencyChart"></canvas>
         </div>
+        <div class="tooltip-bubble" id="tooltipBubble"></div>
         <div style="margin-top: 10px; font-size: 12px; color: #666;">
             <span style="display: inline-block; margin-right: 20px;">
                 <span style="display: inline-block; width: 20px; height: 2px; background: #d62728; vertical-align: middle;"></span> P99.99
@@ -277,6 +430,18 @@
             <span style="font-style: italic; margin-left: 20px;">
                 (Scroll horizontally to see all data →)
             </span>
+        </div>
+    </div>
+
+    <div id="partitionContainer" style="display:none;">
+        <div class="partition-header">
+            <div>
+                <div class="partition-title">🎯 Partition Performance</div>
+                <div class="partition-info" id="partitionInfo">Hover over the chart to see partition details</div>
+            </div>
+        </div>
+        <div id="partitionContent">
+            <div class="no-partition-data">Hover over a data point in the latency chart to view partition-level statistics</div>
         </div>
     </div>
 
@@ -304,6 +469,7 @@
         let filteredData = [];
         let uniqueFiles = new Set();
         let uniquePartitions = new Set();
+        let currentHoverPoint = null;
 
         // Auto-load bucket_analysis.jsonl on page load
         window.addEventListener('load', async () => {
@@ -382,6 +548,7 @@
                 document.getElementById('statsGrid').style.display = 'grid';
                 document.getElementById('percentileCard').style.display = 'block';
                 document.getElementById('chartContainer').style.display = 'block';
+                document.getElementById('partitionContainer').style.display = 'block';
                 document.getElementById('tableContainer').style.display = 'block';
                 
                 applyFilters();
@@ -631,15 +798,8 @@
             const width = chartWidth - padding.left - padding.right;
             const height = 300 - padding.top - padding.bottom;
             
-            // Find value ranges
-            const maxLatency = Math.max(
-                ...data.map(d => Math.max(
-                    d.overall_p99_99_ms || 0,
-                    d.overall_p99_ms || 0,
-                    d.overall_p95_ms || 0,
-                    d.overall_p50_ms || 0
-                ))
-            );
+            // Fixed Y-axis at 100ms
+            const maxLatency = 100;
             
             // Clear and setup canvas
             ctx.clearRect(0, 0, chartWidth, 300);
@@ -661,7 +821,7 @@
                 ctx.font = '11px sans-serif';
                 ctx.textAlign = 'right';
                 const value = maxLatency * (1 - i / 5);
-                ctx.fillText(value.toFixed(1) + 'ms', padding.left - 5, y + 4);
+                ctx.fillText(value.toFixed(0) + 'ms', padding.left - 5, y + 4);
             }
             
             // Vertical grid lines (time-based)
@@ -714,8 +874,10 @@
                 data.forEach((point, i) => {
                     const value = point[metric.key] || 0;
                     const x = padding.left + (i / (data.length - 1)) * width;
-                    const y = padding.top + height - (value / maxLatency) * height;
-                    
+                    // Clamp values to maxLatency (100ms)
+                    const clampedValue = Math.min(value, maxLatency);
+                    const y = padding.top + height - (clampedValue / maxLatency) * height;
+
                     if (i === 0 || !hasData) {
                         ctx.moveTo(x, y);
                         hasData = true;
@@ -727,22 +889,8 @@
                 if (hasData) ctx.stroke();
             });
             
-            // Add hover interaction (optional enhancement)
-            canvas.onmousemove = (e) => {
-                const rect = canvas.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const dataIndex = Math.floor((x - padding.left) / width * (data.length - 1));
-                
-                if (dataIndex >= 0 && dataIndex < data.length) {
-                    const point = data[dataIndex];
-                    canvas.title = `Time: ${new Date(point.start_time).toLocaleString()}\n` +
-                        `P50: ${(point.overall_p50_ms || 0).toFixed(2)}ms\n` +
-                        `P95: ${(point.overall_p95_ms || 0).toFixed(2)}ms\n` +
-                        `P99: ${(point.overall_p99_ms || 0).toFixed(2)}ms\n` +
-                        `P99.99: ${(point.overall_p99_99_ms || 0).toFixed(2)}ms\n` +
-                        `Messages: ${point.total_messages || 0}`;
-                }
-            };
+            // Enhanced hover interaction with tooltip bubble
+            setupHoverInteraction(canvas, data, padding, width, height);
         }
 
         function updateTable(data) {
@@ -802,6 +950,184 @@
             a.href = url;
             a.download = `latency_analysis_${aggregation}_${Date.now()}.csv`;
             a.click();
+        }
+
+        function setupHoverInteraction(canvas, data, padding, width, height) {
+            const tooltip = document.getElementById('tooltipBubble');
+            const scrollContainer = document.getElementById('chartScrollContainer');
+            const chartContainer = document.getElementById('chartContainer');
+
+            canvas.onmousemove = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const scrollRect = scrollContainer.getBoundingClientRect();
+                const chartRect = chartContainer.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const dataIndex = Math.round((x - padding.left) / width * (data.length - 1));
+
+                if (dataIndex >= 0 && dataIndex < data.length &&
+                    x >= padding.left && x <= padding.left + width &&
+                    y >= padding.top && y <= padding.top + height) {
+
+                    const point = data[dataIndex];
+                    const time = new Date(point.start_time);
+
+                    // Update tooltip content
+                    tooltip.innerHTML = `
+                        <div class="tooltip-header">
+                            📊 ${time.toLocaleString()}
+                            ${point.filename ? `<br><small style="color: #666;">${point.filename}</small>` : ''}
+                        </div>
+                        <div class="tooltip-stats">
+                            <div class="tooltip-stat">
+                                <span class="tooltip-label">P50</span>
+                                <span class="tooltip-value p50">${(point.overall_p50_ms || 0).toFixed(2)}ms</span>
+                            </div>
+                            <div class="tooltip-stat">
+                                <span class="tooltip-label">P95</span>
+                                <span class="tooltip-value p95">${(point.overall_p95_ms || 0).toFixed(2)}ms</span>
+                            </div>
+                            <div class="tooltip-stat">
+                                <span class="tooltip-label">P99</span>
+                                <span class="tooltip-value p99">${(point.overall_p99_ms || 0).toFixed(2)}ms</span>
+                            </div>
+                            <div class="tooltip-stat">
+                                <span class="tooltip-label">P99.9</span>
+                                <span class="tooltip-value p999">${(point.overall_p99_9_ms || point.overall_p999_ms || 0).toFixed(2)}ms</span>
+                            </div>
+                            <div class="tooltip-stat">
+                                <span class="tooltip-label">P99.99</span>
+                                <span class="tooltip-value p9999">${(point.overall_p99_99_ms || 0).toFixed(2)}ms</span>
+                            </div>
+                        </div>
+                        <div class="tooltip-messages">
+                            <strong>${(point.total_messages || 0).toLocaleString()}</strong> messages
+                            ${point.bucket_count ? `<br>${point.bucket_count} buckets` : ''}
+                        </div>
+                    `;
+
+                    // Position tooltip relative to chart container, accounting for scroll
+                    const scrollLeft = scrollContainer.scrollLeft;
+                    const mouseXInContainer = e.clientX - chartRect.left;
+                    const mouseYInContainer = e.clientY - chartRect.top;
+
+                    // Calculate tooltip position
+                    let tooltipX = mouseXInContainer + 15;
+                    let tooltipY = mouseYInContainer - 80;
+
+                    // Keep tooltip within chart container bounds
+                    const tooltipWidth = 300; // approximate width
+                    const tooltipHeight = 200; // approximate height
+
+                    // Adjust horizontal position if too close to edges
+                    if (tooltipX + tooltipWidth > chartRect.width) {
+                        tooltipX = mouseXInContainer - tooltipWidth - 15;
+                    }
+                    if (tooltipX < 0) {
+                        tooltipX = 10;
+                    }
+
+                    // Adjust vertical position
+                    if (tooltipY < 10) {
+                        tooltipY = mouseYInContainer + 20;
+                    }
+                    if (tooltipY + tooltipHeight > chartRect.height) {
+                        tooltipY = chartRect.height - tooltipHeight - 10;
+                    }
+
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = tooltipX + 'px';
+                    tooltip.style.top = tooltipY + 'px';
+
+                    // Update partition display
+                    updatePartitionDisplay(point);
+                    currentHoverPoint = point;
+
+                } else {
+                    tooltip.style.display = 'none';
+                    currentHoverPoint = null;
+                }
+            };
+
+            canvas.onmouseleave = () => {
+                tooltip.style.display = 'none';
+                // Clear partition display
+                const partitionContent = document.getElementById('partitionContent');
+                if (partitionContent && !currentHoverPoint) {
+                    partitionContent.innerHTML = '<div class="no-partition-data">Hover over a data point in the latency chart to view partition-level statistics</div>';
+                }
+            };
+
+            // Fix for stuck tooltip on fast mouse movements
+            scrollContainer.onmouseleave = () => {
+                tooltip.style.display = 'none';
+            };
+
+            chartContainer.onmouseleave = () => {
+                tooltip.style.display = 'none';
+            };
+        }
+
+        function updatePartitionDisplay(point) {
+            const container = document.getElementById('partitionContent');
+            const info = document.getElementById('partitionInfo');
+
+            if (!point || !point.partition_latency_stats || point.partition_latency_stats.length === 0) {
+                container.innerHTML = '<div class="no-partition-data">No partition data available for this time period</div>';
+                info.textContent = 'No partition data available';
+                return;
+            }
+
+            const time = new Date(point.start_time);
+            info.innerHTML = `<strong>${time.toLocaleString()}</strong> - ${point.partition_latency_stats.length} partitions, ${(point.total_messages || 0).toLocaleString()} messages`;
+
+            // Sort partitions by P99.99 descending (most critical metric)
+            const sortedPartitions = [...point.partition_latency_stats].sort((a, b) =>
+                (b.P9999 || b.P99_99 || b.P99 || 0) - (a.P9999 || a.P99_99 || a.P99 || 0)
+            );
+
+            // Create table
+            const tableHtml = `
+                <table class="partition-table">
+                    <thead>
+                        <tr>
+                            <th>Partition</th>
+                            <th style="text-align: right;">P50</th>
+                            <th style="text-align: right;">P95</th>
+                            <th style="text-align: right;">P99</th>
+                            <th style="text-align: right;">P99.9</th>
+                            <th style="text-align: right;">P99.99</th>
+                            <th style="text-align: right;">Messages</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${sortedPartitions.map(stat => {
+                            const p99 = stat.P99 || 0;
+                            const p999 = stat.P999 || stat.P99_9 || 0;
+                            const p9999 = stat.P9999 || stat.P99_99 || 0;
+
+                            // Color coding based on P99.99
+                            const p9999Class = p9999 > 100 ? 'latency-high' : (p9999 > 50 ? 'latency-medium' : 'latency-low');
+                            const p999Class = p999 > 100 ? 'latency-high' : (p999 > 50 ? 'latency-medium' : 'latency-low');
+                            const p99Class = p99 > 100 ? 'latency-high' : (p99 > 50 ? 'latency-medium' : 'latency-low');
+
+                            return `
+                                <tr>
+                                    <td><span class="partition-id">P${stat.Partition}</span></td>
+                                    <td class="latency-cell">${(stat.P50 || 0).toFixed(2)}</td>
+                                    <td class="latency-cell">${(stat.P95 || 0).toFixed(2)}</td>
+                                    <td class="latency-cell ${p99Class}">${p99.toFixed(2)}</td>
+                                    <td class="latency-cell ${p999Class}">${p999.toFixed(2)}</td>
+                                    <td class="latency-cell ${p9999Class}">${p9999.toFixed(2)}</td>
+                                    <td class="message-count">${(stat.MessageCount || 0).toLocaleString()}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            container.innerHTML = tableHtml;
         }
     </script>
 </body>
