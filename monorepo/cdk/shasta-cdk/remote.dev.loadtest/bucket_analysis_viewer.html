@@ -74,6 +74,36 @@
             background: #f8f9fa;
         }
         
+        .file-input-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .file-btn {
+            background: #28a745;
+            color: white;
+            border-radius: 6px;
+        }
+        
+        .file-btn:hover {
+            background: #218838 !important;
+        }
+        
+        .file-name {
+            color: #666;
+            font-style: italic;
+            max-width: 300px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .file-name.loaded {
+            color: #28a745;
+            font-weight: 500;
+        }
+        
         .stats {
             background: white;
             padding: 20px;
@@ -172,6 +202,26 @@
             font-size: 1.2em;
         }
         
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            margin: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .drop-zone:hover,
+        .drop-zone.drag-over {
+            border-color: #28a745;
+            background-color: #f8fff9;
+        }
+        
+        .drop-zone.drag-over {
+            transform: scale(1.02);
+        }
+        
         .error {
             background: #f8d7da;
             color: #721c24;
@@ -222,7 +272,14 @@
     </div>
     
     <div class="controls">
-        <div class="btn-group">
+        <div class="file-input-container">
+            <input type="file" id="fileInput" accept=".jsonl,.json" style="display: none;" onchange="handleFileSelect(event)">
+            <button class="btn file-btn" onclick="document.getElementById('fileInput').click()">
+                📁 Select JSONL File
+            </button>
+            <span id="fileName" class="file-name"></span>
+        </div>
+        <div class="btn-group" id="viewControls" style="display: none;">
             <button class="btn active" onclick="switchView('5min')">5-Minute Data</button>
             <button class="btn" onclick="switchView('1hr')">1-Hour Data</button>
         </div>
@@ -278,7 +335,16 @@
         </div>
     </div>
     
-    <div class="loading" id="loading">Loading data...</div>
+    <div class="loading" id="loading">
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+            <h3>📁 Select or Drop Your JSONL File</h3>
+            <p>Click here to browse for a file, or drag and drop your bucket_analysis.jsonl file onto this area</p>
+            <div style="margin-top: 20px; color: #666; font-size: 0.9em;">
+                <strong>Expected format:</strong> Each line should be a JSON object with fields like:<br>
+                <code>bucket_type, start_time, p50_ms, p90_ms, p95_ms, p99_ms, p99_9_ms, p99_99_ms</code>
+            </div>
+        </div>
+    </div>
     
     <div class="tooltip" id="tooltip" style="display: none;"></div>
     
@@ -306,41 +372,83 @@
             'p99_99_ms': 'P99.99'
         };
         
-        async function loadData() {
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            if (file.name.endsWith('.jsonl') || file.name.endsWith('.json')) {
+                processFile(file);
+            } else {
+                showError('Please select a JSONL (.jsonl) or JSON (.json) file.');
+            }
+        }
+        
+        function loadDataFromText(text, filename) {
             try {
-                const response = await fetch('bucket_analysis.jsonl');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const lines = text.trim().split('\n').filter(line => line.trim());
                 
-                const text = await response.text();
-                const lines = text.trim().split('\n');
+                allData = [];
+                let lineNum = 0;
+                let errorCount = 0;
                 
-                allData = lines.map(line => {
+                for (const line of lines) {
+                    lineNum++;
                     try {
                         const data = JSON.parse(line);
                         data.start_time_date = new Date(data.start_time);
-                        return data;
+                        
+                        // Validate required fields
+                        if (!data.bucket_type || !data.start_time || !data.p50_ms) {
+                            console.warn(`Line ${lineNum}: Missing required fields`);
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        allData.push(data);
                     } catch (e) {
-                        console.warn('Failed to parse line:', line);
-                        return null;
+                        console.warn(`Line ${lineNum}: Failed to parse JSON:`, e.message);
+                        errorCount++;
+                        if (errorCount > 10) break; // Stop if too many errors
                     }
-                }).filter(d => d !== null);
+                }
                 
-                console.log(`Loaded ${allData.length} data points`);
+                if (allData.length === 0) {
+                    throw new Error('No valid data found in the file');
+                }
+                
+                console.log(`Loaded ${allData.length} data points from ${filename}`);
+                if (errorCount > 0) {
+                    console.warn(`Skipped ${errorCount} invalid lines`);
+                }
+                
+                // Update UI
+                const fileNameEl = document.getElementById('fileName');
+                fileNameEl.textContent = `✅ ${filename} (${allData.length.toLocaleString()} records)`;
+                fileNameEl.className = 'file-name loaded';
+                
                 document.getElementById('loading').style.display = 'none';
+                document.getElementById('viewControls').style.display = 'flex';
+                
                 renderChart();
                 
             } catch (error) {
-                console.error('Error loading data:', error);
-                document.getElementById('loading').innerHTML = `
-                    <div class="error">
-                        <strong>Error loading data:</strong> ${error.message}
-                        <br><br>
-                        Make sure the bucket_analysis.jsonl file is in the same directory as this HTML file.
-                    </div>
-                `;
+                showError(`Error processing data: ${error.message}`);
             }
+        }
+        
+        function showError(message) {
+            console.error(message);
+            document.getElementById('loading').innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${message}
+                    <br><br>
+                    Please select a valid JSONL file with the expected format.
+                </div>
+            `;
+            
+            const fileNameEl = document.getElementById('fileName');
+            fileNameEl.textContent = 'Error loading file';
+            fileNameEl.className = 'file-name';
         }
         
         function switchView(view) {
@@ -547,10 +655,92 @@
             document.getElementById('tooltip').style.display = 'none';
         }
         
+        // Initialize the application
+        function initializeApp() {
+            setupDragAndDrop();
+        }
+        
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('dropZone');
+            
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+            
+            // Highlight drop zone when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, highlight, false);
+            });
+            
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, unhighlight, false);
+            });
+            
+            // Handle dropped files
+            dropZone.addEventListener('drop', handleDrop, false);
+        }
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        function highlight(e) {
+            document.getElementById('dropZone').classList.add('drag-over');
+        }
+        
+        function unhighlight(e) {
+            document.getElementById('dropZone').classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.endsWith('.jsonl') || file.name.endsWith('.json')) {
+                    processFile(file);
+                } else {
+                    showError('Please select a JSONL (.jsonl) or JSON (.json) file.');
+                }
+            }
+        }
+        
+        function processFile(file) {
+            const fileName = document.getElementById('fileName');
+            fileName.textContent = `Loading ${file.name}...`;
+            fileName.className = 'file-name';
+            
+            document.getElementById('loading').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h3>📊 Loading ${file.name}...</h3>
+                    <p>Processing ${(file.size / 1024 / 1024).toFixed(1)} MB of data...</p>
+                </div>
+            `;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    loadDataFromText(e.target.result, file.name);
+                } catch (error) {
+                    showError(`Error reading file: ${error.message}`);
+                }
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the selected file.');
+            };
+            
+            reader.readAsText(file);
+        }
+        
         // Load D3.js library
         const script = document.createElement('script');
         script.src = 'https://d3js.org/d3.v7.min.js';
-        script.onload = loadData;
+        script.onload = initializeApp;
         document.head.appendChild(script);
         
         // Handle window resize
