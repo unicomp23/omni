@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Latency Intelligence Dashboard</title>
+    <title>Latency Viewer</title>
     <style>
         * {
             margin: 0;
@@ -12,220 +12,62 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
-            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
-            color: #e0e0e0;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #fff;
+            color: #333;
+            padding: 10px;
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
+            margin-bottom: 15px;
         }
 
         h1 {
-            color: #fff;
-            font-size: 28px;
+            font-size: 18px;
             font-weight: 600;
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
         }
 
         .controls {
             display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-
-        .toggle-group {
-            display: flex;
-            background: rgba(255,255,255,0.1);
-            border-radius: 25px;
-            padding: 3px;
-            backdrop-filter: blur(10px);
+            gap: 10px;
         }
 
         .toggle-btn {
-            padding: 8px 20px;
-            background: transparent;
-            border: none;
-            color: #a0a0a0;
-            font-size: 13px;
-            font-weight: 600;
+            padding: 4px 12px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
             cursor: pointer;
-            border-radius: 22px;
-            transition: all 0.3s ease;
+            font-size: 12px;
         }
 
         .toggle-btn.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: #007bff;
             color: white;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .file-label {
-            display: inline-block;
-            padding: 10px 20px;
-            background: rgba(255,255,255,0.1);
-            color: #e0e0e0;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 13px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .file-label:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-2px);
-        }
-
-        #fileInput {
-            display: none;
-        }
-
-        .insights-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-
-        .insight-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 15px;
-            padding: 20px;
-            backdrop-filter: blur(10px);
-        }
-
-        .insight-label {
-            color: #888;
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 8px;
-        }
-
-        .insight-value {
-            font-size: 24px;
-            font-weight: bold;
-            color: #fff;
-            margin-bottom: 5px;
-        }
-
-        .insight-change {
-            font-size: 12px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .change-positive { color: #4ade80; }
-        .change-negative { color: #f87171; }
-        .change-neutral { color: #888; }
-
-        .analysis-section {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            margin-bottom: 25px;
-            backdrop-filter: blur(10px);
-        }
-
-        .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .anomaly-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .anomaly-item {
-            background: rgba(255,0,0,0.1);
-            border: 1px solid rgba(255,0,0,0.2);
-            border-radius: 10px;
-            padding: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .anomaly-time {
-            color: #fbbf24;
-            font-weight: 600;
-            font-size: 13px;
-        }
-
-        .anomaly-detail {
-            color: #e0e0e0;
-            font-size: 12px;
-        }
-
-        .anomaly-severity {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-        }
-
-        .severity-high {
-            background: rgba(239, 68, 68, 0.2);
-            color: #f87171;
-        }
-
-        .severity-medium {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
+            border-color: #007bff;
         }
 
         .chart-container {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
-            position: relative;
-        }
-
-        .chart-scroll-container {
+            width: 100%;
             overflow-x: auto;
-            overflow-y: hidden;
-            position: relative;
-            margin-top: 20px;
+            border: 1px solid #ddd;
+            background: white;
         }
 
-        .chart-scroll-container::-webkit-scrollbar {
-            height: 8px;
+        .chart-container::-webkit-scrollbar {
+            height: 10px;
         }
 
-        .chart-scroll-container::-webkit-scrollbar-track {
-            background: rgba(255,255,255,0.05);
-            border-radius: 4px;
+        .chart-container::-webkit-scrollbar-track {
+            background: #f5f5f5;
         }
 
-        .chart-scroll-container::-webkit-scrollbar-thumb {
-            background: linear-gradient(90deg, #667eea, #764ba2);
-            border-radius: 4px;
+        .chart-container::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 5px;
         }
 
         canvas {
@@ -233,205 +75,62 @@
         }
 
         .tooltip {
-            position: absolute;
-            background: rgba(15,15,30,0.95);
-            border: 1px solid rgba(102,126,234,0.3);
-            border-radius: 12px;
-            padding: 15px;
+            position: fixed;
+            background: white;
+            border: 1px solid #333;
+            padding: 8px;
             pointer-events: none;
             z-index: 1000;
             display: none;
-            min-width: 250px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
-            backdrop-filter: blur(10px);
+            font-size: 11px;
+            font-family: monospace;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
         }
 
-        .tooltip-header {
-            color: #fff;
-            font-weight: 600;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            font-size: 13px;
-        }
-
-        .tooltip-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-        }
-
-        .tooltip-item {
+        .tooltip div {
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
+            gap: 15px;
         }
 
-        .tooltip-label {
-            color: #888;
-            font-size: 11px;
-        }
-
-        .tooltip-value {
-            font-weight: 600;
-            font-size: 12px;
-        }
-
-        .prediction-line {
-            stroke-dasharray: 5, 5;
-            opacity: 0.6;
-        }
-
-        .health-indicator {
-            position: absolute;
-            top: 25px;
-            right: 25px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 20px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 25px;
-            backdrop-filter: blur(10px);
-        }
-
-        .health-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .health-good { background: #4ade80; }
-        .health-warning { background: #fbbf24; }
-        .health-critical { background: #f87171; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-
-        .health-text {
-            font-size: 13px;
-            font-weight: 600;
+        .loading {
+            padding: 20px;
+            text-align: center;
+            color: #666;
         }
 
         .hidden {
             display: none;
         }
-
-        .loading {
-            text-align: center;
-            color: #888;
-            padding: 40px;
-            font-size: 14px;
-        }
-
-        .pattern-detection {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            margin-top: 15px;
-        }
-
-        .pattern-badge {
-            padding: 6px 15px;
-            background: rgba(102,126,234,0.2);
-            border: 1px solid rgba(102,126,234,0.4);
-            border-radius: 20px;
-            font-size: 12px;
-            color: #a5b4fc;
-            font-weight: 500;
-        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🧠 Latency Intelligence Dashboard</h1>
-            <div class="controls">
-                <div class="toggle-group">
-                    <button class="toggle-btn active" onclick="switchView('5min')">5 MINUTE</button>
-                    <button class="toggle-btn" onclick="switchView('1hr')">1 HOUR</button>
-                </div>
-                <label for="fileInput" class="file-label">
-                    📊 Load Analysis
-                </label>
-                <input type="file" id="fileInput" accept=".jsonl">
-            </div>
-        </div>
-
-        <div id="loading" class="loading">Analyzing latency patterns...</div>
-
-        <div id="mainContent" class="hidden">
-            <div class="insights-grid">
-                <div class="insight-card">
-                    <div class="insight-label">Current P99.99</div>
-                    <div class="insight-value" id="currentP9999">-</div>
-                    <div class="insight-change" id="p9999Change">
-                        <span>-</span>
-                    </div>
-                </div>
-                <div class="insight-card">
-                    <div class="insight-label">Stability Score</div>
-                    <div class="insight-value" id="stabilityScore">-</div>
-                    <div class="insight-change" id="stabilityTrend">
-                        <span>Based on variance analysis</span>
-                    </div>
-                </div>
-                <div class="insight-card">
-                    <div class="insight-label">Anomalies Detected</div>
-                    <div class="insight-value" id="anomalyCount">-</div>
-                    <div class="insight-change">
-                        <span id="anomalyPeriod">-</span>
-                    </div>
-                </div>
-                <div class="insight-card">
-                    <div class="insight-label">Predicted Next Hour</div>
-                    <div class="insight-value" id="prediction">-</div>
-                    <div class="insight-change">
-                        <span>P99.99 forecast</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="analysis-section">
-                <div class="section-title">
-                    🔍 Intelligent Analysis
-                </div>
-                <div class="pattern-detection" id="patterns">
-                    <!-- Pattern badges will be inserted here -->
-                </div>
-                <div class="anomaly-list" id="anomalies" style="margin-top: 20px;">
-                    <!-- Anomalies will be listed here -->
-                </div>
-            </div>
-
-            <div class="chart-container">
-                <div class="section-title">
-                    📈 Latency Visualization
-                </div>
-                <div class="health-indicator">
-                    <div class="health-dot" id="healthDot"></div>
-                    <span class="health-text" id="healthText">System Health</span>
-                </div>
-                <div class="chart-scroll-container">
-                    <canvas id="latencyChart"></canvas>
-                </div>
-                <div class="tooltip" id="tooltip"></div>
-            </div>
+    <div class="header">
+        <h1>Latency Viewer</h1>
+        <div class="controls">
+            <button class="toggle-btn active" onclick="switchView('5min')">5 MIN</button>
+            <button class="toggle-btn" onclick="switchView('1hr')">1 HOUR</button>
+            <input type="file" id="fileInput" accept=".jsonl" style="display:none">
+            <button class="toggle-btn" onclick="document.getElementById('fileInput').click()">Load File</button>
         </div>
     </div>
 
+    <div id="loading" class="loading">Loading data...</div>
+
+    <div id="mainContent" class="hidden">
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
     <script>
-        let allData = [];
         let fiveMinData = [];
         let oneHourData = [];
         let currentView = '5min';
-        let anomalies = [];
-        let patterns = [];
 
-        // Auto-load data
+        // Auto-load
         window.addEventListener('load', async () => {
             try {
                 const response = await fetch('bucket_analysis.jsonl');
@@ -439,32 +138,28 @@
                     const text = await response.text();
                     loadData(text);
                 } else {
-                    document.getElementById('loading').textContent = 'Select bucket_analysis.jsonl file';
+                    document.getElementById('loading').textContent = 'Select bucket_analysis.jsonl';
                 }
             } catch (error) {
-                document.getElementById('loading').textContent = 'Select bucket_analysis.jsonl file';
+                document.getElementById('loading').textContent = 'Select bucket_analysis.jsonl';
             }
         });
 
-        document.getElementById('fileInput').addEventListener('change', handleFileSelect);
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
+        document.getElementById('fileInput').addEventListener('change', e => {
+            const file = e.target.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = (e) => loadData(e.target.result);
+                reader.onload = e => loadData(e.target.result);
                 reader.readAsText(file);
             }
-        }
+        });
 
         function loadData(text) {
             try {
-                // Parse JSONL
-                allData = text.trim().split('\n')
+                const allData = text.trim().split('\n')
                     .filter(line => line.trim())
                     .map(line => JSON.parse(line));
 
-                // Separate by bucket type
                 fiveMinData = allData
                     .filter(d => d.bucket_type === '5min')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -473,16 +168,11 @@
                     .filter(d => d.bucket_type === '1hr')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-                // Fallback for old format
                 if (fiveMinData.length === 0 && oneHourData.length === 0) {
                     fiveMinData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
                 }
 
-                // Run intelligent analysis
-                performIntelligentAnalysis();
-                updateInsights();
                 drawChart();
-
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
 
@@ -491,467 +181,155 @@
             }
         }
 
-        function performIntelligentAnalysis() {
-            const data = currentView === '5min' ? fiveMinData : oneHourData;
-            if (data.length < 3) return;
-
-            // Reset
-            anomalies = [];
-            patterns = [];
-
-            // Detect anomalies (statistical outliers)
-            const p9999Values = data.map(d => d.p99_99_ms || d.overall_p99_99_ms || 0);
-            const mean = p9999Values.reduce((a,b) => a+b, 0) / p9999Values.length;
-            const stdDev = Math.sqrt(p9999Values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / p9999Values.length);
-
-            data.forEach((point, i) => {
-                const value = point.p99_99_ms || point.overall_p99_99_ms || 0;
-                const zScore = Math.abs((value - mean) / stdDev);
-
-                // Anomaly if z-score > 2.5
-                if (zScore > 2.5) {
-                    anomalies.push({
-                        time: new Date(point.start_time),
-                        value: value,
-                        severity: zScore > 3.5 ? 'high' : 'medium',
-                        deviation: ((value - mean) / mean * 100).toFixed(1)
-                    });
-                }
-
-                // Detect sudden spikes
-                if (i > 0) {
-                    const prevValue = data[i-1].p99_99_ms || data[i-1].overall_p99_99_ms || 0;
-                    const change = (value - prevValue) / prevValue;
-                    if (change > 0.5) { // 50% increase
-                        patterns.push(`Spike at ${new Date(point.start_time).toLocaleTimeString()}`);
-                    }
-                }
-            });
-
-            // Pattern detection
-            detectPatterns(data);
-        }
-
-        function detectPatterns(data) {
-            // Time-based patterns
-            const hourlyAvg = {};
-            data.forEach(point => {
-                const hour = new Date(point.start_time).getHours();
-                if (!hourlyAvg[hour]) hourlyAvg[hour] = [];
-                hourlyAvg[hour].push(point.p99_99_ms || point.overall_p99_99_ms || 0);
-            });
-
-            // Find peak hours
-            let maxHour = -1, maxAvg = 0;
-            Object.entries(hourlyAvg).forEach(([hour, values]) => {
-                const avg = values.reduce((a,b) => a+b, 0) / values.length;
-                if (avg > maxAvg) {
-                    maxAvg = avg;
-                    maxHour = hour;
-                }
-            });
-            if (maxHour >= 0) {
-                patterns.push(`Peak latency at ${maxHour}:00`);
-            }
-
-            // Trend detection
-            if (data.length > 10) {
-                const recent = data.slice(-10);
-                const older = data.slice(-20, -10);
-                const recentAvg = recent.reduce((sum, d) => sum + (d.p99_99_ms || d.overall_p99_99_ms || 0), 0) / recent.length;
-                const olderAvg = older.reduce((sum, d) => sum + (d.p99_99_ms || d.overall_p99_99_ms || 0), 0) / older.length;
-
-                if (recentAvg > olderAvg * 1.2) {
-                    patterns.push('Degrading trend detected');
-                } else if (recentAvg < olderAvg * 0.8) {
-                    patterns.push('Improving trend detected');
-                }
-            }
-
-            // Periodicity detection
-            if (data.length > 24) {
-                let periodicPattern = true;
-                const period = currentView === '5min' ? 12 : 24; // 1hr or 1 day
-                for (let i = period; i < Math.min(data.length, period * 3); i++) {
-                    const current = data[i].p99_99_ms || data[i].overall_p99_99_ms || 0;
-                    const previous = data[i - period].p99_99_ms || data[i - period].overall_p99_99_ms || 0;
-                    if (Math.abs(current - previous) / previous > 0.3) {
-                        periodicPattern = false;
-                        break;
-                    }
-                }
-                if (periodicPattern) {
-                    patterns.push(`${period}-bucket periodicity`);
-                }
-            }
-        }
-
-        function updateInsights() {
-            const data = currentView === '5min' ? fiveMinData : oneHourData;
-            if (data.length === 0) return;
-
-            // Current P99.99
-            const latest = data[data.length - 1];
-            const current = latest.p99_99_ms || latest.overall_p99_99_ms || 0;
-            document.getElementById('currentP9999').textContent = current.toFixed(2) + ' ms';
-
-            // Change from previous
-            if (data.length > 1) {
-                const previous = data[data.length - 2].p99_99_ms || data[data.length - 2].overall_p99_99_ms || 0;
-                const change = ((current - previous) / previous * 100).toFixed(1);
-                const changeEl = document.getElementById('p9999Change');
-                if (change > 0) {
-                    changeEl.innerHTML = `<span class="change-negative">↑ ${change}%</span>`;
-                } else if (change < 0) {
-                    changeEl.innerHTML = `<span class="change-positive">↓ ${Math.abs(change)}%</span>`;
-                } else {
-                    changeEl.innerHTML = `<span class="change-neutral">→ 0%</span>`;
-                }
-            }
-
-            // Stability score (based on coefficient of variation)
-            const values = data.map(d => d.p99_99_ms || d.overall_p99_99_ms || 0);
-            const mean = values.reduce((a,b) => a+b, 0) / values.length;
-            const stdDev = Math.sqrt(values.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / values.length);
-            const cv = (stdDev / mean * 100);
-            const stability = Math.max(0, Math.min(100, 100 - cv)).toFixed(0);
-            document.getElementById('stabilityScore').textContent = stability + '%';
-
-            // Anomaly count
-            document.getElementById('anomalyCount').textContent = anomalies.length;
-            document.getElementById('anomalyPeriod').textContent = `in last ${data.length} buckets`;
-
-            // Prediction (simple linear regression on last 10 points)
-            if (data.length > 5) {
-                const recent = data.slice(-10);
-                const prediction = predictNext(recent);
-                document.getElementById('prediction').textContent = prediction.toFixed(2) + ' ms';
-            }
-
-            // Update health indicator
-            updateHealthIndicator(current, mean, stdDev);
-
-            // Display patterns
-            const patternsEl = document.getElementById('patterns');
-            patternsEl.innerHTML = patterns.map(p =>
-                `<div class="pattern-badge">${p}</div>`
-            ).join('');
-
-            // Display anomalies
-            const anomaliesEl = document.getElementById('anomalies');
-            if (anomalies.length > 0) {
-                anomaliesEl.innerHTML = anomalies.slice(-5).reverse().map(a => `
-                    <div class="anomaly-item">
-                        <div>
-                            <div class="anomaly-time">${a.time.toLocaleString()}</div>
-                            <div class="anomaly-detail">${a.value.toFixed(2)} ms (${a.deviation}% deviation)</div>
-                        </div>
-                        <div class="anomaly-severity severity-${a.severity}">${a.severity.toUpperCase()}</div>
-                    </div>
-                `).join('');
-            } else {
-                anomaliesEl.innerHTML = '<div style="color: #4ade80; text-align: center;">✓ No anomalies detected</div>';
-            }
-        }
-
-        function predictNext(recentData) {
-            // Simple linear regression
-            const n = recentData.length;
-            const x = Array.from({length: n}, (_, i) => i);
-            const y = recentData.map(d => d.p99_99_ms || d.overall_p99_99_ms || 0);
-
-            const sumX = x.reduce((a,b) => a+b, 0);
-            const sumY = y.reduce((a,b) => a+b, 0);
-            const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
-            const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
-
-            const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-            const intercept = (sumY - slope * sumX) / n;
-
-            return intercept + slope * n;
-        }
-
-        function updateHealthIndicator(current, mean, stdDev) {
-            const dot = document.getElementById('healthDot');
-            const text = document.getElementById('healthText');
-
-            if (current < mean + stdDev) {
-                dot.className = 'health-dot health-good';
-                text.textContent = 'Healthy';
-            } else if (current < mean + 2 * stdDev) {
-                dot.className = 'health-dot health-warning';
-                text.textContent = 'Warning';
-            } else {
-                dot.className = 'health-dot health-critical';
-                text.textContent = 'Critical';
-            }
-        }
-
         function switchView(view) {
             currentView = view;
-
-            // Update toggle
             document.querySelectorAll('.toggle-btn').forEach(btn => {
                 btn.classList.remove('active');
-                if (btn.textContent.includes(view === '5min' ? '5 MINUTE' : '1 HOUR')) {
-                    btn.classList.add('active');
-                }
             });
-
-            // Re-analyze and update
-            performIntelligentAnalysis();
-            updateInsights();
+            event.target.classList.add('active');
             drawChart();
         }
 
         function drawChart() {
-            const canvas = document.getElementById('latencyChart');
+            const canvas = document.getElementById('chart');
             const ctx = canvas.getContext('2d');
             const data = currentView === '5min' ? fiveMinData : oneHourData;
 
             if (data.length === 0) return;
 
-            // Dynamic sizing
-            const pointWidth = 12;
-            const chartWidth = Math.max(1400, data.length * pointWidth);
-            canvas.width = chartWidth;
-            canvas.height = 500;
+            const width = Math.max(1200, data.length * 20);
+            const height = 400;
+            canvas.width = width;
+            canvas.height = height;
 
-            const width = chartWidth;
-            const height = 500;
-            const padding = { top: 40, right: 60, bottom: 60, left: 70 };
-            const plotWidth = width - padding.left - padding.right;
-            const plotHeight = height - padding.top - padding.bottom;
+            const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+            const plotW = width - padding.left - padding.right;
+            const plotH = height - padding.top - padding.bottom;
 
             ctx.clearRect(0, 0, width, height);
 
-            // Calculate scale
-            const maxValue = Math.max(
-                ...data.map(d => Math.max(
-                    d.max_ms || d.max_latency || 0,
-                    d.p99_99_ms || d.overall_p99_99_ms || 0
-                ))
-            ) * 1.1;
+            // Fixed 200ms scale
+            const maxY = 200;
 
-            // Draw grid
-            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            // Grid
+            ctx.strokeStyle = '#e0e0e0';
             ctx.lineWidth = 0.5;
             for (let i = 0; i <= 10; i++) {
-                const y = padding.top + (i * plotHeight / 10);
+                const y = padding.top + (i * plotH / 10);
                 ctx.beginPath();
                 ctx.moveTo(padding.left, y);
                 ctx.lineTo(width - padding.right, y);
                 ctx.stroke();
             }
 
-            // Draw axes
-            ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-            ctx.lineWidth = 2;
+            // Y-axis labels
+            ctx.fillStyle = '#666';
+            ctx.font = '10px sans-serif';
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 10; i++) {
+                const y = padding.top + (i * plotH / 10);
+                ctx.fillText((200 - i * 20) + '', padding.left - 5, y + 3);
+            }
+
+            // Axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(padding.left, padding.top);
             ctx.lineTo(padding.left, height - padding.bottom);
             ctx.lineTo(width - padding.right, height - padding.bottom);
             ctx.stroke();
 
-            // Y-axis labels
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.font = '11px sans-serif';
-            ctx.textAlign = 'right';
-            for (let i = 0; i <= 10; i++) {
-                const y = padding.top + (i * plotHeight / 10);
-                const value = maxValue * (1 - i / 10);
-                ctx.fillText(value.toFixed(0) + 'ms', padding.left - 10, y + 4);
-            }
-
-            // Draw filled area for P50
-            ctx.fillStyle = 'rgba(102,126,234,0.1)';
-            ctx.beginPath();
-            ctx.moveTo(padding.left, height - padding.bottom);
-            data.forEach((point, i) => {
-                const value = point.p50_ms || point.overall_p50_ms || 0;
-                const x = padding.left + (i / (data.length - 1)) * plotWidth;
-                const y = height - padding.bottom - (value / maxValue) * plotHeight;
-                ctx.lineTo(x, y);
-            });
-            ctx.lineTo(width - padding.right, height - padding.bottom);
-            ctx.closePath();
-            ctx.fill();
-
-            // Define metrics
+            // Lines
             const metrics = [
-                {key: 'p50_ms', fallback: 'overall_p50_ms', color: '#667eea', width: 2},
-                {key: 'p90_ms', fallback: 'overall_p90_ms', color: '#f59e0b', width: 2},
-                {key: 'p99_ms', fallback: 'overall_p99_ms', color: '#ef4444', width: 2.5},
-                {key: 'p99_9_ms', fallback: 'overall_p99_9_ms', color: '#ec4899', width: 3},
-                {key: 'p99_99_ms', fallback: 'overall_p99_99_ms', color: '#a855f7', width: 3.5}
+                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 1 },
+                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 1.5 },
+                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 1.5 },
+                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 1.5 },
+                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 2 },
+                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 2 },
+                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 2.5 },
+                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 1 }
             ];
 
-            // Draw lines
             const dataPoints = [];
-            metrics.forEach(metric => {
-                ctx.strokeStyle = metric.color;
-                ctx.lineWidth = metric.width;
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = metric.color;
+
+            metrics.forEach((m, idx) => {
+                ctx.strokeStyle = m.color;
+                ctx.lineWidth = m.width;
+                ctx.globalAlpha = (m.key.includes('min') || m.key.includes('max')) ? 0.3 : 0.8;
                 ctx.beginPath();
 
-                data.forEach((point, i) => {
-                    const value = point[metric.key] || point[metric.fallback] || 0;
-                    const x = padding.left + (i / (data.length - 1)) * plotWidth;
-                    const y = height - padding.bottom - (value / maxValue) * plotHeight;
+                data.forEach((pt, i) => {
+                    const val = Math.min(pt[m.key] || pt[m.fb] || 0, maxY);
+                    const x = padding.left + (i / (data.length - 1)) * plotW;
+                    const y = height - padding.bottom - (val / maxY) * plotH;
 
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
 
-                    if (metric.key === 'p50_ms') {
-                        dataPoints[i] = { x, data: point };
-                    }
+                    if (idx === 0) dataPoints[i] = { x, data: pt };
                 });
 
                 ctx.stroke();
-                ctx.shadowBlur = 0;
-            });
-
-            // Draw prediction line
-            if (data.length > 5) {
-                const prediction = predictNext(data.slice(-10));
-                ctx.strokeStyle = 'rgba(168,85,247,0.4)';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.beginPath();
-                const lastPoint = data[data.length - 1];
-                const lastValue = lastPoint.p99_99_ms || lastPoint.overall_p99_99_ms || 0;
-                const lastX = width - padding.right;
-                const lastY = height - padding.bottom - (lastValue / maxValue) * plotHeight;
-                const predX = lastX + pointWidth;
-                const predY = height - padding.bottom - (prediction / maxValue) * plotHeight;
-                ctx.moveTo(lastX, lastY);
-                ctx.lineTo(predX, predY);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
-
-            // Mark anomalies
-            ctx.fillStyle = 'rgba(239,68,68,0.8)';
-            anomalies.forEach(anomaly => {
-                const index = data.findIndex(d =>
-                    Math.abs(new Date(d.start_time) - anomaly.time) < 60000
-                );
-                if (index >= 0) {
-                    const x = padding.left + (index / (data.length - 1)) * plotWidth;
-                    const y = height - padding.bottom - (anomaly.value / maxValue) * plotHeight;
-                    ctx.beginPath();
-                    ctx.arc(x, y, 5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
+                ctx.globalAlpha = 1;
             });
 
             // X-axis labels
-            const step = Math.max(1, Math.floor(data.length / 20));
-            ctx.fillStyle = 'rgba(255,255,255,0.6)';
-            ctx.font = '10px sans-serif';
+            const step = Math.max(1, Math.floor(data.length / 40));
+            ctx.fillStyle = '#666';
+            ctx.font = '9px sans-serif';
             ctx.textAlign = 'center';
             for (let i = 0; i < data.length; i += step) {
-                const x = padding.left + (i / (data.length - 1)) * plotWidth;
-                const date = new Date(data[i].start_time);
+                const x = padding.left + (i / (data.length - 1)) * plotW;
+                const d = new Date(data[i].start_time);
                 const label = currentView === '5min'
-                    ? date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                    : date.toLocaleDateString([], {month: 'short', day: 'numeric', hour: '2-digit'});
-                ctx.fillText(label, x, height - padding.bottom + 20);
+                    ? `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
+                    : `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}h`;
+                ctx.fillText(label, x, height - padding.bottom + 15);
             }
 
-            // Setup hover
-            setupHover(canvas, dataPoints);
-        }
-
-        function setupHover(canvas, dataPoints) {
+            // Hover
             const tooltip = document.getElementById('tooltip');
-
-            canvas.onmousemove = (e) => {
+            canvas.onmousemove = e => {
                 const rect = canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
 
                 let closest = null;
                 let minDist = Infinity;
-                dataPoints.forEach(point => {
-                    const dist = Math.abs(point.x - x);
+                dataPoints.forEach(pt => {
+                    const dist = Math.abs(pt.x - x);
                     if (dist < minDist) {
                         minDist = dist;
-                        closest = point;
+                        closest = pt;
                     }
                 });
 
-                if (closest && minDist < 30) {
+                if (closest && minDist < 15) {
                     const d = closest.data;
-                    const date = new Date(d.start_time);
-
                     tooltip.innerHTML = `
-                        <div class="tooltip-header">
-                            ${date.toLocaleString()}
-                            ${d.total_messages ? `• ${d.total_messages.toLocaleString()} messages` : ''}
+                        <div style="font-weight:bold;margin-bottom:5px">
+                            ${new Date(d.start_time).toLocaleString()}
                         </div>
-                        <div class="tooltip-grid">
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">MIN</span>
-                                <span class="tooltip-value" style="color: #10b981">${(d.min_ms || d.min_latency || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">MAX</span>
-                                <span class="tooltip-value" style="color: #ef4444">${(d.max_ms || d.max_latency || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">AVG</span>
-                                <span class="tooltip-value">${(d.avg_ms || d.overall_avg_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P50</span>
-                                <span class="tooltip-value" style="color: #667eea">${(d.p50_ms || d.overall_p50_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P90</span>
-                                <span class="tooltip-value" style="color: #f59e0b">${(d.p90_ms || d.overall_p90_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P95</span>
-                                <span class="tooltip-value">${(d.p95_ms || d.overall_p95_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P99</span>
-                                <span class="tooltip-value" style="color: #ef4444">${(d.p99_ms || d.overall_p99_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P99.9</span>
-                                <span class="tooltip-value" style="color: #ec4899">${(d.p99_9_ms || d.overall_p99_9_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                            <div class="tooltip-item">
-                                <span class="tooltip-label">P99.99</span>
-                                <span class="tooltip-value" style="color: #a855f7">${(d.p99_99_ms || d.overall_p99_99_ms || 0).toFixed(2)}ms</span>
-                            </div>
-                        </div>
+                        <div><span>MIN</span><span>${(d.min_ms || d.min_latency || 0).toFixed(2)} ms</span></div>
+                        <div><span>AVG</span><span>${(d.avg_ms || d.overall_avg_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P50</span><span>${(d.p50_ms || d.overall_p50_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P90</span><span>${(d.p90_ms || d.overall_p90_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P95</span><span>${(d.p95_ms || d.overall_p95_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P99</span><span>${(d.p99_ms || d.overall_p99_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P99.9</span><span>${(d.p99_9_ms || d.overall_p99_9_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>P99.99</span><span>${(d.p99_99_ms || d.overall_p99_99_ms || 0).toFixed(2)} ms</span></div>
+                        <div><span>MAX</span><span>${(d.max_ms || d.max_latency || 0).toFixed(2)} ms</span></div>
                     `;
-
-                    const containerRect = document.querySelector('.chart-container').getBoundingClientRect();
-                    let tooltipX = e.clientX - containerRect.left + 10;
-                    let tooltipY = e.clientY - containerRect.top - 100;
-
-                    if (tooltipX + 280 > containerRect.width) {
-                        tooltipX = e.clientX - containerRect.left - 280;
-                    }
-                    if (tooltipY < 10) {
-                        tooltipY = e.clientY - containerRect.top + 20;
-                    }
-
                     tooltip.style.display = 'block';
-                    tooltip.style.left = tooltipX + 'px';
-                    tooltip.style.top = tooltipY + 'px';
+                    tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 200) + 'px';
+                    tooltip.style.top = (e.clientY - 100) + 'px';
                 } else {
                     tooltip.style.display = 'none';
                 }
             };
 
-            canvas.onmouseleave = () => {
-                tooltip.style.display = 'none';
-            };
+            canvas.onmouseleave = () => tooltip.style.display = 'none';
         }
     </script>
 </body>
