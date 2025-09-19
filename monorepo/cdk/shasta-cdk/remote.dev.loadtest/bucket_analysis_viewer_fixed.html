@@ -193,6 +193,7 @@
             z-index: 1000;
             max-width: 300px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            display: none;
         }
         
         .loading {
@@ -231,36 +232,32 @@
             border-left: 4px solid #dc3545;
         }
         
-        .grid-line {
-            stroke: #f0f0f0;
-            stroke-width: 1;
-        }
-        
-        .axis-line {
-            stroke: #333;
-            stroke-width: 1;
-        }
-        
-        .axis-text {
+        .svg-axis-text {
             font-size: 10px;
             fill: #666;
             font-family: 'Segoe UI', sans-serif;
         }
         
-        .data-line {
+        .svg-grid-line {
+            stroke: #f0f0f0;
+            stroke-width: 1;
+        }
+        
+        .svg-data-line {
             fill: none;
             stroke-width: 2;
             stroke-linecap: round;
             stroke-linejoin: round;
         }
         
-        .data-point {
-            r: 3;
+        .svg-data-point {
+            r: 4;
             opacity: 0;
             transition: opacity 0.2s ease;
+            cursor: pointer;
         }
         
-        .data-point:hover {
+        .svg-data-point:hover {
             opacity: 1;
         }
     </style>
@@ -306,7 +303,7 @@
     
     <div class="chart-container">
         <div class="chart-title">Latency Percentiles Over Time</div>
-        <svg class="chart-svg" id="chart"></svg>
+        <svg class="chart-svg" id="chart" viewBox="0 0 800 400"></svg>
         <div class="legend">
             <div class="legend-item">
                 <div class="legend-color" style="background: #2563eb;"></div>
@@ -346,12 +343,11 @@
         </div>
     </div>
     
-    <div class="tooltip" id="tooltip" style="display: none;"></div>
+    <div class="tooltip" id="tooltip"></div>
     
     <script>
         let allData = [];
         let currentView = '5min';
-        let chart = null;
         
         // Colors for different percentiles
         const colors = {
@@ -372,6 +368,34 @@
             'p99_99_ms': 'P99.99'
         };
         
+        // Utility functions
+        function createSVGElement(tag, attrs = {}) {
+            const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            for (const [key, value] of Object.entries(attrs)) {
+                element.setAttribute(key, value);
+            }
+            return element;
+        }
+        
+        function formatDate(date) {
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        function formatTime(date) {
+            return date.toLocaleDateString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // File handling
         function handleFileSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -383,11 +407,43 @@
             }
         }
         
+        function processFile(file) {
+            const fileName = document.getElementById('fileName');
+            fileName.textContent = `Loading ${file.name}...`;
+            fileName.className = 'file-name';
+            
+            document.getElementById('loading').innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <h3>📊 Loading ${file.name}...</h3>
+                    <p>Processing ${(file.size / 1024 / 1024).toFixed(1)} MB of data...</p>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        This may take a few seconds for large files...
+                    </div>
+                </div>
+            `;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                setTimeout(() => {
+                    try {
+                        loadDataFromText(e.target.result, file.name);
+                    } catch (error) {
+                        showError(`Error reading file: ${error.message}`);
+                    }
+                }, 100);
+            };
+            
+            reader.onerror = function() {
+                showError('Error reading the selected file. The file might be corrupted or too large.');
+            };
+            
+            reader.readAsText(file, 'UTF-8');
+        }
+        
         function loadDataFromText(text, filename) {
             try {
-                console.log(`Starting to process file: ${filename} (${text.length} characters)`);
+                console.log(`Processing file: ${filename} (${text.length} characters)`);
                 
-                // Split lines and filter empty ones
                 const lines = text.trim().split('\n').filter(line => line.trim());
                 console.log(`Found ${lines.length} non-empty lines`);
                 
@@ -396,48 +452,40 @@
                 }
                 
                 allData = [];
-                let lineNum = 0;
                 let errorCount = 0;
                 let sampleErrors = [];
                 
-                for (const line of lines) {
-                    lineNum++;
+                for (let i = 0; i < lines.length; i++) {
+                    const lineNum = i + 1;
                     
                     if (lineNum % 1000 === 0) {
                         console.log(`Processing line ${lineNum}/${lines.length}...`);
                     }
                     
                     try {
-                        const trimmedLine = line.trim();
-                        if (!trimmedLine) continue;
+                        const line = lines[i].trim();
+                        if (!line) continue;
                         
-                        const data = JSON.parse(trimmedLine);
-                        
-                        // Create date object
-                        if (data.start_time) {
-                            data.start_time_date = new Date(data.start_time);
-                            if (isNaN(data.start_time_date.getTime())) {
-                                throw new Error(`Invalid date: ${data.start_time}`);
-                            }
-                        }
+                        const data = JSON.parse(line);
                         
                         // Validate required fields
-                        if (!data.bucket_type || !data.start_time || typeof data.p50_ms === 'undefined') {
-                            const error = `Missing required fields - bucket_type: ${data.bucket_type}, start_time: ${data.start_time}, p50_ms: ${data.p50_ms}`;
-                            if (sampleErrors.length < 5) sampleErrors.push(`Line ${lineNum}: ${error}`);
+                        if (!data.bucket_type || !data.start_time || typeof data.p50_ms !== 'number') {
+                            const error = `Missing/invalid required fields - bucket_type: ${data.bucket_type}, start_time: ${data.start_time}, p50_ms: ${data.p50_ms}`;
+                            if (sampleErrors.length < 3) sampleErrors.push(`Line ${lineNum}: ${error}`);
                             errorCount++;
                             continue;
                         }
                         
-                        // Validate data types
-                        if (typeof data.p50_ms !== 'number' || isNaN(data.p50_ms)) {
-                            const error = `Invalid p50_ms value: ${data.p50_ms} (type: ${typeof data.p50_ms})`;
-                            if (sampleErrors.length < 5) sampleErrors.push(`Line ${lineNum}: ${error}`);
+                        // Create date object
+                        data.start_time_date = new Date(data.start_time);
+                        if (isNaN(data.start_time_date.getTime())) {
+                            const error = `Invalid date: ${data.start_time}`;
+                            if (sampleErrors.length < 3) sampleErrors.push(`Line ${lineNum}: ${error}`);
                             errorCount++;
                             continue;
                         }
                         
-                        // Additional validation for other percentile fields
+                        // Validate percentile fields
                         const percentiles = ['p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
                         let hasValidPercentiles = true;
                         for (const p of percentiles) {
@@ -449,7 +497,7 @@
                         
                         if (!hasValidPercentiles) {
                             const error = `Invalid percentile values`;
-                            if (sampleErrors.length < 5) sampleErrors.push(`Line ${lineNum}: ${error}`);
+                            if (sampleErrors.length < 3) sampleErrors.push(`Line ${lineNum}: ${error}`);
                             errorCount++;
                             continue;
                         }
@@ -458,36 +506,21 @@
                         
                     } catch (e) {
                         const error = `JSON parse error: ${e.message}`;
-                        if (sampleErrors.length < 5) sampleErrors.push(`Line ${lineNum}: ${error}`);
+                        if (sampleErrors.length < 3) sampleErrors.push(`Line ${lineNum}: ${error}`);
                         errorCount++;
                         
-                        // Stop if too many consecutive errors
-                        if (errorCount > 50 && lineNum < 100) {
-                            throw new Error(`Too many errors in first 100 lines. Sample errors: ${sampleErrors.join('; ')}`);
+                        // Stop if too many errors at the beginning
+                        if (errorCount > 20 && lineNum < 50) {
+                            throw new Error(`Too many errors in first 50 lines. Sample errors: ${sampleErrors.join('; ')}`);
                         }
                     }
                 }
                 
-                console.log(`Processing complete: ${allData.length} valid records, ${errorCount} errors from ${lines.length} total lines`);
-                
-                if (sampleErrors.length > 0) {
-                    console.warn('Sample errors:', sampleErrors);
-                }
-                
                 if (allData.length === 0) {
-                    throw new Error(`No valid data found in the file. Processed ${lines.length} lines, encountered ${errorCount} errors. Check browser console for details.`);
+                    throw new Error(`No valid data found. Processed ${lines.length} lines, encountered ${errorCount} errors.${sampleErrors.length > 0 ? ' Sample errors: ' + sampleErrors.join('; ') : ''}`);
                 }
                 
-                console.log(`Successfully loaded ${allData.length} data points from ${filename}`);
-                if (errorCount > 0) {
-                    console.warn(`Skipped ${errorCount} invalid lines out of ${lines.length} total lines`);
-                }
-                
-                // Debug: Show sample data
-                if (allData.length > 0) {
-                    console.log('Sample data point:', allData[0]);
-                    console.log('Available bucket types:', [...new Set(allData.map(d => d.bucket_type))]);
-                }
+                console.log(`Successfully loaded ${allData.length} data points (${errorCount} errors)`);
                 
                 // Update UI
                 const fileNameEl = document.getElementById('fileName');
@@ -517,8 +550,6 @@
                         <li><code>start_time</code> - ISO timestamp string</li>
                         <li><code>p50_ms</code> - Number (median latency)</li>
                     </ul>
-                    <strong>Debugging:</strong> Open browser Developer Tools (F12) → Console tab for detailed error information.
-                    <br><br>
                     <button class="btn" onclick="location.reload()">Try Again</button>
                 </div>
             `;
@@ -528,13 +559,14 @@
             fileNameEl.className = 'file-name';
         }
         
+        // View switching
         function switchView(view) {
             if (currentView === view) return;
             
             currentView = view;
             
             // Update button states
-            document.querySelectorAll('.btn').forEach(btn => {
+            document.querySelectorAll('.btn-group .btn').forEach(btn => {
                 btn.classList.remove('active');
             });
             event.target.classList.add('active');
@@ -552,7 +584,7 @@
             
             const totalPoints = data.length;
             const timeRange = data.length > 0 ? 
-                `${formatDate(data[0].start_time_date)} - ${formatDate(data[data.length - 1].end_time_date || data[data.length - 1].start_time_date)}` : '-';
+                `${formatDate(data[0].start_time_date)} - ${formatDate(data[data.length - 1].start_time_date)}` : '-';
             
             const avgP50 = data.reduce((sum, d) => sum + d.p50_ms, 0) / data.length;
             const maxP99 = Math.max(...data.map(d => d.p99_ms));
@@ -563,28 +595,21 @@
             document.getElementById('max-p99').textContent = maxP99.toFixed(1);
         }
         
-        function formatDate(date) {
-            return date.toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-        
+        // Chart rendering
         function renderChart() {
             const data = getFilteredData();
             updateStats(data);
             
             if (data.length === 0) {
-                document.getElementById('chart').innerHTML = '<text x="50%" y="50%" text-anchor="middle" class="axis-text">No data available for this view</text>';
+                const svg = document.getElementById('chart');
+                svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" class="svg-axis-text">No data available for this view</text>';
                 return;
             }
             
             const svg = document.getElementById('chart');
-            const rect = svg.getBoundingClientRect();
-            const width = rect.width;
-            const height = rect.height;
+            const svgRect = svg.getBoundingClientRect();
+            const width = 800;
+            const height = 400;
             
             const margin = { top: 20, right: 80, bottom: 80, left: 80 };
             const chartWidth = width - margin.left - margin.right;
@@ -593,134 +618,157 @@
             // Clear previous content
             svg.innerHTML = '';
             
-            // Create scales
-            const timeExtent = d3.extent(data, d => d.start_time_date);
-            const xScale = d3.scaleTime()
-                .domain(timeExtent)
-                .range([0, chartWidth]);
+            // Set up scales
+            const timeExtent = [
+                Math.min(...data.map(d => d.start_time_date.getTime())),
+                Math.max(...data.map(d => d.start_time_date.getTime()))
+            ];
             
-            // Find max value across all percentiles
             const percentiles = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
-            const maxValue = d3.max(data, d => d3.max(percentiles, p => d[p]));
+            const maxValue = Math.max(...data.flatMap(d => percentiles.map(p => d[p])));
             
-            const yScale = d3.scaleLinear()
-                .domain([0, maxValue * 1.05])
-                .range([chartHeight, 0]);
+            // Create scales
+            function xScale(timestamp) {
+                return margin.left + (timestamp - timeExtent[0]) / (timeExtent[1] - timeExtent[0]) * chartWidth;
+            }
+            
+            function yScale(value) {
+                return margin.top + chartHeight - (value / (maxValue * 1.05)) * chartHeight;
+            }
             
             // Create main group
-            const g = d3.select(svg)
-                .append('g')
-                .attr('transform', `translate(${margin.left},${margin.top})`);
+            const g = createSVGElement('g');
+            svg.appendChild(g);
             
             // Add grid lines
-            const xTicks = xScale.ticks(10);
-            const yTicks = yScale.ticks(8);
+            const yTicks = 8;
+            const xTicks = 6;
             
             // Y grid lines
-            g.selectAll('.grid-line-y')
-                .data(yTicks)
-                .enter()
-                .append('line')
-                .attr('class', 'grid-line')
-                .attr('x1', 0)
-                .attr('x2', chartWidth)
-                .attr('y1', d => yScale(d))
-                .attr('y2', d => yScale(d));
+            for (let i = 0; i <= yTicks; i++) {
+                const y = margin.top + (i / yTicks) * chartHeight;
+                const line = createSVGElement('line', {
+                    class: 'svg-grid-line',
+                    x1: margin.left,
+                    x2: margin.left + chartWidth,
+                    y1: y,
+                    y2: y
+                });
+                g.appendChild(line);
+            }
             
             // X grid lines
-            g.selectAll('.grid-line-x')
-                .data(xTicks)
-                .enter()
-                .append('line')
-                .attr('class', 'grid-line')
-                .attr('x1', d => xScale(d))
-                .attr('x2', d => xScale(d))
-                .attr('y1', 0)
-                .attr('y2', chartHeight);
+            for (let i = 0; i <= xTicks; i++) {
+                const x = margin.left + (i / xTicks) * chartWidth;
+                const line = createSVGElement('line', {
+                    class: 'svg-grid-line',
+                    x1: x,
+                    x2: x,
+                    y1: margin.top,
+                    y2: margin.top + chartHeight
+                });
+                g.appendChild(line);
+            }
             
-            // Add axes
-            g.append('g')
-                .attr('transform', `translate(0,${chartHeight})`)
-                .call(d3.axisBottom(xScale).tickFormat(d3.timeFormat('%m/%d %H:%M')))
-                .selectAll('text')
-                .attr('class', 'axis-text')
-                .style('text-anchor', 'end')
-                .attr('dx', '-.8em')
-                .attr('dy', '.15em')
-                .attr('transform', 'rotate(-45)');
+            // Add Y axis labels
+            for (let i = 0; i <= yTicks; i++) {
+                const value = (maxValue * 1.05) * (1 - i / yTicks);
+                const y = margin.top + (i / yTicks) * chartHeight;
+                const text = createSVGElement('text', {
+                    class: 'svg-axis-text',
+                    x: margin.left - 10,
+                    y: y + 3,
+                    'text-anchor': 'end'
+                });
+                text.textContent = value.toFixed(1);
+                g.appendChild(text);
+            }
             
-            g.append('g')
-                .call(d3.axisLeft(yScale))
-                .selectAll('text')
-                .attr('class', 'axis-text');
+            // Add X axis labels
+            for (let i = 0; i <= xTicks; i++) {
+                const timestamp = timeExtent[0] + (timeExtent[1] - timeExtent[0]) * (i / xTicks);
+                const x = margin.left + (i / xTicks) * chartWidth;
+                const text = createSVGElement('text', {
+                    class: 'svg-axis-text',
+                    x: x,
+                    y: margin.top + chartHeight + 20,
+                    'text-anchor': 'middle',
+                    transform: `rotate(-45, ${x}, ${margin.top + chartHeight + 20})`
+                });
+                text.textContent = formatTime(new Date(timestamp));
+                g.appendChild(text);
+            }
             
             // Add axis labels
-            g.append('text')
-                .attr('transform', 'rotate(-90)')
-                .attr('y', 0 - margin.left)
-                .attr('x', 0 - (chartHeight / 2))
-                .attr('dy', '1em')
-                .attr('class', 'axis-text')
-                .style('text-anchor', 'middle')
-                .style('font-size', '12px')
-                .text('Latency (ms)');
+            const yLabel = createSVGElement('text', {
+                class: 'svg-axis-text',
+                x: 20,
+                y: margin.top + chartHeight / 2,
+                'text-anchor': 'middle',
+                transform: `rotate(-90, 20, ${margin.top + chartHeight / 2})`,
+                style: 'font-size: 12px;'
+            });
+            yLabel.textContent = 'Latency (ms)';
+            g.appendChild(yLabel);
             
-            g.append('text')
-                .attr('transform', `translate(${chartWidth / 2}, ${chartHeight + margin.bottom - 10})`)
-                .attr('class', 'axis-text')
-                .style('text-anchor', 'middle')
-                .style('font-size', '12px')
-                .text('Time');
+            const xLabel = createSVGElement('text', {
+                class: 'svg-axis-text',
+                x: margin.left + chartWidth / 2,
+                y: height - 10,
+                'text-anchor': 'middle',
+                style: 'font-size: 12px;'
+            });
+            xLabel.textContent = 'Time';
+            g.appendChild(xLabel);
             
-            // Create line generator
-            const line = d3.line()
-                .x(d => xScale(d.start_time_date))
-                .y((d, i, arr) => {
-                    const percentile = arr.percentile;
-                    return yScale(d[percentile]);
-                })
-                .curve(d3.curveMonotoneX);
-            
-            // Draw lines for each percentile
+            // Draw lines and points for each percentile
             percentiles.forEach(percentile => {
-                const lineData = data.map(d => ({ ...d, percentile }));
-                lineData.percentile = percentile;
+                // Create path for line
+                let pathData = '';
+                data.forEach((d, i) => {
+                    const x = xScale(d.start_time_date.getTime());
+                    const y = yScale(d[percentile]);
+                    pathData += (i === 0 ? 'M' : 'L') + ` ${x} ${y}`;
+                });
                 
-                g.append('path')
-                    .datum(lineData)
-                    .attr('class', 'data-line')
-                    .attr('d', line)
-                    .style('stroke', colors[percentile])
-                    .style('opacity', 0.8);
+                const path = createSVGElement('path', {
+                    class: 'svg-data-line',
+                    d: pathData,
+                    stroke: colors[percentile],
+                    'stroke-opacity': '0.8'
+                });
+                g.appendChild(path);
                 
                 // Add data points for hover
-                g.selectAll(`.point-${percentile}`)
-                    .data(data)
-                    .enter()
-                    .append('circle')
-                    .attr('class', `data-point point-${percentile}`)
-                    .attr('cx', d => xScale(d.start_time_date))
-                    .attr('cy', d => yScale(d[percentile]))
-                    .attr('fill', colors[percentile])
-                    .on('mouseover', function(event, d) {
+                data.forEach(d => {
+                    const circle = createSVGElement('circle', {
+                        class: 'svg-data-point',
+                        cx: xScale(d.start_time_date.getTime()),
+                        cy: yScale(d[percentile]),
+                        fill: colors[percentile]
+                    });
+                    
+                    circle.addEventListener('mouseover', (event) => {
                         showTooltip(event, d, percentile);
-                    })
-                    .on('mouseout', hideTooltip);
+                    });
+                    circle.addEventListener('mouseout', hideTooltip);
+                    
+                    g.appendChild(circle);
+                });
             });
         }
         
-        function showTooltip(event, d, percentile) {
+        function showTooltip(event, data, percentile) {
             const tooltip = document.getElementById('tooltip');
-            const rect = document.body.getBoundingClientRect();
             
             tooltip.innerHTML = `
-                <strong>${percentileLabels[percentile]}: ${d[percentile].toFixed(2)} ms</strong><br>
-                Time: ${formatDate(d.start_time_date)}<br>
+                <strong>${percentileLabels[percentile]}: ${data[percentile].toFixed(2)} ms</strong><br>
+                Time: ${formatDate(data.start_time_date)}<br>
                 Duration: ${currentView}<br>
-                Messages: ${d.total_messages.toLocaleString()}<br>
-                Min: ${d.min_ms.toFixed(2)} ms<br>
-                Max: ${d.max_ms.toFixed(2)} ms<br>
-                Avg: ${d.avg_ms.toFixed(2)} ms
+                Messages: ${(data.total_messages || 0).toLocaleString()}<br>
+                Min: ${(data.min_ms || 0).toFixed(2)} ms<br>
+                Max: ${(data.max_ms || 0).toFixed(2)} ms<br>
+                Avg: ${(data.avg_ms || 0).toFixed(2)} ms
             `;
             
             tooltip.style.display = 'block';
@@ -732,30 +780,27 @@
             document.getElementById('tooltip').style.display = 'none';
         }
         
-        // Initialize the application
-        function initializeApp() {
-            setupDragAndDrop();
-        }
-        
+        // Drag and drop setup
         function setupDragAndDrop() {
             const dropZone = document.getElementById('dropZone');
             
-            // Prevent default drag behaviors
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 dropZone.addEventListener(eventName, preventDefaults, false);
                 document.body.addEventListener(eventName, preventDefaults, false);
             });
             
-            // Highlight drop zone when item is dragged over it
             ['dragenter', 'dragover'].forEach(eventName => {
-                dropZone.addEventListener(eventName, highlight, false);
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.add('drag-over');
+                }, false);
             });
             
             ['dragleave', 'drop'].forEach(eventName => {
-                dropZone.addEventListener(eventName, unhighlight, false);
+                dropZone.addEventListener(eventName, () => {
+                    dropZone.classList.remove('drag-over');
+                }, false);
             });
             
-            // Handle dropped files
             dropZone.addEventListener('drop', handleDrop, false);
         }
         
@@ -764,17 +809,8 @@
             e.stopPropagation();
         }
         
-        function highlight(e) {
-            document.getElementById('dropZone').classList.add('drag-over');
-        }
-        
-        function unhighlight(e) {
-            document.getElementById('dropZone').classList.remove('drag-over');
-        }
-        
         function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
+            const files = e.dataTransfer.files;
             
             if (files.length > 0) {
                 const file = files[0];
@@ -786,47 +822,10 @@
             }
         }
         
-        function processFile(file) {
-            const fileName = document.getElementById('fileName');
-            fileName.textContent = `Loading ${file.name}...`;
-            fileName.className = 'file-name';
-            
-            document.getElementById('loading').innerHTML = `
-                <div style="text-align: center; padding: 40px;">
-                    <h3>📊 Loading ${file.name}...</h3>
-                    <p>Processing ${(file.size / 1024 / 1024).toFixed(1)} MB of data...</p>
-                    <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
-                        This may take a few seconds for large files...
-                    </div>
-                </div>
-            `;
-            
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    // Add a small delay to let the UI update
-                    setTimeout(() => {
-                        loadDataFromText(e.target.result, file.name);
-                    }, 100);
-                } catch (error) {
-                    showError(`Error reading file: ${error.message}`);
-                }
-            };
-            
-            reader.onerror = function(e) {
-                console.error('FileReader error:', e);
-                showError('Error reading the selected file. The file might be corrupted or too large.');
-            };
-            
-            // Try reading as text with UTF-8 encoding
-            reader.readAsText(file, 'UTF-8');
+        // Initialize
+        function initializeApp() {
+            setupDragAndDrop();
         }
-        
-        // Load D3.js library
-        const script = document.createElement('script');
-        script.src = 'https://d3js.org/d3.v7.min.js';
-        script.onload = initializeApp;
-        document.head.appendChild(script);
         
         // Handle window resize
         let resizeTimeout;
@@ -838,6 +837,9 @@
                 }
             }, 250);
         });
+        
+        // Start the app
+        initializeApp();
     </script>
 </body>
 </html>
