@@ -53,21 +53,28 @@
         .chart-container {
             width: 100%;
             overflow-x: auto;
+            overflow-y: hidden;
             border: 1px solid #ddd;
             background: white;
+            position: relative;
         }
 
         .chart-container::-webkit-scrollbar {
-            height: 10px;
+            height: 12px;
         }
 
         .chart-container::-webkit-scrollbar-track {
             background: #f5f5f5;
+            border-top: 1px solid #ddd;
         }
 
         .chart-container::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 5px;
+            background: #999;
+            border-radius: 6px;
+        }
+
+        .chart-container::-webkit-scrollbar-thumb:hover {
+            background: #666;
         }
 
         canvas {
@@ -99,6 +106,26 @@
             color: #666;
         }
 
+        .legend {
+            margin-top: 10px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 3px;
+            display: inline-block;
+        }
+
         .hidden {
             display: none;
         }
@@ -120,6 +147,40 @@
     <div id="mainContent" class="hidden">
         <div class="chart-container">
             <canvas id="chart"></canvas>
+        </div>
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-color" style="background: #90EE90;"></span>
+                <span>MIN</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #4169E1;"></span>
+                <span>P50</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FF8C00;"></span>
+                <span>P90</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FF6347;"></span>
+                <span>P95</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #DC143C;"></span>
+                <span>P99</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #8B008B;"></span>
+                <span>P99.9</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #800000;"></span>
+                <span>P99.99</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #FFB6C1;"></span>
+                <span>MAX</span>
+            </div>
         </div>
     </div>
 
@@ -193,16 +254,22 @@
         function drawChart() {
             const canvas = document.getElementById('chart');
             const ctx = canvas.getContext('2d');
+            const container = document.querySelector('.chart-container');
             const data = currentView === '5min' ? fiveMinData : oneHourData;
 
             if (data.length === 0) return;
 
-            const width = Math.max(1200, data.length * 20);
-            const height = 400;
+            // Calculate canvas dimensions based on data length
+            const pointSpacing = 20;
+            const minWidth = container.clientWidth - 2; // Account for border
+            const calculatedWidth = data.length * pointSpacing + 100;
+            const width = Math.max(minWidth, calculatedWidth);
+            const height = 450;
+
             canvas.width = width;
             canvas.height = height;
 
-            const padding = { top: 20, right: 30, bottom: 40, left: 50 };
+            const padding = { top: 30, right: 40, bottom: 60, left: 60 };
             const plotW = width - padding.left - padding.right;
             const plotH = height - padding.top - padding.bottom;
 
@@ -210,6 +277,10 @@
 
             // Fixed 200ms scale
             const maxY = 200;
+
+            // Draw background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
 
             // Grid
             ctx.strokeStyle = '#e0e0e0';
@@ -222,74 +293,120 @@
                 ctx.stroke();
             }
 
+            // Vertical grid lines
+            const xStep = Math.max(1, Math.floor(data.length / 30));
+            for (let i = 0; i < data.length; i += xStep) {
+                const x = padding.left + (i / (data.length - 1)) * plotW;
+                ctx.strokeStyle = '#f0f0f0';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(x, padding.top);
+                ctx.lineTo(x, height - padding.bottom);
+                ctx.stroke();
+            }
+
             // Y-axis labels
-            ctx.fillStyle = '#666';
-            ctx.font = '10px sans-serif';
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 11px sans-serif';
             ctx.textAlign = 'right';
             for (let i = 0; i <= 10; i++) {
                 const y = padding.top + (i * plotH / 10);
-                ctx.fillText((200 - i * 20) + '', padding.left - 5, y + 3);
+                ctx.fillText((200 - i * 20) + ' ms', padding.left - 8, y + 3);
             }
 
             // Axes
             ctx.strokeStyle = '#333';
-            ctx.lineWidth = 1;
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(padding.left, padding.top);
             ctx.lineTo(padding.left, height - padding.bottom);
             ctx.lineTo(width - padding.right, height - padding.bottom);
             ctx.stroke();
 
-            // Lines
+            // Metrics to draw (order matters for layering)
             const metrics = [
-                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 1 },
-                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 1.5 },
-                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 1.5 },
-                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 1.5 },
-                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 2 },
-                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 2 },
-                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 2.5 },
-                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 1 }
+                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 1.5, alpha: 0.4 },
+                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 1.5, alpha: 0.4 },
+                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 2, alpha: 1 },
+                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 2.5, alpha: 1 },
+                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 2.5, alpha: 1 },
+                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 3, alpha: 1 },
+                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 3, alpha: 1 },
+                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 3.5, alpha: 1 }
             ];
 
             const dataPoints = [];
 
+            // Draw each metric line
             metrics.forEach((m, idx) => {
                 ctx.strokeStyle = m.color;
                 ctx.lineWidth = m.width;
-                ctx.globalAlpha = (m.key.includes('min') || m.key.includes('max')) ? 0.3 : 0.8;
+                ctx.globalAlpha = m.alpha;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.beginPath();
 
+                let hasData = false;
                 data.forEach((pt, i) => {
-                    const val = Math.min(pt[m.key] || pt[m.fb] || 0, maxY);
-                    const x = padding.left + (i / (data.length - 1)) * plotW;
-                    const y = height - padding.bottom - (val / maxY) * plotH;
+                    const val = pt[m.key] || pt[m.fb] || 0;
+                    const clampedVal = Math.min(val, maxY);
+                    const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
+                    const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
-                    if (i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
+                    if (val > 0 || hasData) {
+                        if (!hasData) {
+                            ctx.moveTo(x, y);
+                            hasData = true;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
 
-                    if (idx === 0) dataPoints[i] = { x, data: pt };
+                    // Store data points for hover on first metric
+                    if (idx === 0) {
+                        dataPoints[i] = { x, data: pt };
+                    }
+
+                    // Draw overflow indicator
+                    if (val > maxY) {
+                        ctx.save();
+                        ctx.globalAlpha = 1;
+                        ctx.fillStyle = m.color;
+                        ctx.beginPath();
+                        ctx.moveTo(x, padding.top - 2);
+                        ctx.lineTo(x - 3, padding.top + 5);
+                        ctx.lineTo(x + 3, padding.top + 5);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.restore();
+                    }
                 });
 
-                ctx.stroke();
+                if (hasData) {
+                    ctx.stroke();
+                }
                 ctx.globalAlpha = 1;
             });
 
             // X-axis labels
-            const step = Math.max(1, Math.floor(data.length / 40));
-            ctx.fillStyle = '#666';
-            ctx.font = '9px sans-serif';
+            ctx.fillStyle = '#333';
+            ctx.font = '10px sans-serif';
             ctx.textAlign = 'center';
-            for (let i = 0; i < data.length; i += step) {
-                const x = padding.left + (i / (data.length - 1)) * plotW;
+            for (let i = 0; i < data.length; i += xStep) {
+                const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
                 const d = new Date(data[i].start_time);
                 const label = currentView === '5min'
                     ? `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
                     : `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}h`;
-                ctx.fillText(label, x, height - padding.bottom + 15);
+
+                ctx.save();
+                ctx.translate(x, height - padding.bottom + 15);
+                ctx.rotate(-45 * Math.PI / 180);
+                ctx.fillText(label, 0, 0);
+                ctx.restore();
             }
 
-            // Hover
+            // Hover interaction
             const tooltip = document.getElementById('tooltip');
             canvas.onmousemove = e => {
                 const rect = canvas.getBoundingClientRect();
@@ -305,10 +422,10 @@
                     }
                 });
 
-                if (closest && minDist < 15) {
+                if (closest && minDist < 20) {
                     const d = closest.data;
                     tooltip.innerHTML = `
-                        <div style="font-weight:bold;margin-bottom:5px">
+                        <div style="font-weight:bold;margin-bottom:5px;border-bottom:1px solid #ccc;padding-bottom:3px">
                             ${new Date(d.start_time).toLocaleString()}
                         </div>
                         <div><span>MIN</span><span>${(d.min_ms || d.min_latency || 0).toFixed(2)} ms</span></div>
@@ -323,7 +440,7 @@
                     `;
                     tooltip.style.display = 'block';
                     tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 200) + 'px';
-                    tooltip.style.top = (e.clientY - 100) + 'px';
+                    tooltip.style.top = (e.clientY - 120) + 'px';
                 } else {
                     tooltip.style.display = 'none';
                 }
