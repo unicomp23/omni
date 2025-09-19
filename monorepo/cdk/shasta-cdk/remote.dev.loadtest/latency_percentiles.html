@@ -221,6 +221,8 @@
                     .filter(line => line.trim())
                     .map(line => JSON.parse(line));
 
+                console.log('Raw data sample:', allData[0]);
+
                 fiveMinData = allData
                     .filter(d => d.bucket_type === '5min')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -233,11 +235,18 @@
                     fiveMinData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
                 }
 
+                console.log('5min data count:', fiveMinData.length);
+                console.log('1hr data count:', oneHourData.length);
+                if (fiveMinData.length > 0) {
+                    console.log('5min sample:', fiveMinData[0]);
+                }
+
                 drawChart();
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
 
             } catch (error) {
+                console.error('Load error:', error);
                 document.getElementById('loading').textContent = 'Error: ' + error.message;
             }
         }
@@ -257,7 +266,13 @@
             const container = document.querySelector('.chart-container');
             const data = currentView === '5min' ? fiveMinData : oneHourData;
 
-            if (data.length === 0) return;
+            console.log('Drawing chart, data length:', data.length);
+            console.log('Current view:', currentView);
+
+            if (data.length === 0) {
+                console.log('No data to draw');
+                return;
+            }
 
             // Calculate canvas dimensions based on data length
             const pointSpacing = 20;
@@ -325,14 +340,14 @@
 
             // Metrics to draw (order matters for layering)
             const metrics = [
-                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 1.5, alpha: 0.4 },
-                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 1.5, alpha: 0.4 },
-                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 2, alpha: 1 },
-                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 2.5, alpha: 1 },
-                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 2.5, alpha: 1 },
-                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 3, alpha: 1 },
-                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 3, alpha: 1 },
-                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 3.5, alpha: 1 }
+                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 3, alpha: 1 },
+                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 3, alpha: 1 },
+                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 4, alpha: 1 },
+                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 4, alpha: 1 },
+                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 4, alpha: 1 },
+                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 5, alpha: 1 },
+                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 5, alpha: 1 },
+                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 6, alpha: 1 }
             ];
 
             const dataPoints = [];
