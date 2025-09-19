@@ -227,6 +227,12 @@
                 const bucketTypes = [...new Set(allData.map(d => d.bucket_type))];
                 console.log('Available bucket types:', bucketTypes);
 
+                // Debug first few records
+                console.log('First 3 records bucket_type values:', allData.slice(0, 3).map(d => ({
+                    bucket_type: d.bucket_type,
+                    start_time: d.start_time
+                })));
+
                 fiveMinData = allData
                     .filter(d => d.bucket_type === '5min')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -234,6 +240,8 @@
                 oneHourData = allData
                     .filter(d => d.bucket_type === '1hr')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+                console.log('Filtered data - 5min:', fiveMinData.length, '1hr:', oneHourData.length);
 
                 if (fiveMinData.length === 0 && oneHourData.length === 0) {
                     fiveMinData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -281,7 +289,9 @@
             console.log('Current view:', currentView);
 
             if (data.length === 0) {
-                console.log('No data to draw');
+                console.log(`No data to draw for view: ${currentView}`);
+                // Show message in the chart area
+                svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-size="16" fill="#666">No ${currentView} data available</text>`;
                 return;
             }
 
