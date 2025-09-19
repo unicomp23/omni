@@ -348,12 +348,12 @@
 
                 let hasData = false;
                 data.forEach((pt, i) => {
-                    const val = pt[m.key] || pt[m.fb] || 0;
-                    const clampedVal = Math.min(val, maxY);
-                    const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
-                    const y = height - padding.bottom - (clampedVal / maxY) * plotH;
+                    const val = pt[m.key] || pt[m.fb];
+                    if (val !== undefined && val !== null) {
+                        const clampedVal = Math.min(val, maxY);
+                        const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
+                        const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
-                    if (val > 0 || hasData) {
                         if (!hasData) {
                             ctx.moveTo(x, y);
                             hasData = true;
