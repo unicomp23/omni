@@ -77,7 +77,7 @@
             background: #666;
         }
 
-        canvas {
+        svg {
             display: block;
         }
 
@@ -146,7 +146,7 @@
 
     <div id="mainContent" class="hidden">
         <div class="chart-container">
-            <canvas id="chart"></canvas>
+            <svg id="chart"></svg>
         </div>
         <div class="legend">
             <div class="legend-item">
@@ -264,8 +264,7 @@
         }
 
         function drawChart() {
-            const canvas = document.getElementById('chart');
-            const ctx = canvas.getContext('2d');
+            const svg = document.getElementById('chart');
             const container = document.querySelector('.chart-container');
             const data = currentView === '5min' ? fiveMinData : oneHourData;
 
@@ -277,83 +276,106 @@
                 return;
             }
 
-            // Calculate canvas dimensions based on data length
+            // Calculate SVG dimensions based on data length
             const pointSpacing = 20;
-            const minWidth = container.clientWidth - 2; // Account for border
+            const minWidth = container.clientWidth - 2;
             const calculatedWidth = data.length * pointSpacing + 100;
             const width = Math.max(minWidth, calculatedWidth);
             const height = 450;
 
-            canvas.width = width;
-            canvas.height = height;
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+            svg.innerHTML = ''; // Clear previous content
 
-            console.log(`Canvas dimensions: ${width} x ${height}`);
-            console.log(`Container dimensions: ${container.clientWidth} x ${container.clientHeight}`);
+            console.log(`SVG dimensions: ${width} x ${height}`);
 
             const padding = { top: 30, right: 40, bottom: 60, left: 60 };
             const plotW = width - padding.left - padding.right;
             const plotH = height - padding.top - padding.bottom;
+            const maxY = 200; // Fixed 200ms scale
 
-            ctx.clearRect(0, 0, width, height);
+            // Create SVG groups
+            const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            const axesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            const linesGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            const labelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
-            // Fixed 200ms scale
-            const maxY = 200;
+            svg.appendChild(gridGroup);
+            svg.appendChild(axesGroup);
+            svg.appendChild(linesGroup);
+            svg.appendChild(labelsGroup);
 
-            // Draw background
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-
-            // Grid
-            ctx.strokeStyle = '#e0e0e0';
-            ctx.lineWidth = 0.5;
+            // Draw grid
             for (let i = 0; i <= 10; i++) {
                 const y = padding.top + (i * plotH / 10);
-                ctx.beginPath();
-                ctx.moveTo(padding.left, y);
-                ctx.lineTo(width - padding.right, y);
-                ctx.stroke();
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', padding.left);
+                line.setAttribute('y1', y);
+                line.setAttribute('x2', width - padding.right);
+                line.setAttribute('y2', y);
+                line.setAttribute('stroke', '#e0e0e0');
+                line.setAttribute('stroke-width', '0.5');
+                gridGroup.appendChild(line);
             }
 
             // Vertical grid lines
             const xStep = Math.max(1, Math.floor(data.length / 30));
             for (let i = 0; i < data.length; i += xStep) {
-                const x = padding.left + (i / (data.length - 1)) * plotW;
-                ctx.strokeStyle = '#f0f0f0';
-                ctx.lineWidth = 0.5;
-                ctx.beginPath();
-                ctx.moveTo(x, padding.top);
-                ctx.lineTo(x, height - padding.bottom);
-                ctx.stroke();
+                const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x);
+                line.setAttribute('y1', padding.top);
+                line.setAttribute('x2', x);
+                line.setAttribute('y2', height - padding.bottom);
+                line.setAttribute('stroke', '#f0f0f0');
+                line.setAttribute('stroke-width', '0.5');
+                gridGroup.appendChild(line);
             }
 
             // Y-axis labels
-            ctx.fillStyle = '#333';
-            ctx.font = 'bold 11px sans-serif';
-            ctx.textAlign = 'right';
             for (let i = 0; i <= 10; i++) {
                 const y = padding.top + (i * plotH / 10);
-                ctx.fillText((200 - i * 20) + ' ms', padding.left - 8, y + 3);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', padding.left - 8);
+                text.setAttribute('y', y + 3);
+                text.setAttribute('text-anchor', 'end');
+                text.setAttribute('font-family', 'sans-serif');
+                text.setAttribute('font-size', '11');
+                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('fill', '#333');
+                text.textContent = (200 - i * 20) + ' ms';
+                labelsGroup.appendChild(text);
             }
 
-            // Axes
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(padding.left, padding.top);
-            ctx.lineTo(padding.left, height - padding.bottom);
-            ctx.lineTo(width - padding.right, height - padding.bottom);
-            ctx.stroke();
+            // Draw axes
+            const leftAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            leftAxis.setAttribute('x1', padding.left);
+            leftAxis.setAttribute('y1', padding.top);
+            leftAxis.setAttribute('x2', padding.left);
+            leftAxis.setAttribute('y2', height - padding.bottom);
+            leftAxis.setAttribute('stroke', '#333');
+            leftAxis.setAttribute('stroke-width', '2');
+            axesGroup.appendChild(leftAxis);
 
-            // Metrics to draw (order matters for layering)
+            const bottomAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            bottomAxis.setAttribute('x1', padding.left);
+            bottomAxis.setAttribute('y1', height - padding.bottom);
+            bottomAxis.setAttribute('x2', width - padding.right);
+            bottomAxis.setAttribute('y2', height - padding.bottom);
+            bottomAxis.setAttribute('stroke', '#333');
+            bottomAxis.setAttribute('stroke-width', '2');
+            axesGroup.appendChild(bottomAxis);
+
+            // Metrics to draw
             const metrics = [
-                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 3, alpha: 1 },
-                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 3, alpha: 1 },
-                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 4, alpha: 1 },
-                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 4, alpha: 1 },
-                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 4, alpha: 1 },
-                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 5, alpha: 1 },
-                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 5, alpha: 1 },
-                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 6, alpha: 1 }
+                { key: 'min_ms', fb: 'min_latency', color: '#90EE90', width: 3 },
+                { key: 'max_ms', fb: 'max_latency', color: '#FFB6C1', width: 3 },
+                { key: 'p50_ms', fb: 'overall_p50_ms', color: '#4169E1', width: 4 },
+                { key: 'p90_ms', fb: 'overall_p90_ms', color: '#FF8C00', width: 4 },
+                { key: 'p95_ms', fb: 'overall_p95_ms', color: '#FF6347', width: 4 },
+                { key: 'p99_ms', fb: 'overall_p99_ms', color: '#DC143C', width: 5 },
+                { key: 'p99_9_ms', fb: 'overall_p99_9_ms', color: '#8B008B', width: 5 },
+                { key: 'p99_99_ms', fb: 'overall_p99_99_ms', color: '#800000', width: 6 }
             ];
 
             const dataPoints = [];
@@ -362,14 +384,7 @@
             metrics.forEach((m, idx) => {
                 console.log(`Drawing metric ${m.key}, color: ${m.color}`);
 
-                ctx.strokeStyle = m.color;
-                ctx.lineWidth = m.width;
-                ctx.globalAlpha = m.alpha;
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.beginPath();
-
-                let hasData = false;
+                const pathData = [];
                 let validPoints = 0;
 
                 data.forEach((pt, i) => {
@@ -381,16 +396,19 @@
                         const clampedVal = Math.min(val, maxY);
                         const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
+                        pathData.push(pathData.length === 0 ? `M ${x} ${y}` : `L ${x} ${y}`);
+
                         // Debug first few points
-                        if (idx === 2 && i < 3) { // p50_ms metric, first 3 points
-                            console.log(`Point ${i}: val=${val}, clampedVal=${clampedVal}, y=${y}, maxY=${maxY}`);
+                        if (idx === 2 && i < 3) {
+                            console.log(`Point ${i}: val=${val}, clampedVal=${clampedVal}, y=${y}`);
                         }
 
-                        if (!hasData) {
-                            ctx.moveTo(x, y);
-                            hasData = true;
-                        } else {
-                            ctx.lineTo(x, y);
+                        // Draw overflow indicator
+                        if (val > maxY) {
+                            const triangle = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                            triangle.setAttribute('points', `${x},${padding.top - 2} ${x-3},${padding.top + 5} ${x+3},${padding.top + 5}`);
+                            triangle.setAttribute('fill', m.color);
+                            linesGroup.appendChild(triangle);
                         }
                     }
 
@@ -398,37 +416,24 @@
                     if (idx === 0) {
                         dataPoints[i] = { x, data: pt };
                     }
-
-                    // Draw overflow indicator
-                    if (val > maxY) {
-                        ctx.save();
-                        ctx.globalAlpha = 1;
-                        ctx.fillStyle = m.color;
-                        ctx.beginPath();
-                        ctx.moveTo(x, padding.top - 2);
-                        ctx.lineTo(x - 3, padding.top + 5);
-                        ctx.lineTo(x + 3, padding.top + 5);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.restore();
-                    }
                 });
 
-                console.log(`Metric ${m.key}: ${validPoints} valid points, hasData: ${hasData}`);
+                console.log(`Metric ${m.key}: ${validPoints} valid points`);
 
-                if (hasData) {
-                    ctx.stroke();
-                    console.log(`Stroked line for ${m.key}`);
-                } else {
-                    console.log(`No data to stroke for ${m.key}`);
+                if (pathData.length > 0) {
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', pathData.join(' '));
+                    path.setAttribute('stroke', m.color);
+                    path.setAttribute('stroke-width', m.width);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke-linecap', 'round');
+                    path.setAttribute('stroke-linejoin', 'round');
+                    linesGroup.appendChild(path);
+                    console.log(`Created SVG path for ${m.key}`);
                 }
-                ctx.globalAlpha = 1;
             });
 
             // X-axis labels
-            ctx.fillStyle = '#333';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
             for (let i = 0; i < data.length; i += xStep) {
                 const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
                 const d = new Date(data[i].start_time);
@@ -436,26 +441,33 @@
                     ? `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
                     : `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}h`;
 
-                ctx.save();
-                ctx.translate(x, height - padding.bottom + 15);
-                ctx.rotate(-45 * Math.PI / 180);
-                ctx.fillText(label, 0, 0);
-                ctx.restore();
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', height - padding.bottom + 15);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-family', 'sans-serif');
+                text.setAttribute('font-size', '10');
+                text.setAttribute('fill', '#333');
+                text.setAttribute('transform', `rotate(-45 ${x} ${height - padding.bottom + 15})`);
+                text.textContent = label;
+                labelsGroup.appendChild(text);
             }
 
             // Hover interaction
             const tooltip = document.getElementById('tooltip');
-            canvas.onmousemove = e => {
-                const rect = canvas.getBoundingClientRect();
+            svg.onmousemove = e => {
+                const rect = svg.getBoundingClientRect();
                 const x = e.clientX - rect.left;
 
                 let closest = null;
                 let minDist = Infinity;
                 dataPoints.forEach(pt => {
-                    const dist = Math.abs(pt.x - x);
-                    if (dist < minDist) {
-                        minDist = dist;
-                        closest = pt;
+                    if (pt && pt.x) {
+                        const dist = Math.abs(pt.x - x);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closest = pt;
+                        }
                     }
                 });
 
@@ -483,7 +495,7 @@
                 }
             };
 
-            canvas.onmouseleave = () => tooltip.style.display = 'none';
+            svg.onmouseleave = () => tooltip.style.display = 'none';
         }
     </script>
 </body>
