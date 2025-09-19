@@ -239,6 +239,7 @@
                 console.log('1hr data count:', oneHourData.length);
                 if (fiveMinData.length > 0) {
                     console.log('5min sample:', fiveMinData[0]);
+                    console.log('Sample keys:', Object.keys(fiveMinData[0]));
                 }
 
                 drawChart();
@@ -354,6 +355,8 @@
 
             // Draw each metric line
             metrics.forEach((m, idx) => {
+                console.log(`Drawing metric ${m.key}, color: ${m.color}`);
+
                 ctx.strokeStyle = m.color;
                 ctx.lineWidth = m.width;
                 ctx.globalAlpha = m.alpha;
@@ -362,11 +365,14 @@
                 ctx.beginPath();
 
                 let hasData = false;
+                let validPoints = 0;
+
                 data.forEach((pt, i) => {
                     const val = pt[m.key] || pt[m.fb];
                     const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
 
                     if (val !== undefined && val !== null) {
+                        validPoints++;
                         const clampedVal = Math.min(val, maxY);
                         const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
@@ -398,8 +404,13 @@
                     }
                 });
 
+                console.log(`Metric ${m.key}: ${validPoints} valid points, hasData: ${hasData}`);
+
                 if (hasData) {
                     ctx.stroke();
+                    console.log(`Stroked line for ${m.key}`);
+                } else {
+                    console.log(`No data to stroke for ${m.key}`);
                 }
                 ctx.globalAlpha = 1;
             });
