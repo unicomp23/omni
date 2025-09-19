@@ -135,8 +135,6 @@
     <div class="header">
         <h1>Latency Viewer</h1>
         <div class="controls">
-            <button class="toggle-btn active" onclick="switchView('5min')">5 MIN</button>
-            <button class="toggle-btn" onclick="switchView('1hr')">1 HOUR</button>
             <input type="file" id="fileInput" accept=".jsonl" style="display:none">
             <button class="toggle-btn" onclick="document.getElementById('fileInput').click()">Load File</button>
         </div>
@@ -146,8 +144,13 @@
 
     <div id="mainContent" class="hidden">
         <div class="chart-container">
-            <svg id="chart"></svg>
+            <svg id="chart-5min"></svg>
         </div>
+        <div class="chart-container" style="margin-top: 20px;">
+            <svg id="chart-1hr"></svg>
+        </div>
+
+        <h2 style="margin: 20px 0 10px 0; font-size: 16px; font-weight: 600;">5 Minute Intervals</h2>
         <div class="legend">
             <div class="legend-item">
                 <span class="legend-color" style="background: #90EE90;"></span>
@@ -182,6 +185,8 @@
                 <span>MAX</span>
             </div>
         </div>
+
+        <h2 style="margin: 30px 0 10px 0; font-size: 16px; font-weight: 600;">1 Hour Intervals</h2>
     </div>
 
     <div class="tooltip" id="tooltip"></div>
@@ -189,7 +194,6 @@
     <script>
         let fiveMinData = [];
         let oneHourData = [];
-        let currentView = '5min';
 
         // Auto-load
         window.addEventListener('load', async () => {
@@ -227,12 +231,6 @@
                 const bucketTypes = [...new Set(allData.map(d => d.bucket_type))];
                 console.log('Available bucket types:', bucketTypes);
 
-                // Debug first few records
-                console.log('First 3 records bucket_type values:', allData.slice(0, 3).map(d => ({
-                    bucket_type: d.bucket_type,
-                    start_time: d.start_time
-                })));
-
                 fiveMinData = allData
                     .filter(d => d.bucket_type === '5min')
                     .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
@@ -247,16 +245,7 @@
                     fiveMinData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
                 }
 
-                console.log('5min data count:', fiveMinData.length);
-                console.log('1hr data count:', oneHourData.length);
-                if (fiveMinData.length > 0) {
-                    console.log('5min sample:', fiveMinData[0]);
-                    const keys = Object.keys(fiveMinData[0]);
-                    console.log('Sample keys:', keys);
-                    keys.forEach(key => console.log(`  ${key}: ${fiveMinData[0][key]}`));
-                }
-
-                drawChart();
+                drawCharts();
                 document.getElementById('loading').classList.add('hidden');
                 document.getElementById('mainContent').classList.remove('hidden');
 
@@ -266,66 +255,42 @@
             }
         }
 
-        function switchView(view) {
-            console.log(`Switching to view: ${view}`);
-            currentView = view;
-            document.querySelectorAll('.toggle-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
-
-            const dataToUse = view === '5min' ? fiveMinData : oneHourData;
-            console.log(`Data length for ${view}: ${dataToUse.length}`);
-
-            // Force container to recalculate dimensions
-            const container = document.querySelector('.chart-container');
-            const svg = document.getElementById('chart');
-            
-            // Clear the chart completely first
-            svg.innerHTML = '';
-            
-            // Trigger a reflow to ensure container dimensions are updated
-            container.style.display = 'none';
-            container.offsetHeight; // Force reflow
-            container.style.display = '';
-
-            drawChart();
+        function drawCharts() {
+            drawChart('chart-5min', fiveMinData, '5min');
+            drawChart('chart-1hr', oneHourData, '1hr');
         }
 
-        function drawChart() {
-            const svg = document.getElementById('chart');
-            const container = document.querySelector('.chart-container');
-            const data = currentView === '5min' ? fiveMinData : oneHourData;
+        function drawChart(svgId, data, chartType) {
+            const svg = document.getElementById(svgId);
+            const container = svg.parentElement;
 
-            console.log('Drawing chart, data length:', data.length);
-            console.log('Current view:', currentView);
+            console.log(`Drawing ${chartType} chart, data length:`, data.length);
 
             if (data.length === 0) {
-                console.log(`No data to draw for view: ${currentView}`);
-                // Show message in the chart area
-                svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-size="16" fill="#666">No ${currentView} data available</text>`;
+                console.log(`No data to draw for ${chartType}`);
+                svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-size="16" fill="#666">No ${chartType} data available</text>`;
                 svg.setAttribute('width', '400');
                 svg.setAttribute('height', '300');
                 return;
             }
 
             // Calculate SVG dimensions based on data length
-            const pointSpacing = currentView === '1hr' ? 8 : 4; // Give more space for 1hr data points
+            const pointSpacing = chartType === '1hr' ? 8 : 4;
             const minWidth = container.clientWidth - 2;
             const calculatedWidth = data.length * pointSpacing + 120;
             const width = Math.max(minWidth, calculatedWidth);
             const height = 450;
 
-            console.log(`SVG dimensions: ${width} x ${height}, data points: ${data.length}`);
+            console.log(`${chartType} SVG dimensions: ${width} x ${height}, data points: ${data.length}`);
 
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
-            svg.innerHTML = ''; // Clear previous content
+            svg.innerHTML = '';
 
             const padding = { top: 30, right: 40, bottom: 60, left: 60 };
             const plotW = width - padding.left - padding.right;
             const plotH = height - padding.top - padding.bottom;
-            const maxY = 200; // Fixed 200ms scale
+            const maxY = 200;
 
             // Create SVG groups
             const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -444,7 +409,7 @@
                     }
                 });
 
-                console.log(`Metric ${m.key}: ${validPoints} valid points`);
+                console.log(`${chartType} - Metric ${m.key}: ${validPoints} valid points`);
 
                 if (pathData.length > 0) {
                     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
@@ -455,8 +420,6 @@
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('stroke-linejoin', 'round');
                     linesGroup.appendChild(path);
-                } else {
-                    console.log(`No valid path data for ${m.key}`);
                 }
             });
 
@@ -464,7 +427,7 @@
             for (let i = 0; i < data.length; i += xStep) {
                 const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
                 const d = new Date(data[i].start_time);
-                const label = currentView === '5min'
+                const label = chartType === '5min'
                     ? `${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
                     : `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}h`;
 
@@ -500,23 +463,33 @@
 
                 if (closest && minDist < 20) {
                     const d = closest.data;
+                    const startTime = new Date(d.start_time);
+                    const endTime = new Date(d.end_time);
+
                     tooltip.innerHTML = `
                         <div style="font-weight:bold;margin-bottom:5px;border-bottom:1px solid #ccc;padding-bottom:3px">
-                            ${new Date(d.start_time).toLocaleString()}
+                            ${chartType.toUpperCase()} - ${startTime.toLocaleString()}
                         </div>
-                        <div><span>MIN</span><span>${(d.min_ms || d.min_latency || 0).toFixed(2)} ms</span></div>
-                        <div><span>AVG</span><span>${(d.avg_ms || d.overall_avg_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P50</span><span>${(d.p50_ms || d.overall_p50_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P90</span><span>${(d.p90_ms || d.overall_p90_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P95</span><span>${(d.p95_ms || d.overall_p95_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P99</span><span>${(d.p99_ms || d.overall_p99_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P99.9</span><span>${(d.p99_9_ms || d.overall_p99_9_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>P99.99</span><span>${(d.p99_99_ms || d.overall_p99_99_ms || 0).toFixed(2)} ms</span></div>
-                        <div><span>MAX</span><span>${(d.max_ms || d.max_latency || 0).toFixed(2)} ms</span></div>
+                        <div style="margin-bottom:3px;color:#666;font-size:10px">
+                            ${startTime.toLocaleTimeString()} - ${endTime.toLocaleTimeString()}
+                        </div>
+                        <div><span>Messages</span><span>${(d.total_messages || 0).toLocaleString()}</span></div>
+                        <div><span>Bucket Index</span><span>${d.bucket_index || 'N/A'}</span></div>
+                        <div style="margin-top:5px;border-top:1px solid #eee;padding-top:3px">
+                            <div><span>MIN</span><span>${(d.min_ms || d.min_latency || 0).toFixed(2)} ms</span></div>
+                            <div><span>AVG</span><span>${(d.avg_ms || d.overall_avg_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P50</span><span>${(d.p50_ms || d.overall_p50_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P90</span><span>${(d.p90_ms || d.overall_p90_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P95</span><span>${(d.p95_ms || d.overall_p95_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P99</span><span>${(d.p99_ms || d.overall_p99_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P99.9</span><span>${(d.p99_9_ms || d.overall_p99_9_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>P99.99</span><span>${(d.p99_99_ms || d.overall_p99_99_ms || 0).toFixed(2)} ms</span></div>
+                            <div><span>MAX</span><span>${(d.max_ms || d.max_latency || 0).toFixed(2)} ms</span></div>
+                        </div>
                     `;
                     tooltip.style.display = 'block';
-                    tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 200) + 'px';
-                    tooltip.style.top = (e.clientY - 120) + 'px';
+                    tooltip.style.left = Math.min(e.clientX + 10, window.innerWidth - 250) + 'px';
+                    tooltip.style.top = Math.max(10, e.clientY - 200) + 'px';
                 } else {
                     tooltip.style.display = 'none';
                 }
