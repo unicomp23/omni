@@ -239,7 +239,9 @@
                 console.log('1hr data count:', oneHourData.length);
                 if (fiveMinData.length > 0) {
                     console.log('5min sample:', fiveMinData[0]);
-                    console.log('Sample keys:', Object.keys(fiveMinData[0]));
+                    const keys = Object.keys(fiveMinData[0]);
+                    console.log('Sample keys:', keys);
+                    keys.forEach(key => console.log(`  ${key}: ${fiveMinData[0][key]}`));
                 }
 
                 drawChart();
@@ -284,6 +286,9 @@
 
             canvas.width = width;
             canvas.height = height;
+
+            console.log(`Canvas dimensions: ${width} x ${height}`);
+            console.log(`Container dimensions: ${container.clientWidth} x ${container.clientHeight}`);
 
             const padding = { top: 30, right: 40, bottom: 60, left: 60 };
             const plotW = width - padding.left - padding.right;
@@ -375,6 +380,11 @@
                         validPoints++;
                         const clampedVal = Math.min(val, maxY);
                         const y = height - padding.bottom - (clampedVal / maxY) * plotH;
+
+                        // Debug first few points
+                        if (idx === 2 && i < 3) { // p50_ms metric, first 3 points
+                            console.log(`Point ${i}: val=${val}, clampedVal=${clampedVal}, y=${y}, maxY=${maxY}`);
+                        }
 
                         if (!hasData) {
                             ctx.moveTo(x, y);
