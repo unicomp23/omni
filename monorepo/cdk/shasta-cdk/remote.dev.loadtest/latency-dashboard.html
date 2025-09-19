@@ -232,37 +232,49 @@
         function renderGraph(svgId, data, bucketType) {
             const svg = document.getElementById(svgId);
             const margin = { top: 20, right: 40, bottom: 60, left: 60 };
-            // Use all data - no sampling since we have scrollbars
             const dataset = data;
             
-            // Calculate width to ensure scrolling - with 6000+ records, this should be very wide
-            const pointSpacing = 15; // pixels per data point
+            // Calculate width to ensure scrolling
+            const pointSpacing = 15;
             const width = Math.max(1000, dataset.length * pointSpacing);
-            console.log(`SVG width for ${bucketType}: ${width}px (${dataset.length} points * ${pointSpacing}px)`)
+            console.log(`SVG width for ${bucketType}: ${width}px (${dataset.length} points * ${pointSpacing}px)`);
             const height = 400;
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
 
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
-            svg.innerHTML = '';
+            
+            // Clear existing content
+            while (svg.firstChild) {
+                svg.removeChild(svg.firstChild);
+            }
 
             if (dataset.length === 0) {
-                svg.innerHTML = `<text class="axis-text" x="${margin.left}" y="${margin.top + 20}">No ${bucketType} data</text>`;
+                const noDataText = createSVGElement('text', {
+                    'class': 'axis-text',
+                    'x': margin.left,
+                    'y': margin.top + 20
+                });
+                noDataText.textContent = `No ${bucketType} data`;
+                svg.appendChild(noDataText);
                 return;
             }
-            
-            // Add a visible indicator at the end of the graph to show scrolling works
-            svg.innerHTML += `<rect x="${width-50}" y="10" width="40" height="20" fill="red" opacity="0.5"></rect>`;
-            svg.innerHTML += `<text x="${width-30}" y="25" text-anchor="middle" class="axis-text" fill="red">END</text>`;
 
             // Calculate scales
             const safeValues = dataset.flatMap(d => PERCENTILE_KEYS.map(k => Number.isFinite(d[k]) ? d[k] : NaN)).filter(v => Number.isFinite(v));
             const maxLatency = safeValues.length ? Math.max(...safeValues) : 0;
             if (!(maxLatency > 0)) {
-                svg.innerHTML = `<text class="axis-text" x="${margin.left}" y="${margin.top + 20}">No valid percentile values in ${bucketType} data</text>`;
+                const noValidText = createSVGElement('text', {
+                    'class': 'axis-text',
+                    'x': margin.left,
+                    'y': margin.top + 20
+                });
+                noValidText.textContent = `No valid percentile values in ${bucketType} data`;
+                svg.appendChild(noValidText);
                 return;
             }
+
             const yScale = (value) => margin.top + chartHeight - (value / maxLatency * chartHeight);
             const xScale = (index) => margin.left + (index / (dataset.length - 1 || 1)) * chartWidth;
 
@@ -270,21 +282,67 @@
             const gridLines = [0, maxLatency * 0.25, maxLatency * 0.5, maxLatency * 0.75, maxLatency];
             gridLines.forEach(value => {
                 const y = yScale(value);
-                svg.innerHTML += `<line class="grid-line" x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}"></line>`;
-                svg.innerHTML += `<text class="axis-text" x="${margin.left - 10}" y="${y + 4}" text-anchor="end">${value.toFixed(1)}ms</text>`;
+                const gridLine = createSVGElement('line', {
+                    'class': 'grid-line',
+                    'x1': margin.left,
+                    'y1': y,
+                    'x2': margin.left + chartWidth,
+                    'y2': y
+                });
+                svg.appendChild(gridLine);
+
+                const gridLabel = createSVGElement('text', {
+                    'class': 'axis-text',
+                    'x': margin.left - 10,
+                    'y': y + 4,
+                    'text-anchor': 'end'
+                });
+                gridLabel.textContent = `${value.toFixed(1)}ms`;
+                svg.appendChild(gridLabel);
             });
 
             // Y-axis
-            svg.innerHTML += `<line class="axis-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}"></line>`;
-            svg.innerHTML += `<text class="axis-text" x="20" y="${margin.top + chartHeight/2}" text-anchor="middle" transform="rotate(-90, 20, ${margin.top + chartHeight/2})">Latency (ms)</text>`;
+            const yAxis = createSVGElement('line', {
+                'class': 'axis-line',
+                'x1': margin.left,
+                'y1': margin.top,
+                'x2': margin.left,
+                'y2': margin.top + chartHeight
+            });
+            svg.appendChild(yAxis);
+
+            const yLabel = createSVGElement('text', {
+                'class': 'axis-text',
+                'x': 20,
+                'y': margin.top + chartHeight/2,
+                'text-anchor': 'middle',
+                'transform': `rotate(-90, 20, ${margin.top + chartHeight/2})`
+            });
+            yLabel.textContent = 'Latency (ms)';
+            svg.appendChild(yLabel);
 
             // X-axis
-            svg.innerHTML += `<line class="axis-line" x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}"></line>`;
+            const xAxis = createSVGElement('line', {
+                'class': 'axis-line',
+                'x1': margin.left,
+                'y1': margin.top + chartHeight,
+                'x2': margin.left + chartWidth,
+                'y2': margin.top + chartHeight
+            });
+            svg.appendChild(xAxis);
 
+            // X-axis labels
             dataset.forEach((d, i) => {
                 const x = xScale(i);
                 const time = new Date(d.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                svg.innerHTML += `<text class="axis-text" x="${x}" y="${margin.top + chartHeight + 20}" text-anchor="middle">${time}</text>`;
+                const xLabel = createSVGElement('text', {
+                    'class': 'axis-text',
+                    'x': x,
+                    'y': margin.top + chartHeight + 20,
+                    'text-anchor': 'middle'
+                });
+                xLabel.textContent = time;
+                svg.appendChild(xLabel);
             });
 
             // Percentile lines and points
@@ -301,7 +359,11 @@
                     }
                 });
                 if (pathData) {
-                    svg.innerHTML += `<path class="percentile-line ${colors[pIndex]}" d="${pathData}"></path>`;
+                    const path = createSVGElement('path', {
+                        'class': `percentile-line ${colors[pIndex]}`,
+                        'd': pathData
+                    });
+                    svg.appendChild(path);
                 }
 
                 // Data points
@@ -310,18 +372,53 @@
                     if (!Number.isFinite(v)) return;
                     const x = xScale(i);
                     const y = yScale(v);
-                    const pointId = `point-${bucketType}-${i}-${pIndex}`;
 
-                    svg.innerHTML += `<circle class="data-point ${colors[pIndex]}" cx="${x}" cy="${y}" r="3" data-info='${JSON.stringify(d)}' data-percentile="${percentile}" id="${pointId}"></circle>`;
+                    const point = createSVGElement('circle', {
+                        'class': `data-point ${colors[pIndex]}`,
+                        'cx': x,
+                        'cy': y,
+                        'r': 3,
+                        'data-info': JSON.stringify(d),
+                        'data-percentile': percentile
+                    });
+
+                    // Add event listeners
+                    point.addEventListener('mouseenter', showTooltip);
+                    point.addEventListener('mouseleave', hideTooltip);
+                    point.addEventListener('mousemove', moveTooltip);
+
+                    svg.appendChild(point);
                 });
             });
 
-            // Add event listeners for hover
-            svg.querySelectorAll('.data-point').forEach(point => {
-                point.addEventListener('mouseenter', showTooltip);
-                point.addEventListener('mouseleave', hideTooltip);
-                point.addEventListener('mousemove', moveTooltip);
+            // Add scroll end indicator
+            const endRect = createSVGElement('rect', {
+                'x': width - 50,
+                'y': 10,
+                'width': 40,
+                'height': 20,
+                'fill': 'red',
+                'opacity': 0.5
             });
+            svg.appendChild(endRect);
+
+            const endText = createSVGElement('text', {
+                'x': width - 30,
+                'y': 25,
+                'text-anchor': 'middle',
+                'class': 'axis-text',
+                'fill': 'red'
+            });
+            endText.textContent = 'END';
+            svg.appendChild(endText);
+        }
+
+        function createSVGElement(tag, attributes) {
+            const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+            Object.entries(attributes).forEach(([key, value]) => {
+                element.setAttribute(key, value);
+            });
+            return element;
         }
 
         function showTooltip(event) {
