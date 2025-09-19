@@ -16,9 +16,8 @@ import (
 	"loadtest/pkg/types"
 )
 
-// PartitionLatencyStats holds latency statistics for a single partition
-type PartitionLatencyStats struct {
-	Partition    int32
+// BucketStats holds aggregated latency statistics (used for both overall and time buckets)
+type BucketStats struct {
 	MessageCount int
 	MinLatency   float64
 	MaxLatency   float64
@@ -29,64 +28,48 @@ type PartitionLatencyStats struct {
 	P99          float64
 	P99_9        float64
 	P99_99       float64
-	P99_999      float64
 }
 
 // LatencyAnalysis holds computed statistics
 type LatencyAnalysis struct {
-	TotalMessages         int
-	TimeSpan              time.Duration
-	ThroughputMsgSec      float64
-	MinLatency            float64
-	MaxLatency            float64
-	AvgLatency            float64
-	P50                   float64
-	P90                   float64
-	P95                   float64
-	P99                   float64
-	P99_9                 float64
-	P99_99                float64
-	P99_999               float64
-	ConsumerBreakdown     map[int]int
-	PartitionBreakdown    map[int32]int
-	PartitionLatencyStats []PartitionLatencyStats
-	FiveMinuteBuckets     []FiveMinuteBucket // Only populated when 5min analysis is enabled
+	TotalMessages      int
+	TimeSpan           time.Duration
+	ThroughputMsgSec   float64
+	MinLatency         float64
+	MaxLatency         float64
+	AvgLatency         float64
+	P50                float64
+	P90                float64
+	P95                float64
+	P99                float64
+	P99_9              float64
+	P99_99             float64
+	ConsumerBreakdown  map[int]int
+	PartitionBreakdown map[int32]int
+	FiveMinuteBuckets  []TimeBucket // 5-minute buckets
+	OneHourBuckets     []TimeBucket // 1-hour buckets
 }
 
-// FiveMinuteBucket holds latency analysis for a 5-minute time window
-type FiveMinuteBucket struct {
-	StartTime             time.Time
-	EndTime               time.Time
-	TotalMessages         int
-	PartitionLatencyStats []PartitionLatencyStats
-	OverallAvg            float64 // Overall average latency across all partitions in this bucket
-	OverallP50            float64 // Overall P50 (median) across all partitions in this bucket
-	OverallP90            float64 // Overall P90 across all partitions in this bucket
-	OverallP95            float64 // Overall P95 across all partitions in this bucket
-	OverallP99            float64 // Overall P99 across all partitions in this bucket
-	OverallP99_9          float64 // Overall P99.9 across all partitions in this bucket
-	OverallP99_99         float64 // Overall P99.99 across all partitions in this bucket
-}
-
-// TimeBucket represents a 5-minute time bucket for grouping messages
+// TimeBucket represents a time bucket for grouping messages (5min or 1hr)
 type TimeBucket struct {
-	StartTime         time.Time
-	EndTime           time.Time
-	PartitionMessages map[int32][]types.LatencyLogEntry
+	StartTime    time.Time
+	EndTime      time.Time
+	Stats        BucketStats
+	Messages     []types.LatencyLogEntry // Store all messages for this bucket
 }
 
 func main() {
 	// Command line flags
-	var fiveMinChunks bool
+	var timeBuckets bool
 	var jsonlOutput bool
-	flag.BoolVar(&fiveMinChunks, "5min", false, "Enable 5-minute bucket analysis for 99.99% availability reporting")
-	flag.BoolVar(&jsonlOutput, "jsonl", false, "Write JSONL records for each 5-minute bucket to file")
+	flag.BoolVar(&timeBuckets, "buckets", false, "Enable time bucket analysis (5-minute and 1-hour buckets)")
+	flag.BoolVar(&jsonlOutput, "jsonl", false, "Write JSONL records for time buckets to file")
 	flag.Parse()
 	
 	// Validate flag combinations
-	if jsonlOutput && !fiveMinChunks {
-		fmt.Printf("❌ Error: -jsonl flag requires -5min flag to be enabled\n")
-		fmt.Printf("💡 Use: go run cmd/analyze/analyze_latency.go -5min -jsonl [directory]\n")
+	if jsonlOutput && !timeBuckets {
+		fmt.Printf("❌ Error: -jsonl flag requires -buckets flag to be enabled\n")
+		fmt.Printf("💡 Use: go run cmd/analyze/analyze_latency.go -buckets -jsonl [directory]\n")
 		os.Exit(1)
 	}
 	
@@ -97,11 +80,11 @@ func main() {
 		logDir = args[0]
 	}
 
-	if fiveMinChunks {
+	if timeBuckets {
 		if jsonlOutput {
-			fmt.Printf("🔍 Analyzing latency logs with 5-minute buckets and JSONL output in: %s\n\n", logDir)
+			fmt.Printf("🔍 Analyzing latency logs with time buckets (5min & 1hr) and JSONL output in: %s\n\n", logDir)
 		} else {
-			fmt.Printf("🔍 Analyzing latency logs with 5-minute buckets in: %s\n\n", logDir)
+			fmt.Printf("🔍 Analyzing latency logs with time buckets (5min & 1hr) in: %s\n\n", logDir)
 		}
 	} else {
 		fmt.Printf("🔍 Analyzing latency logs in: %s\n\n", logDir)
@@ -128,7 +111,7 @@ func main() {
 	fmt.Println()
 
 	// Parse and analyze each file individually
-	if !fiveMinChunks {
+	if !timeBuckets {
 		fmt.Println("📊 INDIVIDUAL FILE ANALYSIS")
 		fmt.Println("═══════════════════════════════════")
 	}
@@ -153,7 +136,7 @@ func main() {
 	}
 
 	for _, filePath := range files {
-		if !fiveMinChunks {
+		if !timeBuckets {
 			fmt.Printf("\n📖 Analyzing: %s\n", filepath.Base(filePath))
 		}
 
@@ -164,37 +147,35 @@ func main() {
 		}
 
 		if len(entries) == 0 {
-			if !fiveMinChunks {
+			if !timeBuckets {
 				fmt.Printf("   ⚠️  No valid entries found\n")
 			}
 			continue
 		}
 
-		if !fiveMinChunks {
+		if !timeBuckets {
 			fmt.Printf("   ✅ Loaded %d entries\n", len(entries))
 		}
 
 		// Analyze this file individually
-		fileAnalysis := analyzeLatencies(entries, fiveMinChunks)
+		fileAnalysis := analyzeLatencies(entries, timeBuckets)
 		
-		if fiveMinChunks {
-			// Only show 5-minute bucket analysis when -5min flag is used
-			if len(fileAnalysis.FiveMinuteBuckets) > 0 {
+		if timeBuckets {
+			// Show time bucket analysis when -buckets flag is used
+			if len(fileAnalysis.FiveMinuteBuckets) > 0 || len(fileAnalysis.OneHourBuckets) > 0 {
 				fmt.Printf("\n📖 File: %s (%d entries)\n", filepath.Base(filePath), len(entries))
-				displayFiveMinuteBucketAnalysis(fileAnalysis.FiveMinuteBuckets)
-				
+				displayTimeBucketAnalysis(fileAnalysis)
+
 				// Write JSONL output if requested
 				if jsonlOutput {
-					if err := writeJSONLRecordsToFile(filepath.Base(filePath), fileAnalysis.FiveMinuteBuckets, jsonlEncoder, jsonlFile); err != nil {
+					if err := writeJSONLRecordsToFile(filepath.Base(filePath), fileAnalysis, jsonlEncoder, jsonlFile); err != nil {
 						fmt.Printf("⚠️  Failed to write JSONL for %s: %v\n", filepath.Base(filePath), err)
 					}
 				}
 			}
 		} else {
-			// Show regular analysis when -5min flag is NOT used
+			// Show regular analysis when -buckets flag is NOT used
 			displayFileResults(filepath.Base(filePath), fileAnalysis)
-			// Display per-partition latency analysis for rebalance study
-			displayPartitionLatencyStats(fileAnalysis.PartitionLatencyStats)
 		}
 
 		// Track totals for summary
@@ -209,7 +190,7 @@ func main() {
 		log.Fatalf("❌ No latency data found in any log files")
 	}
 
-	if !fiveMinChunks {
+	if !timeBuckets {
 		fmt.Printf("\n📊 Successfully processed %d files with %d total entries\n", filesProcessed, totalEntries)
 		fmt.Println("💡 Individual file analysis complete - memory optimized!")
 	} else if jsonlOutput {
@@ -299,7 +280,7 @@ func parseLogFile(filePath string) ([]types.LatencyLogEntry, error) {
 	return entries, nil
 }
 
-func analyzeLatencies(entries []types.LatencyLogEntry, fiveMinChunks bool) LatencyAnalysis {
+func analyzeLatencies(entries []types.LatencyLogEntry, timeBuckets bool) LatencyAnalysis {
 	if len(entries) == 0 {
 		return LatencyAnalysis{}
 	}
@@ -308,7 +289,6 @@ func analyzeLatencies(entries []types.LatencyLogEntry, fiveMinChunks bool) Laten
 	latencies := make([]float64, len(entries))
 	consumerCounts := make(map[int]int)
 	partitionCounts := make(map[int32]int)
-	partitionLatencies := make(map[int32][]float64)
 
 	var minTime, maxTime time.Time
 	var totalLatency float64
@@ -320,9 +300,6 @@ func analyzeLatencies(entries []types.LatencyLogEntry, fiveMinChunks bool) Laten
 		// Track consumer and partition distribution
 		consumerCounts[entry.ConsumerID]++
 		partitionCounts[entry.Partition]++
-
-		// Track latencies per partition for detailed analysis
-		partitionLatencies[entry.Partition] = append(partitionLatencies[entry.Partition], entry.LatencyMs)
 
 		// Track time span
 		if minTime.IsZero() || entry.Timestamp.Before(minTime) {
@@ -339,84 +316,65 @@ func analyzeLatencies(entries []types.LatencyLogEntry, fiveMinChunks bool) Laten
 	timeSpan := maxTime.Sub(minTime)
 	throughput := float64(count) / timeSpan.Seconds()
 
-	// Calculate per-partition latency statistics
-	partitionStats := calculatePartitionLatencyStats(partitionLatencies)
-
 	analysis := LatencyAnalysis{
-		TotalMessages:         count,
-		TimeSpan:              timeSpan,
-		ThroughputMsgSec:      throughput,
-		MinLatency:            latencies[0],
-		MaxLatency:            latencies[count-1],
-		AvgLatency:            totalLatency / float64(count),
-		P50:                   percentile(latencies, 50.0),
-		P90:                   percentile(latencies, 90.0),
-		P95:                   percentile(latencies, 95.0),
-		P99:                   percentile(latencies, 99.0),
-		P99_9:                 percentile(latencies, 99.9),
-		P99_99:                percentile(latencies, 99.99),
-		P99_999:               percentile(latencies, 99.999),
-		ConsumerBreakdown:     consumerCounts,
-		PartitionBreakdown:    partitionCounts,
-		PartitionLatencyStats: partitionStats,
+		TotalMessages:      count,
+		TimeSpan:           timeSpan,
+		ThroughputMsgSec:   throughput,
+		MinLatency:         latencies[0],
+		MaxLatency:         latencies[count-1],
+		AvgLatency:         totalLatency / float64(count),
+		P50:                percentile(latencies, 50.0),
+		P90:                percentile(latencies, 90.0),
+		P95:                percentile(latencies, 95.0),
+		P99:                percentile(latencies, 99.0),
+		P99_9:              percentile(latencies, 99.9),
+		P99_99:             percentile(latencies, 99.99),
+		ConsumerBreakdown:  consumerCounts,
+		PartitionBreakdown: partitionCounts,
 	}
-	
-	// Add 5-minute bucket analysis if requested
-	if fiveMinChunks {
-		analysis.FiveMinuteBuckets = analyzeFiveMinuteBuckets(entries)
+
+	// Add time bucket analysis if requested
+	if timeBuckets {
+		analysis.FiveMinuteBuckets = analyzeTimeBuckets(entries, 5*time.Minute)
+		analysis.OneHourBuckets = analyzeTimeBuckets(entries, 1*time.Hour)
 	}
 
 	return analysis
 }
 
-// calculatePartitionLatencyStats computes latency statistics for each partition
-func calculatePartitionLatencyStats(partitionLatencies map[int32][]float64) []PartitionLatencyStats {
-	var stats []PartitionLatencyStats
-
-	for partition, latencies := range partitionLatencies {
-		if len(latencies) == 0 {
-			continue
-		}
-
-		// Sort latencies for percentile calculation
-		sortedLatencies := make([]float64, len(latencies))
-		copy(sortedLatencies, latencies)
-		sort.Float64s(sortedLatencies)
-
-		// Calculate average
-		var total float64
-		for _, latency := range latencies {
-			total += latency
-		}
-
-		stat := PartitionLatencyStats{
-			Partition:    partition,
-			MessageCount: len(latencies),
-			MinLatency:   sortedLatencies[0],
-			MaxLatency:   sortedLatencies[len(sortedLatencies)-1],
-			AvgLatency:   total / float64(len(latencies)),
-			P50:          percentile(sortedLatencies, 50.0),
-			P90:          percentile(sortedLatencies, 90.0),
-			P95:          percentile(sortedLatencies, 95.0),
-			P99:          percentile(sortedLatencies, 99.0),
-			P99_9:        percentile(sortedLatencies, 99.9),
-			P99_99:       percentile(sortedLatencies, 99.99),
-			P99_999:      percentile(sortedLatencies, 99.999),
-		}
-
-		stats = append(stats, stat)
+// calculateBucketStats computes statistics for a collection of latency values
+func calculateBucketStats(latencies []float64) BucketStats {
+	if len(latencies) == 0 {
+		return BucketStats{}
 	}
 
-	// Sort by partition ID for consistent output
-	sort.Slice(stats, func(i, j int) bool {
-		return stats[i].Partition < stats[j].Partition
-	})
+	// Sort latencies for percentile calculation
+	sortedLatencies := make([]float64, len(latencies))
+	copy(sortedLatencies, latencies)
+	sort.Float64s(sortedLatencies)
 
-	return stats
+	// Calculate average
+	var total float64
+	for _, latency := range latencies {
+		total += latency
+	}
+
+	return BucketStats{
+		MessageCount: len(latencies),
+		MinLatency:   sortedLatencies[0],
+		MaxLatency:   sortedLatencies[len(sortedLatencies)-1],
+		AvgLatency:   total / float64(len(latencies)),
+		P50:          percentile(sortedLatencies, 50.0),
+		P90:          percentile(sortedLatencies, 90.0),
+		P95:          percentile(sortedLatencies, 95.0),
+		P99:          percentile(sortedLatencies, 99.0),
+		P99_9:        percentile(sortedLatencies, 99.9),
+		P99_99:       percentile(sortedLatencies, 99.99),
+	}
 }
 
-// analyzeFiveMinuteBuckets groups messages into 5-minute time buckets and analyzes each bucket
-func analyzeFiveMinuteBuckets(entries []types.LatencyLogEntry) []FiveMinuteBucket {
+// analyzeTimeBuckets groups messages into time buckets and analyzes each bucket
+func analyzeTimeBuckets(entries []types.LatencyLogEntry, bucketDuration time.Duration) []TimeBucket {
 	if len(entries) == 0 {
 		return nil
 	}
@@ -432,93 +390,56 @@ func analyzeFiveMinuteBuckets(entries []types.LatencyLogEntry) []FiveMinuteBucke
 		}
 	}
 
-	// Create 5-minute time buckets
-	buckets := createFiveMinuteBuckets(minTime, maxTime)
-	
+	// Create time buckets
+	buckets := createTimeBuckets(minTime, maxTime, bucketDuration)
+
 	// Group entries by time bucket
 	for _, entry := range entries {
 		for i := range buckets {
 			if (entry.Timestamp.Equal(buckets[i].StartTime) || entry.Timestamp.After(buckets[i].StartTime)) &&
-			   entry.Timestamp.Before(buckets[i].EndTime) {
-				if buckets[i].PartitionMessages == nil {
-					buckets[i].PartitionMessages = make(map[int32][]types.LatencyLogEntry)
-				}
-				buckets[i].PartitionMessages[entry.Partition] = append(buckets[i].PartitionMessages[entry.Partition], entry)
+				entry.Timestamp.Before(buckets[i].EndTime) {
+				buckets[i].Messages = append(buckets[i].Messages, entry)
 				break
 			}
 		}
 	}
 
-	// Analyze each bucket
-	var fiveMinBuckets []FiveMinuteBucket
+	// Analyze each bucket and filter out empty ones
+	var analyzedBuckets []TimeBucket
 	for _, bucket := range buckets {
-		if len(bucket.PartitionMessages) == 0 {
+		if len(bucket.Messages) == 0 {
 			continue // Skip empty buckets
 		}
 
-		fiveMinBucket := FiveMinuteBucket{
-			StartTime: bucket.StartTime,
-			EndTime:   bucket.EndTime,
+		// Extract latencies for this bucket
+		latencies := make([]float64, len(bucket.Messages))
+		for i, msg := range bucket.Messages {
+			latencies[i] = msg.LatencyMs
 		}
 
-		// Calculate partition stats for this bucket
-		partitionLatencies := make(map[int32][]float64)
-		allLatencies := []float64{}
-		
-		for partition, messages := range bucket.PartitionMessages {
-			fiveMinBucket.TotalMessages += len(messages)
-			
-			latencies := make([]float64, len(messages))
-			for i, msg := range messages {
-				latencies[i] = msg.LatencyMs
-				allLatencies = append(allLatencies, msg.LatencyMs)
-			}
-			partitionLatencies[partition] = latencies
-		}
-
-		fiveMinBucket.PartitionLatencyStats = calculatePartitionLatencyStats(partitionLatencies)
-		
-		// Calculate overall percentiles for this bucket
-		if len(allLatencies) > 0 {
-			sort.Float64s(allLatencies)
-			
-			// Calculate average
-			var totalLatency float64
-			for _, latency := range allLatencies {
-				totalLatency += latency
-			}
-			fiveMinBucket.OverallAvg = totalLatency / float64(len(allLatencies))
-			
-			// Calculate percentiles
-			fiveMinBucket.OverallP50 = percentile(allLatencies, 50.0)
-			fiveMinBucket.OverallP90 = percentile(allLatencies, 90.0)
-			fiveMinBucket.OverallP95 = percentile(allLatencies, 95.0)
-			fiveMinBucket.OverallP99 = percentile(allLatencies, 99.0)
-			fiveMinBucket.OverallP99_9 = percentile(allLatencies, 99.9)
-			fiveMinBucket.OverallP99_99 = percentile(allLatencies, 99.99)
-		}
-
-		fiveMinBuckets = append(fiveMinBuckets, fiveMinBucket)
+		// Calculate statistics for this bucket
+		bucket.Stats = calculateBucketStats(latencies)
+		analyzedBuckets = append(analyzedBuckets, bucket)
 	}
 
-	return fiveMinBuckets
+	return analyzedBuckets
 }
 
-// createFiveMinuteBuckets creates 5-minute time buckets from minTime to maxTime
-func createFiveMinuteBuckets(minTime, maxTime time.Time) []TimeBucket {
+// createTimeBuckets creates time buckets from minTime to maxTime with given duration
+func createTimeBuckets(minTime, maxTime time.Time, bucketDuration time.Duration) []TimeBucket {
 	var buckets []TimeBucket
-	
-	// Round down to the nearest 5-minute mark
-	start := minTime.Truncate(5 * time.Minute)
-	
-	for current := start; current.Before(maxTime); current = current.Add(5 * time.Minute) {
+
+	// Round down to the nearest bucket mark
+	start := minTime.Truncate(bucketDuration)
+
+	for current := start; current.Before(maxTime); current = current.Add(bucketDuration) {
 		bucket := TimeBucket{
 			StartTime: current,
-			EndTime:   current.Add(5 * time.Minute),
+			EndTime:   current.Add(bucketDuration),
 		}
 		buckets = append(buckets, bucket)
 	}
-	
+
 	return buckets
 }
 
@@ -551,10 +472,10 @@ func percentile(sortedData []float64, p float64) float64 {
 func displayFileResults(filename string, analysis LatencyAnalysis) {
 	fmt.Printf("   📈 Messages: %d | Span: %v | Throughput: %.1f msg/sec\n",
 		analysis.TotalMessages, analysis.TimeSpan, analysis.ThroughputMsgSec)
-	fmt.Printf("   🎯 Latency: P50=%.2f P95=%.2f P99=%.2f P99.9=%.2f P99.99=%.2f ms\n",
-		analysis.P50, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
-	fmt.Printf("   📊 Range: %.3f - %.3f ms (avg: %.3f ms)\n",
+	fmt.Printf("   📊 Min: %.2f ms | Max: %.2f ms | Avg: %.2f ms\n",
 		analysis.MinLatency, analysis.MaxLatency, analysis.AvgLatency)
+	fmt.Printf("   🎯 P50: %.2f | P90: %.2f | P95: %.2f | P99: %.2f | P99.9: %.2f | P99.99: %.2f ms\n",
+		analysis.P50, analysis.P90, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
 }
 
 func displayResults(analysis LatencyAnalysis) {
@@ -575,7 +496,6 @@ func displayResults(analysis LatencyAnalysis) {
 	fmt.Printf("P99:               %.6f ms\n", analysis.P99)
 	fmt.Printf("P99.9:             %.6f ms\n", analysis.P99_9)
 	fmt.Printf("P99.99:            %.6f ms ⭐\n", analysis.P99_99)
-	fmt.Printf("P99.999:           %.6f ms\n", analysis.P99_999)
 	fmt.Printf("Max:               %.6f ms\n", analysis.MaxLatency)
 	fmt.Println()
 
@@ -641,155 +561,132 @@ func displayResults(analysis LatencyAnalysis) {
 	}
 }
 
-// displayPartitionLatencyStats shows per-partition latency percentiles for rebalance analysis
-func displayPartitionLatencyStats(stats []PartitionLatencyStats) {
-	if len(stats) == 0 {
-		return
+// displayTimeBucketAnalysis displays both 5-minute and 1-hour bucket analysis
+func displayTimeBucketAnalysis(analysis LatencyAnalysis) {
+	if len(analysis.FiveMinuteBuckets) > 0 {
+		fmt.Println("\n⏰ 5-MINUTE BUCKET ANALYSIS")
+		fmt.Println("══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════")
+		displayBuckets(analysis.FiveMinuteBuckets, "5min")
 	}
 
-	fmt.Println("\n🎯 PER-PARTITION LATENCY ANALYSIS (Rebalance Study)")
-	fmt.Println("═══════════════════════════════════════════════════")
-	fmt.Printf("%-9s %8s %8s %8s %8s %8s %8s %10s ⭐\n",
-		"Partition", "Messages", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
-	fmt.Println("─────────────────────────────────────────────────────────────────────────────")
-
-	// Sort by P99.99 descending to highlight problematic partitions
-	sortedStats := make([]PartitionLatencyStats, len(stats))
-	copy(sortedStats, stats)
-	sort.Slice(sortedStats, func(i, j int) bool {
-		return sortedStats[i].P99_99 > sortedStats[j].P99_99
-	})
-
-	for _, stat := range sortedStats {
-		// Highlight partitions with high P99.99 latency
-		icon := "  "
-		if stat.P99_99 > 50.0 {
-			icon = "⚠️ "
-		} else if stat.P99_99 > 100.0 {
-			icon = "🔴"
-		}
-
-		fmt.Printf("%s%7d %8d %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
-			icon, stat.Partition, stat.MessageCount,
-			stat.P50, stat.P90, stat.P95, stat.P99, stat.P99_9, stat.P99_99)
+	if len(analysis.OneHourBuckets) > 0 {
+		fmt.Println("\n⏰ 1-HOUR BUCKET ANALYSIS")
+		fmt.Println("══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════════")
+		displayBuckets(analysis.OneHourBuckets, "1hr")
 	}
 
-	// Summary insights for rebalance analysis
-	fmt.Println("\n💡 REBALANCE ANALYSIS INSIGHTS")
-	fmt.Println("═════════════════════════════")
-
-	// Find partition with highest P99.99
-	var maxP9999 PartitionLatencyStats
-	var minP9999 PartitionLatencyStats
-	var avgP9999 float64
-
-	for i, stat := range stats {
-		avgP9999 += stat.P99_99
-		if i == 0 || stat.P99_99 > maxP9999.P99_99 {
-			maxP9999 = stat
-		}
-		if i == 0 || stat.P99_99 < minP9999.P99_99 {
-			minP9999 = stat
-		}
-	}
-	avgP9999 /= float64(len(stats))
-
-	fmt.Printf("• Highest P99.99 latency: Partition %d (%.2f ms)\n", maxP9999.Partition, maxP9999.P99_99)
-	fmt.Printf("• Lowest P99.99 latency:  Partition %d (%.2f ms)\n", minP9999.Partition, minP9999.P99_99)
-	fmt.Printf("• Average P99.99 latency: %.2f ms\n", avgP9999)
-	fmt.Printf("• Latency spread (max/min): %.1fx\n", maxP9999.P99_99/minP9999.P99_99)
-
-	// Count problematic partitions
-	highLatencyCount := 0
-	for _, stat := range stats {
-		if stat.P99_99 > 50.0 {
-			highLatencyCount++
-		}
-	}
-
-	if highLatencyCount > 0 {
-		fmt.Printf("• ⚠️  %d/%d partitions have P99.99 > 50ms (potential rebalance impact)\n",
-			highLatencyCount, len(stats))
-	} else {
-		fmt.Printf("• ✅ All partitions have P99.99 < 50ms (healthy during rebalance)\n")
-	}
-
-	if maxP9999.P99_99/minP9999.P99_99 > 3.0 {
-		fmt.Printf("• ⚠️  High latency variance detected - investigate partition %d\n", maxP9999.Partition)
-	}
 }
 
-// displayFiveMinuteBucketAnalysis displays 5-minute bucket analysis for 99.99% availability reporting
-func displayFiveMinuteBucketAnalysis(buckets []FiveMinuteBucket) {
+// displayBuckets displays time bucket analysis
+func displayBuckets(buckets []TimeBucket, bucketType string) {
 	if len(buckets) == 0 {
 		return
 	}
 
-	fmt.Println("\n⏰ 5-MINUTE BUCKET ANALYSIS (99.99% Availability)")
-	fmt.Println("══════════════════════════════════════════════════════════════════════════════════════════")
-	
 	// Display header for bucket table
-	fmt.Printf("%-6s %-10s %-10s %8s %8s %8s %8s %8s %8s %8s %10s ⭐\n", 
-		"Bucket", "Start", "End", "Messages", "Avg ms", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
-	fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────")
-	
+	fmt.Printf("%-6s %-19s %-19s %8s %8s %8s %8s %8s %8s %8s %8s %8s %10s\n",
+		"Bucket", "Start", "End", "Messages", "Min", "Max", "Avg", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
+	fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
+
 	for i, bucket := range buckets {
-		startStr := bucket.StartTime.Format("15:04:05")
-		endStr := bucket.EndTime.Format("15:04:05")
-		
-		fmt.Printf("%-6d %-10s %-10s %8d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
-			i+1, startStr, endStr, bucket.TotalMessages, 
-			bucket.OverallAvg, bucket.OverallP50, bucket.OverallP90, bucket.OverallP95, 
-			bucket.OverallP99, bucket.OverallP99_9, bucket.OverallP99_99)
+		var timeFormat string
+		if bucketType == "5min" {
+			timeFormat = "2006-01-02 15:04:05"
+		} else {
+			timeFormat = "2006-01-02 15:04"
+		}
+		startStr := bucket.StartTime.Format(timeFormat)
+		endStr := bucket.EndTime.Format(timeFormat)
+
+		fmt.Printf("%-6d %-19s %-19s %8d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
+			i+1, startStr, endStr, bucket.Stats.MessageCount,
+			bucket.Stats.MinLatency, bucket.Stats.MaxLatency, bucket.Stats.AvgLatency,
+			bucket.Stats.P50, bucket.Stats.P90, bucket.Stats.P95,
+			bucket.Stats.P99, bucket.Stats.P99_9, bucket.Stats.P99_99)
 	}
 }
 
-// BucketJSONLRecord represents a JSONL record for a 5-minute bucket
+// BucketJSONLRecord represents a JSONL record for time buckets
 type BucketJSONLRecord struct {
-	Filename              string                    `json:"filename"`
-	BucketIndex           int                       `json:"bucket_index"`
-	StartTime             time.Time                 `json:"start_time"`
-	EndTime               time.Time                 `json:"end_time"`
-	TotalMessages         int                       `json:"total_messages"`
-	PartitionLatencyStats []PartitionLatencyStats   `json:"partition_latency_stats"`
-	OverallAvg            float64                   `json:"overall_avg_ms"`
-	OverallP50            float64                   `json:"overall_p50_ms"`
-	OverallP90            float64                   `json:"overall_p90_ms"`
-	OverallP95            float64                   `json:"overall_p95_ms"`
-	OverallP99            float64                   `json:"overall_p99_ms"`
-	OverallP99_9          float64                   `json:"overall_p99_9_ms"`
-	OverallP99_99         float64                   `json:"overall_p99_99_ms"`
+	Filename      string    `json:"filename"`
+	BucketType    string    `json:"bucket_type"` // "5min" or "1hr"
+	BucketIndex   int       `json:"bucket_index"`
+	StartTime     time.Time `json:"start_time"`
+	EndTime       time.Time `json:"end_time"`
+	TotalMessages int       `json:"total_messages"`
+	MinLatency    float64   `json:"min_ms"`
+	MaxLatency    float64   `json:"max_ms"`
+	AvgLatency    float64   `json:"avg_ms"`
+	P50           float64   `json:"p50_ms"`
+	P90           float64   `json:"p90_ms"`
+	P95           float64   `json:"p95_ms"`
+	P99           float64   `json:"p99_ms"`
+	P99_9         float64   `json:"p99_9_ms"`
+	P99_99        float64   `json:"p99_99_ms"`
 }
 
 // writeJSONLRecordsToFile writes bucket analysis as JSONL records to the shared output file
-func writeJSONLRecordsToFile(filename string, buckets []FiveMinuteBucket, encoder *json.Encoder, file *os.File) error {
-	for i, bucket := range buckets {
+func writeJSONLRecordsToFile(filename string, analysis LatencyAnalysis, encoder *json.Encoder, file *os.File) error {
+	// Write 5-minute bucket records
+	for i, bucket := range analysis.FiveMinuteBuckets {
 		record := BucketJSONLRecord{
-			Filename:              filename,
-			BucketIndex:           i + 1,
-			StartTime:             bucket.StartTime,
-			EndTime:               bucket.EndTime,
-			TotalMessages:         bucket.TotalMessages,
-			PartitionLatencyStats: bucket.PartitionLatencyStats,
-			OverallAvg:            bucket.OverallAvg,
-			OverallP50:            bucket.OverallP50,
-			OverallP90:            bucket.OverallP90,
-			OverallP95:            bucket.OverallP95,
-			OverallP99:            bucket.OverallP99,
-			OverallP99_9:          bucket.OverallP99_9,
-			OverallP99_99:         bucket.OverallP99_99,
+			Filename:      filename,
+			BucketType:    "5min",
+			BucketIndex:   i + 1,
+			StartTime:     bucket.StartTime,
+			EndTime:       bucket.EndTime,
+			TotalMessages: bucket.Stats.MessageCount,
+			MinLatency:    bucket.Stats.MinLatency,
+			MaxLatency:    bucket.Stats.MaxLatency,
+			AvgLatency:    bucket.Stats.AvgLatency,
+			P50:           bucket.Stats.P50,
+			P90:           bucket.Stats.P90,
+			P95:           bucket.Stats.P95,
+			P99:           bucket.Stats.P99,
+			P99_9:         bucket.Stats.P99_9,
+			P99_99:        bucket.Stats.P99_99,
 		}
-		
+
 		if err := encoder.Encode(record); err != nil {
 			return fmt.Errorf("failed to encode JSONL record: %v", err)
 		}
-		
+
 		// Flush after each record to make it immediately visible to tail -f
 		if err := file.Sync(); err != nil {
 			return fmt.Errorf("failed to flush JSONL record: %v", err)
 		}
 	}
-	
+
+	// Write 1-hour bucket records
+	for i, bucket := range analysis.OneHourBuckets {
+		record := BucketJSONLRecord{
+			Filename:      filename,
+			BucketType:    "1hr",
+			BucketIndex:   i + 1,
+			StartTime:     bucket.StartTime,
+			EndTime:       bucket.EndTime,
+			TotalMessages: bucket.Stats.MessageCount,
+			MinLatency:    bucket.Stats.MinLatency,
+			MaxLatency:    bucket.Stats.MaxLatency,
+			AvgLatency:    bucket.Stats.AvgLatency,
+			P50:           bucket.Stats.P50,
+			P90:           bucket.Stats.P90,
+			P95:           bucket.Stats.P95,
+			P99:           bucket.Stats.P99,
+			P99_9:         bucket.Stats.P99_9,
+			P99_99:        bucket.Stats.P99_99,
+		}
+
+		if err := encoder.Encode(record); err != nil {
+			return fmt.Errorf("failed to encode JSONL record: %v", err)
+		}
+
+		// Flush after each record to make it immediately visible to tail -f
+		if err := file.Sync(); err != nil {
+			return fmt.Errorf("failed to flush JSONL record: %v", err)
+		}
+	}
+
 	return nil
 }
 
@@ -797,6 +694,6 @@ func writeJSONLRecordsToFile(filename string, buckets []FiveMinuteBucket, encode
 func printUsageHelp() {
 	fmt.Printf("💡 TIP: Download files first using: ./run-s3-download.sh\n")
 	fmt.Printf("💡 Or specify a different directory: go run cmd/analyze/analyze_latency.go /path/to/logs\n")
-	fmt.Printf("💡 For 5-minute bucket analysis: go run cmd/analyze/analyze_latency.go -5min [/path/to/logs]\n")
-	fmt.Printf("💡 For JSONL output: go run cmd/analyze/analyze_latency.go -5min -jsonl [/path/to/logs]\n")
+	fmt.Printf("💡 For time bucket analysis: go run cmd/analyze/analyze_latency.go -buckets [/path/to/logs]\n")
+	fmt.Printf("💡 For JSONL output: go run cmd/analyze/analyze_latency.go -buckets -jsonl [/path/to/logs]\n")
 }
