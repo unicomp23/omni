@@ -349,9 +349,10 @@
                 let hasData = false;
                 data.forEach((pt, i) => {
                     const val = pt[m.key] || pt[m.fb];
+                    const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
+
                     if (val !== undefined && val !== null) {
                         const clampedVal = Math.min(val, maxY);
-                        const x = padding.left + (i / Math.max(1, data.length - 1)) * plotW;
                         const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
                         if (!hasData) {
