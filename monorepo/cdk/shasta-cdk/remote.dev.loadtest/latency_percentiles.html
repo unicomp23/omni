@@ -231,18 +231,54 @@
                 const bucketTypes = [...new Set(allData.map(d => d.bucket_type))];
                 console.log('Available bucket types:', bucketTypes);
 
-                fiveMinData = allData
-                    .filter(d => d.bucket_type === '5min')
-                    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+                // Check if bucket_type field exists
+                const hasBucketType = allData.length > 0 && allData[0].bucket_type !== undefined;
 
-                oneHourData = allData
-                    .filter(d => d.bucket_type === '1hr')
-                    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+                if (hasBucketType) {
+                    fiveMinData = allData
+                        .filter(d => d.bucket_type === '5min')
+                        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
+                    oneHourData = allData
+                        .filter(d => d.bucket_type === '1hr')
+                        .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+                } else {
+                    // Fallback: infer bucket type from time intervals
+                    const sortedData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+                    fiveMinData = [];
+                    oneHourData = [];
+
+                    sortedData.forEach(record => {
+                        const start = new Date(record.start_time);
+                        const end = new Date(record.end_time);
+                        const durationMinutes = (end - start) / (1000 * 60);
+
+                        if (durationMinutes <= 6) { // 5-minute buckets (with some tolerance)
+                            fiveMinData.push(record);
+                        } else if (durationMinutes >= 50) { // 1-hour buckets
+                            oneHourData.push(record);
+                        }
+                    });
+                }
+
+                console.log('Has bucket_type field:', hasBucketType);
                 console.log('Filtered data - 5min:', fiveMinData.length, '1hr:', oneHourData.length);
+
+                // Debug the first few records
+                if (oneHourData.length > 0) {
+                    console.log('First 1hr record:', oneHourData[0]);
+                } else {
+                    console.log('No 1hr data found');
+                }
+
+                if (fiveMinData.length > 0) {
+                    console.log('First 5min record:', fiveMinData[0]);
+                }
 
                 if (fiveMinData.length === 0 && oneHourData.length === 0) {
                     fiveMinData = allData.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+                    console.log('Fallback: using all data as 5min:', fiveMinData.length, 'records');
                 }
 
                 drawCharts();
