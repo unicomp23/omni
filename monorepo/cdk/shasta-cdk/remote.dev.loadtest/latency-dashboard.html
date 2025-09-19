@@ -53,6 +53,24 @@
             overflow-x: auto;
             overflow-y: hidden;
             border-bottom: 1px solid #e0e0e0;
+            scroll-behavior: smooth;
+            /* Better scrollbar styling for webkit browsers */
+            scrollbar-width: thin;
+            scrollbar-color: #ccc #f0f0f0;
+        }
+        .graph-scroll::-webkit-scrollbar {
+            height: 12px;
+        }
+        .graph-scroll::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 6px;
+        }
+        .graph-scroll::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 6px;
+        }
+        .graph-scroll::-webkit-scrollbar-thumb:hover {
+            background: #999;
         }
         svg {
             display: block;
@@ -203,9 +221,16 @@
             data5min = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '5min').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
             data1hr = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '1hr').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
-            renderGraph('graph5min', data5min, '5min');
-            renderGraph('graph1hr', data1hr, '1hr');
-            setStatus(`Loaded: ${cleaned.length} records • 5min: ${data5min.length} • 1hr: ${data1hr.length}`);
+            setStatus(`Rendering 5min graph (${data5min.length} records)...`);
+            // Use setTimeout to allow status update to render
+            setTimeout(() => {
+                renderGraph('graph5min', data5min, '5min');
+                setStatus(`Rendering 1hr graph (${data1hr.length} records)...`);
+                setTimeout(() => {
+                    renderGraph('graph1hr', data1hr, '1hr');
+                    setStatus(`✅ Loaded: ${cleaned.length} records • 5min: ${data5min.length} • 1hr: ${data1hr.length}`);
+                }, 1);
+            }, 1);
         }
 
         function renderGraph(svgId, data, bucketType) {
@@ -343,18 +368,51 @@
             const file = event.target.files[0];
             if (!file) return;
 
+            setStatus(`Loading ${file.name}... (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
+                    setStatus(`Parsing ${file.name}...`);
                     const lines = e.target.result.split('\n').filter(line => line.trim());
-                    const parsed = lines.map(line => JSON.parse(line));
-                    setStatus(`Parsed ${parsed.length} records. Rendering...`);
-                    processData(parsed);
+                    
+                    // Parse with progress updates for large files
+                    const parsed = [];
+                    const batchSize = 1000;
+                    
+                    function parseBatch(startIndex) {
+                        const endIndex = Math.min(startIndex + batchSize, lines.length);
+                        
+                        for (let i = startIndex; i < endIndex; i++) {
+                            try {
+                                parsed.push(JSON.parse(lines[i]));
+                            } catch (parseError) {
+                                console.warn(`Skipping malformed line ${i + 1}: ${parseError.message}`);
+                            }
+                        }
+                        
+                        if (endIndex < lines.length) {
+                            setStatus(`Parsing ${file.name}... ${Math.round((endIndex / lines.length) * 100)}%`);
+                            // Use setTimeout to prevent UI blocking
+                            setTimeout(() => parseBatch(endIndex), 1);
+                        } else {
+                            setStatus(`Parsed ${parsed.length} records from ${file.name}. Rendering graphs...`);
+                            processData(parsed);
+                        }
+                    }
+                    
+                    parseBatch(0);
+                    
                 } catch (error) {
-                    alert('Error parsing file: ' + error.message);
-                    setStatus('Error parsing file');
+                    alert('Error reading file: ' + error.message);
+                    setStatus('Error reading file');
                 }
             };
+            
+            reader.onerror = function() {
+                setStatus('Error reading file');
+            };
+            
             reader.readAsText(file);
         });
 
