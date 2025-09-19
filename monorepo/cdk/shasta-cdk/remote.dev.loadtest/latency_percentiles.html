@@ -277,6 +277,18 @@
             const dataToUse = view === '5min' ? fiveMinData : oneHourData;
             console.log(`Data length for ${view}: ${dataToUse.length}`);
 
+            // Force container to recalculate dimensions
+            const container = document.querySelector('.chart-container');
+            const svg = document.getElementById('chart');
+            
+            // Clear the chart completely first
+            svg.innerHTML = '';
+            
+            // Trigger a reflow to ensure container dimensions are updated
+            container.style.display = 'none';
+            container.offsetHeight; // Force reflow
+            container.style.display = '';
+
             drawChart();
         }
 
@@ -292,21 +304,23 @@
                 console.log(`No data to draw for view: ${currentView}`);
                 // Show message in the chart area
                 svg.innerHTML = `<text x="50%" y="50%" text-anchor="middle" font-size="16" fill="#666">No ${currentView} data available</text>`;
+                svg.setAttribute('width', '400');
+                svg.setAttribute('height', '300');
                 return;
             }
 
             // Calculate SVG dimensions based on data length
-            const pointSpacing = 20;
+            const pointSpacing = currentView === '1hr' ? 8 : 4; // Give more space for 1hr data points
             const minWidth = container.clientWidth - 2;
-            const calculatedWidth = data.length * pointSpacing + 100;
+            const calculatedWidth = data.length * pointSpacing + 120;
             const width = Math.max(minWidth, calculatedWidth);
             const height = 450;
+
+            console.log(`SVG dimensions: ${width} x ${height}, data points: ${data.length}`);
 
             svg.setAttribute('width', width);
             svg.setAttribute('height', height);
             svg.innerHTML = ''; // Clear previous content
-
-            console.log(`SVG dimensions: ${width} x ${height}`);
 
             const padding = { top: 30, right: 40, bottom: 60, left: 60 };
             const plotW = width - padding.left - padding.right;
@@ -401,8 +415,6 @@
 
             // Draw each metric line
             metrics.forEach((m, idx) => {
-                console.log(`Drawing metric ${m.key}, color: ${m.color}`);
-
                 const pathData = [];
                 let validPoints = 0;
 
@@ -416,11 +428,6 @@
                         const y = height - padding.bottom - (clampedVal / maxY) * plotH;
 
                         pathData.push(pathData.length === 0 ? `M ${x} ${y}` : `L ${x} ${y}`);
-
-                        // Debug first few points
-                        if (idx === 2 && i < 3) {
-                            console.log(`Point ${i}: val=${val}, clampedVal=${clampedVal}, y=${y}`);
-                        }
 
                         // Draw overflow indicator
                         if (val > maxY) {
@@ -448,7 +455,8 @@
                     path.setAttribute('stroke-linecap', 'round');
                     path.setAttribute('stroke-linejoin', 'round');
                     linesGroup.appendChild(path);
-                    console.log(`Created SVG path for ${m.key}`);
+                } else {
+                    console.log(`No valid path data for ${m.key}`);
                 }
             });
 
