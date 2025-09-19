@@ -32,6 +32,11 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
+        .status {
+            margin-top: 8px;
+            color: #666;
+            font-size: 12px;
+        }
         .graph-container {
             margin-bottom: 30px;
             border: 1px solid #e0e0e0;
@@ -76,14 +81,12 @@
         .p999 { stroke: #795548; }
         .p9999 { stroke: #607D8B; }
         .data-point {
-            r: 4;
             fill: currentColor;
             cursor: pointer;
             opacity: 0.7;
         }
         .data-point:hover {
             opacity: 1;
-            r: 6;
         }
         .tooltip {
             position: absolute;
@@ -122,6 +125,7 @@
         <div class="file-picker">
             <input type="file" id="dataFile" accept=".jsonl,.txt" />
             <button onclick="loadSampleData()">Load Sample Data</button>
+            <div id="status" class="status"></div>
         </div>
 
         <div class="graph-container">
@@ -161,6 +165,14 @@
         let data5min = [];
         let data1hr = [];
         const tooltip = document.getElementById('tooltip');
+        const statusEl = document.getElementById('status');
+
+        const PERCENTILE_KEYS = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
+        const MAX_POINTS_PER_GRAPH = 1500; // sampling cap for performance
+
+        function setStatus(text) {
+            if (statusEl) statusEl.textContent = text;
+        }
 
         // Sample data from the command output
         const sampleData = [
@@ -171,18 +183,38 @@
             {"filename":"latency-2025-08-19T18-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":2,"start_time":"2025-08-19T18:05:00Z","end_time":"2025-08-19T18:10:00Z","total_messages":613376,"min_ms":1.419592,"max_ms":42.784703,"avg_ms":13.602171567167408,"p50_ms":12.20622549999999,"p90_ms":24.747287500000002,"p95_ms":30.37968125,"p99_ms":35.76489975,"p99_9_ms":38.21620600000004,"p99_99_ms":40.70616938749985}
         ];
 
+        function sanitizeRecords(records) {
+            // Keep records that have a bucket_type and at least one percentile present
+            const valid = records.filter(d => d && d.bucket_type && PERCENTILE_KEYS.some(k => d[k] !== undefined && d[k] !== null));
+            // Coerce numeric fields to numbers
+            valid.forEach(d => {
+                PERCENTILE_KEYS.forEach(k => {
+                    if (d[k] !== undefined) {
+                        const n = Number(d[k]);
+                        d[k] = Number.isFinite(n) ? n : undefined;
+                    }
+                });
+            });
+            return valid;
+        }
+
         function processData(rawData) {
-            data5min = rawData.filter(d => d.bucket_type === '5min').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
-            data1hr = rawData.filter(d => d.bucket_type === '1hr').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            const cleaned = sanitizeRecords(rawData);
+            data5min = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '5min').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            data1hr = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '1hr').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
 
             renderGraph('graph5min', data5min, '5min');
             renderGraph('graph1hr', data1hr, '1hr');
+            setStatus(`Loaded: ${cleaned.length} records • 5min: ${data5min.length} • 1hr: ${data1hr.length}`);
         }
 
         function renderGraph(svgId, data, bucketType) {
             const svg = document.getElementById(svgId);
             const margin = { top: 20, right: 40, bottom: 60, left: 60 };
-            const width = Math.max(1000, data.length * 80);
+            // Sample very large datasets for performance
+            const step = data.length > MAX_POINTS_PER_GRAPH ? Math.ceil(data.length / MAX_POINTS_PER_GRAPH) : 1;
+            const dataset = step > 1 ? data.filter((_, i) => i % step === 0) : data;
+            const width = Math.max(1000, dataset.length * 80);
             const height = 400;
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
@@ -190,12 +222,20 @@
             svg.setAttribute('width', width);
             svg.innerHTML = '';
 
-            if (data.length === 0) return;
+            if (dataset.length === 0) {
+                svg.innerHTML = `<text class="axis-text" x="${margin.left}" y="${margin.top + 20}">No ${bucketType} data</text>`;
+                return;
+            }
 
             // Calculate scales
-            const maxLatency = Math.max(...data.flatMap(d => [d.p50_ms, d.p90_ms, d.p95_ms, d.p99_ms, d.p99_9_ms, d.p99_99_ms]));
+            const safeValues = dataset.flatMap(d => PERCENTILE_KEYS.map(k => Number.isFinite(d[k]) ? d[k] : NaN)).filter(v => Number.isFinite(v));
+            const maxLatency = safeValues.length ? Math.max(...safeValues) : 0;
+            if (!(maxLatency > 0)) {
+                svg.innerHTML = `<text class="axis-text" x="${margin.left}" y="${margin.top + 20}">No valid percentile values in ${bucketType} data</text>`;
+                return;
+            }
             const yScale = (value) => margin.top + chartHeight - (value / maxLatency * chartHeight);
-            const xScale = (index) => margin.left + (index / (data.length - 1 || 1)) * chartWidth;
+            const xScale = (index) => margin.left + (index / (dataset.length - 1 || 1)) * chartWidth;
 
             // Grid lines
             const gridLines = [0, maxLatency * 0.25, maxLatency * 0.5, maxLatency * 0.75, maxLatency];
@@ -212,28 +252,38 @@
             // X-axis
             svg.innerHTML += `<line class="axis-line" x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}"></line>`;
 
-            data.forEach((d, i) => {
+            dataset.forEach((d, i) => {
                 const x = xScale(i);
                 const time = new Date(d.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 svg.innerHTML += `<text class="axis-text" x="${x}" y="${margin.top + chartHeight + 20}" text-anchor="middle">${time}</text>`;
             });
 
             // Percentile lines and points
-            const percentiles = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
+            const percentiles = PERCENTILE_KEYS;
             const colors = ['p50', 'p90', 'p95', 'p99', 'p999', 'p9999'];
 
             percentiles.forEach((percentile, pIndex) => {
                 // Line path
-                const pathData = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xScale(i)} ${yScale(d[percentile])}`).join(' ');
-                svg.innerHTML += `<path class="percentile-line ${colors[pIndex]}" d="${pathData}"></path>`;
+                let pathData = '';
+                dataset.forEach((d, i) => {
+                    const v = d[percentile];
+                    if (Number.isFinite(v)) {
+                        pathData += (pathData ? ' L ' : 'M ') + xScale(i) + ' ' + yScale(v);
+                    }
+                });
+                if (pathData) {
+                    svg.innerHTML += `<path class="percentile-line ${colors[pIndex]}" d="${pathData}"></path>`;
+                }
 
                 // Data points
-                data.forEach((d, i) => {
+                dataset.forEach((d, i) => {
+                    const v = d[percentile];
+                    if (!Number.isFinite(v)) return;
                     const x = xScale(i);
-                    const y = yScale(d[percentile]);
+                    const y = yScale(v);
                     const pointId = `point-${bucketType}-${i}-${pIndex}`;
 
-                    svg.innerHTML += `<circle class="data-point ${colors[pIndex]}" cx="${x}" cy="${y}" data-info='${JSON.stringify(d)}' data-percentile="${percentile}" id="${pointId}"></circle>`;
+                    svg.innerHTML += `<circle class="data-point ${colors[pIndex]}" cx="${x}" cy="${y}" r="3" data-info='${JSON.stringify(d)}' data-percentile="${percentile}" id="${pointId}"></circle>`;
                 });
             });
 
@@ -284,6 +334,7 @@
         }
 
         function loadSampleData() {
+            setStatus('Loaded sample data');
             processData(sampleData);
         }
 
@@ -296,10 +347,12 @@
             reader.onload = function(e) {
                 try {
                     const lines = e.target.result.split('\n').filter(line => line.trim());
-                    const data = lines.map(line => JSON.parse(line));
-                    processData(data);
+                    const parsed = lines.map(line => JSON.parse(line));
+                    setStatus(`Parsed ${parsed.length} records. Rendering...`);
+                    processData(parsed);
                 } catch (error) {
                     alert('Error parsing file: ' + error.message);
+                    setStatus('Error parsing file');
                 }
             };
             reader.readAsText(file);
