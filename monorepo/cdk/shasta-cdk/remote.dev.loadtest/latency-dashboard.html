@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Latency Analytics Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        .file-picker {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .file-picker input {
+            margin: 10px;
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .graph-container {
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .graph-header {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            font-weight: 600;
+        }
+        .graph-scroll {
+            overflow-x: auto;
+            overflow-y: hidden;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        svg {
+            display: block;
+        }
+        .axis-line {
+            stroke: #666;
+            stroke-width: 1;
+        }
+        .axis-text {
+            font-size: 12px;
+            fill: #666;
+        }
+        .grid-line {
+            stroke: #e0e0e0;
+            stroke-width: 0.5;
+            stroke-dasharray: 2,2;
+        }
+        .percentile-line {
+            fill: none;
+            stroke-width: 2;
+        }
+        .p50 { stroke: #2196F3; }
+        .p90 { stroke: #FF9800; }
+        .p95 { stroke: #F44336; }
+        .p99 { stroke: #9C27B0; }
+        .p999 { stroke: #795548; }
+        .p9999 { stroke: #607D8B; }
+        .data-point {
+            r: 4;
+            fill: currentColor;
+            cursor: pointer;
+            opacity: 0.7;
+        }
+        .data-point:hover {
+            opacity: 1;
+            r: 6;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1000;
+            max-width: 300px;
+            line-height: 1.4;
+        }
+        .legend {
+            padding: 15px;
+            background: #f8f9fa;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Latency Analytics Dashboard</h1>
+
+        <div class="file-picker">
+            <input type="file" id="dataFile" accept=".jsonl,.txt" />
+            <button onclick="loadSampleData()">Load Sample Data</button>
+        </div>
+
+        <div class="graph-container">
+            <div class="graph-header">5-Minute Buckets - Latency Percentiles</div>
+            <div class="graph-scroll" id="scroll5min">
+                <svg id="graph5min" width="1000" height="400"></svg>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color p50"></div>P50</div>
+                <div class="legend-item"><div class="legend-color p90"></div>P90</div>
+                <div class="legend-item"><div class="legend-color p95"></div>P95</div>
+                <div class="legend-item"><div class="legend-color p99"></div>P99</div>
+                <div class="legend-item"><div class="legend-color p999"></div>P99.9</div>
+                <div class="legend-item"><div class="legend-color p9999"></div>P99.99</div>
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <div class="graph-header">1-Hour Buckets - Latency Percentiles</div>
+            <div class="graph-scroll" id="scroll1hr">
+                <svg id="graph1hr" width="1000" height="400"></svg>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color p50"></div>P50</div>
+                <div class="legend-item"><div class="legend-color p90"></div>P90</div>
+                <div class="legend-item"><div class="legend-color p95"></div>P95</div>
+                <div class="legend-item"><div class="legend-color p99"></div>P99</div>
+                <div class="legend-item"><div class="legend-color p999"></div>P99.9</div>
+                <div class="legend-item"><div class="legend-color p9999"></div>P99.99</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="display: none;"></div>
+
+    <script>
+        let data5min = [];
+        let data1hr = [];
+        const tooltip = document.getElementById('tooltip');
+
+        // Sample data from the command output
+        const sampleData = [
+            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":1,"start_time":"2025-08-19T17:50:00Z","end_time":"2025-08-19T17:55:00Z","total_messages":524288,"min_ms":1.424265,"max_ms":63.349794,"avg_ms":11.542598703975534,"p50_ms":10.0182685,"p90_ms":21.742993500000004,"p95_ms":25.738211399999997,"p99_ms":33.69173781999999,"p99_9_ms":42.822865183000935,"p99_99_ms":60.872632777999215},
+            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":2,"start_time":"2025-08-19T17:55:00Z","end_time":"2025-08-19T18:00:00Z","total_messages":613376,"min_ms":1.471162,"max_ms":36.222212,"avg_ms":11.243283078371164,"p50_ms":10.409305,"p90_ms":19.677324000000002,"p95_ms":22.105568999999996,"p99_ms":25.907906749999995,"p99_9_ms":28.715257125000004,"p99_99_ms":34.095337712499884},
+            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"1hr","bucket_index":1,"start_time":"2025-08-19T17:00:00Z","end_time":"2025-08-19T18:00:00Z","total_messages":1137664,"min_ms":1.424265,"max_ms":63.349794,"avg_ms":11.381221512493182,"p50_ms":10.2022805,"p90_ms":20.412350800000002,"p95_ms":23.72153355,"p99_ms":29.94102057,"p99_9_ms":38.201575777000016,"p99_99_ms":56.91299107049972},
+            {"filename":"latency-2025-08-19T18-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":1,"start_time":"2025-08-19T18:00:00Z","end_time":"2025-08-19T18:05:00Z","total_messages":614400,"min_ms":1.530587,"max_ms":46.97934,"avg_ms":11.581195721103105,"p50_ms":10.867858,"p90_ms":20.1309362,"p95_ms":22.49700665,"p99_ms":26.500819240000002,"p99_9_ms":36.5611484140002,"p99_99_ms":44.90914019249988},
+            {"filename":"latency-2025-08-19T18-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":2,"start_time":"2025-08-19T18:05:00Z","end_time":"2025-08-19T18:10:00Z","total_messages":613376,"min_ms":1.419592,"max_ms":42.784703,"avg_ms":13.602171567167408,"p50_ms":12.20622549999999,"p90_ms":24.747287500000002,"p95_ms":30.37968125,"p99_ms":35.76489975,"p99_9_ms":38.21620600000004,"p99_99_ms":40.70616938749985}
+        ];
+
+        function processData(rawData) {
+            data5min = rawData.filter(d => d.bucket_type === '5min').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+            data1hr = rawData.filter(d => d.bucket_type === '1hr').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+            renderGraph('graph5min', data5min, '5min');
+            renderGraph('graph1hr', data1hr, '1hr');
+        }
+
+        function renderGraph(svgId, data, bucketType) {
+            const svg = document.getElementById(svgId);
+            const margin = { top: 20, right: 40, bottom: 60, left: 60 };
+            const width = Math.max(1000, data.length * 80);
+            const height = 400;
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            svg.setAttribute('width', width);
+            svg.innerHTML = '';
+
+            if (data.length === 0) return;
+
+            // Calculate scales
+            const maxLatency = Math.max(...data.flatMap(d => [d.p50_ms, d.p90_ms, d.p95_ms, d.p99_ms, d.p99_9_ms, d.p99_99_ms]));
+            const yScale = (value) => margin.top + chartHeight - (value / maxLatency * chartHeight);
+            const xScale = (index) => margin.left + (index / (data.length - 1 || 1)) * chartWidth;
+
+            // Grid lines
+            const gridLines = [0, maxLatency * 0.25, maxLatency * 0.5, maxLatency * 0.75, maxLatency];
+            gridLines.forEach(value => {
+                const y = yScale(value);
+                svg.innerHTML += `<line class="grid-line" x1="${margin.left}" y1="${y}" x2="${margin.left + chartWidth}" y2="${y}"></line>`;
+                svg.innerHTML += `<text class="axis-text" x="${margin.left - 10}" y="${y + 4}" text-anchor="end">${value.toFixed(1)}ms</text>`;
+            });
+
+            // Y-axis
+            svg.innerHTML += `<line class="axis-line" x1="${margin.left}" y1="${margin.top}" x2="${margin.left}" y2="${margin.top + chartHeight}"></line>`;
+            svg.innerHTML += `<text class="axis-text" x="20" y="${margin.top + chartHeight/2}" text-anchor="middle" transform="rotate(-90, 20, ${margin.top + chartHeight/2})">Latency (ms)</text>`;
+
+            // X-axis
+            svg.innerHTML += `<line class="axis-line" x1="${margin.left}" y1="${margin.top + chartHeight}" x2="${margin.left + chartWidth}" y2="${margin.top + chartHeight}"></line>`;
+
+            data.forEach((d, i) => {
+                const x = xScale(i);
+                const time = new Date(d.start_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                svg.innerHTML += `<text class="axis-text" x="${x}" y="${margin.top + chartHeight + 20}" text-anchor="middle">${time}</text>`;
+            });
+
+            // Percentile lines and points
+            const percentiles = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
+            const colors = ['p50', 'p90', 'p95', 'p99', 'p999', 'p9999'];
+
+            percentiles.forEach((percentile, pIndex) => {
+                // Line path
+                const pathData = data.map((d, i) => `${i === 0 ? 'M' : 'L'} ${xScale(i)} ${yScale(d[percentile])}`).join(' ');
+                svg.innerHTML += `<path class="percentile-line ${colors[pIndex]}" d="${pathData}"></path>`;
+
+                // Data points
+                data.forEach((d, i) => {
+                    const x = xScale(i);
+                    const y = yScale(d[percentile]);
+                    const pointId = `point-${bucketType}-${i}-${pIndex}`;
+
+                    svg.innerHTML += `<circle class="data-point ${colors[pIndex]}" cx="${x}" cy="${y}" data-info='${JSON.stringify(d)}' data-percentile="${percentile}" id="${pointId}"></circle>`;
+                });
+            });
+
+            // Add event listeners for hover
+            svg.querySelectorAll('.data-point').forEach(point => {
+                point.addEventListener('mouseenter', showTooltip);
+                point.addEventListener('mouseleave', hideTooltip);
+                point.addEventListener('mousemove', moveTooltip);
+            });
+        }
+
+        function showTooltip(event) {
+            const data = JSON.parse(event.target.dataset.info);
+            const percentile = event.target.dataset.percentile;
+
+            const tooltipContent = `
+                <strong>${data.filename}</strong><br>
+                <strong>Time:</strong> ${new Date(data.start_time).toLocaleString()} - ${new Date(data.end_time).toLocaleString()}<br>
+                <strong>Bucket:</strong> ${data.bucket_type} (Index: ${data.bucket_index})<br>
+                <strong>Messages:</strong> ${data.total_messages.toLocaleString()}<br>
+                <hr>
+                <strong>Current:</strong> ${percentile.replace('_ms', '').toUpperCase()} = ${data[percentile].toFixed(2)}ms<br>
+                <hr>
+                <strong>Min:</strong> ${data.min_ms.toFixed(2)}ms<br>
+                <strong>Avg:</strong> ${data.avg_ms.toFixed(2)}ms<br>
+                <strong>Max:</strong> ${data.max_ms.toFixed(2)}ms<br>
+                <strong>P50:</strong> ${data.p50_ms.toFixed(2)}ms<br>
+                <strong>P90:</strong> ${data.p90_ms.toFixed(2)}ms<br>
+                <strong>P95:</strong> ${data.p95_ms.toFixed(2)}ms<br>
+                <strong>P99:</strong> ${data.p99_ms.toFixed(2)}ms<br>
+                <strong>P99.9:</strong> ${data.p99_9_ms.toFixed(2)}ms<br>
+                <strong>P99.99:</strong> ${data.p99_99_ms.toFixed(2)}ms
+            `;
+
+            tooltip.innerHTML = tooltipContent;
+            tooltip.style.display = 'block';
+            moveTooltip(event);
+        }
+
+        function moveTooltip(event) {
+            const rect = document.body.getBoundingClientRect();
+            tooltip.style.left = (event.clientX + 10) + 'px';
+            tooltip.style.top = (event.clientY - 10) + 'px';
+        }
+
+        function hideTooltip() {
+            tooltip.style.display = 'none';
+        }
+
+        function loadSampleData() {
+            processData(sampleData);
+        }
+
+        // File picker functionality
+        document.getElementById('dataFile').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const lines = e.target.result.split('\n').filter(line => line.trim());
+                    const data = lines.map(line => JSON.parse(line));
+                    processData(data);
+                } catch (error) {
+                    alert('Error parsing file: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Load sample data on page load
+        loadSampleData();
+    </script>
+</body>
+</html>
