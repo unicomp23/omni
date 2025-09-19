@@ -54,6 +54,8 @@
             overflow-y: hidden;
             border-bottom: 1px solid #e0e0e0;
             scroll-behavior: smooth;
+            width: 100%;
+            max-width: 1160px; /* Force a constrained width to ensure scrolling */
             /* Better scrollbar styling for webkit browsers */
             scrollbar-width: thin;
             scrollbar-color: #ccc #f0f0f0;
@@ -142,14 +144,15 @@
 
         <div class="file-picker">
             <input type="file" id="dataFile" accept=".jsonl,.txt" />
-            <button onclick="loadSampleData()">Load Sample Data</button>
-            <div id="status" class="status"></div>
+            <div id="status" class="status">Please select a JSONL file to load data</div>
         </div>
 
         <div class="graph-container">
             <div class="graph-header">5-Minute Buckets - Latency Percentiles</div>
             <div class="graph-scroll" id="scroll5min">
-                <svg id="graph5min" width="1000" height="400"></svg>
+                <svg id="graph5min" width="1000" height="400">
+                    <text class="axis-text" x="60" y="40">Load a JSONL file to see 5-minute bucket data</text>
+                </svg>
             </div>
             <div class="legend">
                 <div class="legend-item"><div class="legend-color p50"></div>P50</div>
@@ -164,7 +167,9 @@
         <div class="graph-container">
             <div class="graph-header">1-Hour Buckets - Latency Percentiles</div>
             <div class="graph-scroll" id="scroll1hr">
-                <svg id="graph1hr" width="1000" height="400"></svg>
+                <svg id="graph1hr" width="1000" height="400">
+                    <text class="axis-text" x="60" y="40">Load a JSONL file to see 1-hour bucket data</text>
+                </svg>
             </div>
             <div class="legend">
                 <div class="legend-item"><div class="legend-color p50"></div>P50</div>
@@ -191,14 +196,6 @@
             if (statusEl) statusEl.textContent = text;
         }
 
-        // Sample data from the command output
-        const sampleData = [
-            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":1,"start_time":"2025-08-19T17:50:00Z","end_time":"2025-08-19T17:55:00Z","total_messages":524288,"min_ms":1.424265,"max_ms":63.349794,"avg_ms":11.542598703975534,"p50_ms":10.0182685,"p90_ms":21.742993500000004,"p95_ms":25.738211399999997,"p99_ms":33.69173781999999,"p99_9_ms":42.822865183000935,"p99_99_ms":60.872632777999215},
-            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":2,"start_time":"2025-08-19T17:55:00Z","end_time":"2025-08-19T18:00:00Z","total_messages":613376,"min_ms":1.471162,"max_ms":36.222212,"avg_ms":11.243283078371164,"p50_ms":10.409305,"p90_ms":19.677324000000002,"p95_ms":22.105568999999996,"p99_ms":25.907906749999995,"p99_9_ms":28.715257125000004,"p99_99_ms":34.095337712499884},
-            {"filename":"latency-2025-08-19T17-00-00Z.jsonl.gz","bucket_type":"1hr","bucket_index":1,"start_time":"2025-08-19T17:00:00Z","end_time":"2025-08-19T18:00:00Z","total_messages":1137664,"min_ms":1.424265,"max_ms":63.349794,"avg_ms":11.381221512493182,"p50_ms":10.2022805,"p90_ms":20.412350800000002,"p95_ms":23.72153355,"p99_ms":29.94102057,"p99_9_ms":38.201575777000016,"p99_99_ms":56.91299107049972},
-            {"filename":"latency-2025-08-19T18-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":1,"start_time":"2025-08-19T18:00:00Z","end_time":"2025-08-19T18:05:00Z","total_messages":614400,"min_ms":1.530587,"max_ms":46.97934,"avg_ms":11.581195721103105,"p50_ms":10.867858,"p90_ms":20.1309362,"p95_ms":22.49700665,"p99_ms":26.500819240000002,"p99_9_ms":36.5611484140002,"p99_99_ms":44.90914019249988},
-            {"filename":"latency-2025-08-19T18-00-00Z.jsonl.gz","bucket_type":"5min","bucket_index":2,"start_time":"2025-08-19T18:05:00Z","end_time":"2025-08-19T18:10:00Z","total_messages":613376,"min_ms":1.419592,"max_ms":42.784703,"avg_ms":13.602171567167408,"p50_ms":12.20622549999999,"p90_ms":24.747287500000002,"p95_ms":30.37968125,"p99_ms":35.76489975,"p99_9_ms":38.21620600000004,"p99_99_ms":40.70616938749985}
-        ];
 
         function sanitizeRecords(records) {
             // Keep records that have a bucket_type and at least one percentile present
@@ -238,18 +235,26 @@
             // Use all data - no sampling since we have scrollbars
             const dataset = data;
             
-            const width = Math.max(1000, dataset.length * 80);
+            // Calculate width to ensure scrolling - with 6000+ records, this should be very wide
+            const pointSpacing = 15; // pixels per data point
+            const width = Math.max(1000, dataset.length * pointSpacing);
+            console.log(`SVG width for ${bucketType}: ${width}px (${dataset.length} points * ${pointSpacing}px)`)
             const height = 400;
             const chartWidth = width - margin.left - margin.right;
             const chartHeight = height - margin.top - margin.bottom;
 
             svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
             svg.innerHTML = '';
 
             if (dataset.length === 0) {
                 svg.innerHTML = `<text class="axis-text" x="${margin.left}" y="${margin.top + 20}">No ${bucketType} data</text>`;
                 return;
             }
+            
+            // Add a visible indicator at the end of the graph to show scrolling works
+            svg.innerHTML += `<rect x="${width-50}" y="10" width="40" height="20" fill="red" opacity="0.5"></rect>`;
+            svg.innerHTML += `<text x="${width-30}" y="25" text-anchor="middle" class="axis-text" fill="red">END</text>`;
 
             // Calculate scales
             const safeValues = dataset.flatMap(d => PERCENTILE_KEYS.map(k => Number.isFinite(d[k]) ? d[k] : NaN)).filter(v => Number.isFinite(v));
@@ -357,10 +362,6 @@
             tooltip.style.display = 'none';
         }
 
-        function loadSampleData() {
-            setStatus('Loaded sample data');
-            processData(sampleData);
-        }
 
         // File picker functionality
         document.getElementById('dataFile').addEventListener('change', function(event) {
@@ -415,8 +416,6 @@
             reader.readAsText(file);
         });
 
-        // Load sample data on page load
-        loadSampleData();
     </script>
 </body>
 </html>
