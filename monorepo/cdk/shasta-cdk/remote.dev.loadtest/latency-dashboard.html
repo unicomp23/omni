@@ -186,7 +186,6 @@
         const statusEl = document.getElementById('status');
 
         const PERCENTILE_KEYS = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
-        const MAX_POINTS_PER_GRAPH = 1500; // sampling cap for performance
 
         function setStatus(text) {
             if (statusEl) statusEl.textContent = text;
@@ -236,9 +235,9 @@
         function renderGraph(svgId, data, bucketType) {
             const svg = document.getElementById(svgId);
             const margin = { top: 20, right: 40, bottom: 60, left: 60 };
-            // Sample very large datasets for performance
-            const step = data.length > MAX_POINTS_PER_GRAPH ? Math.ceil(data.length / MAX_POINTS_PER_GRAPH) : 1;
-            const dataset = step > 1 ? data.filter((_, i) => i % step === 0) : data;
+            // Use all data - no sampling since we have scrollbars
+            const dataset = data;
+            
             const width = Math.max(1000, dataset.length * 80);
             const height = 400;
             const chartWidth = width - margin.left - margin.right;
