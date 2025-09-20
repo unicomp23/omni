@@ -213,24 +213,54 @@
         }
 
         function processData(rawData) {
+            console.log('Processing raw data:', rawData.length, 'records');
             const cleaned = sanitizeRecords(rawData);
+            console.log('After sanitizing:', cleaned.length, 'records');
+            
             data5min = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '5min').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
             data1hr = cleaned.filter(d => String(d.bucket_type).toLowerCase() === '1hr').sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+
+            console.log('Filtered data - 5min:', data5min.length, '1hr:', data1hr.length);
+            console.log('Sample 5min record:', data5min[0]);
+            console.log('Sample 1hr record:', data1hr[0]);
 
             setStatus(`Rendering 5min graph (${data5min.length} records)...`);
             // Use setTimeout to allow status update to render
             setTimeout(() => {
-                renderGraph('graph5min', data5min, '5min');
-                setStatus(`Rendering 1hr graph (${data1hr.length} records)...`);
-                setTimeout(() => {
-                    renderGraph('graph1hr', data1hr, '1hr');
-                    setStatus(`✅ Loaded: ${cleaned.length} records • 5min: ${data5min.length} • 1hr: ${data1hr.length}`);
-                }, 1);
+                try {
+                    console.log('Starting 5min graph render...');
+                    renderGraph('graph5min', data5min, '5min');
+                    console.log('5min graph render completed');
+                    setStatus(`Rendering 1hr graph (${data1hr.length} records)...`);
+                    setTimeout(() => {
+                        try {
+                            console.log('Starting 1hr graph render...');
+                            renderGraph('graph1hr', data1hr, '1hr');
+                            console.log('1hr graph render completed');
+                            setStatus(`✅ Loaded: ${cleaned.length} records • 5min: ${data5min.length} • 1hr: ${data1hr.length}`);
+                        } catch (error) {
+                            console.error('Error rendering 1hr graph:', error);
+                            setStatus(`❌ Error rendering 1hr graph: ${error.message}`);
+                        }
+                    }, 1);
+                } catch (error) {
+                    console.error('Error rendering 5min graph:', error);
+                    setStatus(`❌ Error rendering 5min graph: ${error.message}`);
+                }
             }, 1);
         }
 
         function renderGraph(svgId, data, bucketType) {
+            console.log(`renderGraph called for ${bucketType} with ${data.length} records`);
             const svg = document.getElementById(svgId);
+            
+            if (!svg) {
+                console.error(`SVG element with id '${svgId}' not found!`);
+                return;
+            }
+            
+            console.log(`Found SVG element:`, svg);
+            
             const margin = { top: 20, right: 40, bottom: 60, left: 60 };
             const dataset = data;
             
@@ -251,6 +281,7 @@
             }
 
             if (dataset.length === 0) {
+                console.log(`No data for ${bucketType}, showing no data message`);
                 const noDataText = createSVGElement('text', {
                     'class': 'axis-text',
                     'x': margin.left,
@@ -261,10 +292,16 @@
                 return;
             }
 
+            console.log(`Processing ${bucketType} dataset with ${dataset.length} records`);
+
             // Calculate scales
             const safeValues = dataset.flatMap(d => PERCENTILE_KEYS.map(k => Number.isFinite(d[k]) ? d[k] : NaN)).filter(v => Number.isFinite(v));
+            console.log(`Found ${safeValues.length} valid percentile values`);
             const maxLatency = safeValues.length ? Math.max(...safeValues) : 0;
+            console.log(`Max latency: ${maxLatency}ms`);
+            
             if (!(maxLatency > 0)) {
+                console.log(`No valid percentile values in ${bucketType} data`);
                 const noValidText = createSVGElement('text', {
                     'class': 'axis-text',
                     'x': margin.left,
@@ -277,8 +314,10 @@
 
             const yScale = (value) => margin.top + chartHeight - (value / maxLatency * chartHeight);
             const xScale = (index) => margin.left + (index / (dataset.length - 1 || 1)) * chartWidth;
+            console.log(`Scales calculated - Y: 0-${maxLatency}ms, X: ${dataset.length} points`);
 
             // Grid lines
+            console.log('Creating grid lines...');
             const gridLines = [0, maxLatency * 0.25, maxLatency * 0.5, maxLatency * 0.75, maxLatency];
             gridLines.forEach(value => {
                 const y = yScale(value);
@@ -300,6 +339,7 @@
                 gridLabel.textContent = `${value.toFixed(1)}ms`;
                 svg.appendChild(gridLabel);
             });
+            console.log(`Created ${gridLines.length} grid lines`);
 
             // Y-axis
             const yAxis = createSVGElement('line', {
@@ -346,27 +386,37 @@
             });
 
             // Percentile lines and points
+            console.log('Creating percentile lines and points...');
             const percentiles = PERCENTILE_KEYS;
             const colors = ['p50', 'p90', 'p95', 'p99', 'p999', 'p9999'];
 
             percentiles.forEach((percentile, pIndex) => {
+                console.log(`Processing ${percentile} (${colors[pIndex]})...`);
+                
                 // Line path
                 let pathData = '';
+                let validPoints = 0;
                 dataset.forEach((d, i) => {
                     const v = d[percentile];
                     if (Number.isFinite(v)) {
                         pathData += (pathData ? ' L ' : 'M ') + xScale(i) + ' ' + yScale(v);
+                        validPoints++;
                     }
                 });
+                
+                console.log(`  ${percentile}: ${validPoints} valid points, path: ${pathData.substring(0, 50)}...`);
+                
                 if (pathData) {
                     const path = createSVGElement('path', {
                         'class': `percentile-line ${colors[pIndex]}`,
                         'd': pathData
                     });
                     svg.appendChild(path);
+                    console.log(`  Added path for ${percentile}`);
                 }
 
                 // Data points
+                let pointsAdded = 0;
                 dataset.forEach((d, i) => {
                     const v = d[percentile];
                     if (!Number.isFinite(v)) return;
@@ -388,8 +438,12 @@
                     point.addEventListener('mousemove', moveTooltip);
 
                     svg.appendChild(point);
+                    pointsAdded++;
                 });
+                console.log(`  Added ${pointsAdded} points for ${percentile}`);
             });
+            
+            console.log(`SVG now has ${svg.children.length} child elements`);
 
             // Add scroll end indicator
             const endRect = createSVGElement('rect', {
@@ -414,11 +468,16 @@
         }
 
         function createSVGElement(tag, attributes) {
-            const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
-            Object.entries(attributes).forEach(([key, value]) => {
-                element.setAttribute(key, value);
-            });
-            return element;
+            try {
+                const element = document.createElementNS('http://www.w3.org/2000/svg', tag);
+                Object.entries(attributes).forEach(([key, value]) => {
+                    element.setAttribute(key, value);
+                });
+                return element;
+            } catch (error) {
+                console.error(`Error creating SVG element ${tag}:`, error, attributes);
+                throw error;
+            }
         }
 
         function showTooltip(event) {
@@ -482,7 +541,11 @@
                         
                         for (let i = startIndex; i < endIndex; i++) {
                             try {
-                                parsed.push(JSON.parse(lines[i]));
+                                const record = JSON.parse(lines[i]);
+                                parsed.push(record);
+                                if (i < startIndex + 5) {
+                                    console.log(`Sample line ${i + 1}:`, record);
+                                }
                             } catch (parseError) {
                                 console.warn(`Skipping malformed line ${i + 1}: ${parseError.message}`);
                             }
