@@ -129,7 +129,12 @@
         .chart-wrapper {
             position: relative;
             height: 100%;
+            min-height: 500px;
             min-width: 100%;
+        }
+        
+        #latencyChart {
+            display: block;
         }
         
         .loading {
@@ -275,11 +280,7 @@
                     <label>Bucket Type:</label>
                     <div class="radio-group">
                         <div class="radio-item">
-                            <input type="radio" id="bucketAll" name="bucketType" value="all" checked>
-                            <label for="bucketAll">All</label>
-                        </div>
-                        <div class="radio-item">
-                            <input type="radio" id="bucket5min" name="bucketType" value="5min">
+                            <input type="radio" id="bucket5min" name="bucketType" value="5min" checked>
                             <label for="bucket5min">5 Minutes</label>
                         </div>
                         <div class="radio-item">
@@ -435,7 +436,11 @@
                 return;
             }
             
+            console.log('Loaded', allData.length, 'data points');
+            console.log('Bucket types found:', [...new Set(allData.map(d => d.bucket_type))]);
+            
             document.getElementById('loading').style.display = 'none';
+            document.getElementById('chartContainer').style.display = 'block';
             updateChart();
             updateStats();
         }
@@ -450,22 +455,28 @@
         }
         
         function updateChart() {
+            if (allData.length === 0) {
+                console.log('No data loaded yet');
+                return;
+            }
+            
             const bucketType = document.querySelector('input[name="bucketType"]:checked').value;
             const selectedMetrics = Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
+            
+            console.log('Selected bucket type:', bucketType);
+            console.log('Selected metrics:', selectedMetrics);
             
             if (selectedMetrics.length === 0) {
                 showError('Please select at least one metric to display');
                 return;
             }
             
-            let filteredData = allData;
-            if (bucketType !== 'all') {
-                filteredData = allData.filter(d => d.bucket_type === bucketType);
-            }
+            let filteredData = allData.filter(d => d.bucket_type === bucketType);
+            console.log('Filtered data points:', filteredData.length);
             
             if (filteredData.length === 0) {
-                showError('No data found for selected bucket type');
+                showError('No data found for selected bucket type: ' + bucketType);
                 return;
             }
             
@@ -480,6 +491,8 @@
         }
         
         function createSVGChart(data, metrics) {
+            console.log('Creating chart with', data.length, 'data points and', metrics.length, 'metrics');
+            
             const margin = { top: 20, right: 80, bottom: 60, left: 60 };
             const height = 500;
             const minWidth = Math.max(1200, data.length * 15);
@@ -495,6 +508,8 @@
             svg.innerHTML = '';
             svg.setAttribute('width', minWidth);
             svg.setAttribute('height', height);
+            svg.style.display = 'block';
+            svg.style.backgroundColor = '#fafafa';
             
             // Create main group
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -502,7 +517,10 @@
             svg.appendChild(g);
             
             // Create scales
-            const xScale = (i) => (i / (data.length - 1)) * width;
+            const xScale = (i) => {
+                if (data.length === 1) return width / 2;
+                return (i / (data.length - 1)) * width;
+            };
             const yScale = (value) => chartHeight - (value / 200) * chartHeight;
             
             // Draw grid lines
