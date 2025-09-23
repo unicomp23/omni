@@ -94,6 +94,7 @@
   <g id="fileInputGroup" transform="translate(50, 50)">
     <text class="label-text" x="0" y="0">Data File:</text>
     <text class="file-input-label" x="70" y="0" id="fileLabel">Click to load bucket_analysis.jsonl</text>
+    <text class="file-input-label" x="350" y="0" id="testDataBtn" style="fill: #ff6b6b;">[Load Test Data]</text>
   </g>
   
   <!-- Bucket Type Selector -->
@@ -178,6 +179,15 @@
   </foreignObject>
   
   <script type="text/javascript"><![CDATA[
+    // Test data for debugging - add more points
+    const testData = [
+      {"bucket_type":"5min","start_time":"2025-08-19T17:50:00Z","p50_ms":10,"p90_ms":20,"p95_ms":25,"p99_ms":30,"p99_9_ms":35,"p99_99_ms":40,"total_messages":1000,"min_ms":1,"max_ms":50,"avg_ms":15},
+      {"bucket_type":"5min","start_time":"2025-08-19T17:55:00Z","p50_ms":12,"p90_ms":22,"p95_ms":27,"p99_ms":32,"p99_9_ms":37,"p99_99_ms":42,"total_messages":1000,"min_ms":1,"max_ms":50,"avg_ms":17},
+      {"bucket_type":"5min","start_time":"2025-08-19T18:00:00Z","p50_ms":15,"p90_ms":25,"p95_ms":30,"p99_ms":35,"p99_9_ms":40,"p99_99_ms":45,"total_messages":1000,"min_ms":1,"max_ms":50,"avg_ms":20},
+      {"bucket_type":"5min","start_time":"2025-08-19T18:05:00Z","p50_ms":11,"p90_ms":21,"p95_ms":26,"p99_ms":31,"p99_9_ms":36,"p99_99_ms":41,"total_messages":1000,"min_ms":1,"max_ms":50,"avg_ms":16},
+      {"bucket_type":"5min","start_time":"2025-08-19T18:10:00Z","p50_ms":13,"p90_ms":23,"p95_ms":28,"p99_ms":33,"p99_9_ms":38,"p99_99_ms":43,"total_messages":1000,"min_ms":1,"max_ms":50,"avg_ms":18}
+    ];
+    
     let data = [];
     let filteredData = [];
     let currentBucketType = '5min';
@@ -204,6 +214,17 @@
     // File input handling
     document.getElementById('fileLabel').addEventListener('click', function() {
       document.getElementById('fileInput').click();
+    });
+    
+    // Test data button
+    document.getElementById('testDataBtn').addEventListener('click', function() {
+      data = testData;
+      document.getElementById('fileLabel').textContent = 'Test Data Loaded';
+      document.getElementById('bucketSelector').style.display = 'block';
+      document.getElementById('legend').style.display = 'block';
+      document.getElementById('scrollbar').style.display = 'block';
+      createBucketButtons();
+      updateChart();
     });
     
     document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -336,6 +357,16 @@
       
       // Fixed Y scale at 200ms
       const maxY = 200;
+      
+      // Add debug background
+      const debugBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      debugBg.setAttribute('x', 0);
+      debugBg.setAttribute('y', 0);
+      debugBg.setAttribute('width', 1200);
+      debugBg.setAttribute('height', 500);
+      debugBg.setAttribute('fill', '#2a2a2a');
+      debugBg.setAttribute('opacity', '0.5');
+      gridLines.appendChild(debugBg);
       
       // Draw grid lines
       const yTicks = 10;
