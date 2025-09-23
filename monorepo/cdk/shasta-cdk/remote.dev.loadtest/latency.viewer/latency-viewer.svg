@@ -99,13 +99,8 @@
   <!-- Bucket Type Selector -->
   <g id="bucketSelector" transform="translate(50, 80)" style="display: none;">
     <text class="label-text" x="0" y="0">Bucket Type:</text>
-    <g id="bucket5min" transform="translate(90, -10)">
-      <rect class="control-btn active" width="60" height="25" rx="3"/>
-      <text x="30" y="17" text-anchor="middle" style="fill: white; font-size: 12px; pointer-events: none;">5min</text>
-    </g>
-    <g id="bucket1hr" transform="translate(160, -10)">
-      <rect class="control-btn" width="60" height="25" rx="3"/>
-      <text x="30" y="17" text-anchor="middle" style="fill: white; font-size: 12px; pointer-events: none;">1hr</text>
+    <g id="bucketButtons" transform="translate(90, -10)">
+      <!-- Bucket type buttons will be dynamically created here -->
     </g>
   </g>
   
@@ -227,14 +222,8 @@
             document.getElementById('legend').style.display = 'block';
             document.getElementById('scrollbar').style.display = 'block';
             
-            // Check available bucket types
-            const bucketTypes = [...new Set(data.map(d => d.bucket_type))];
-            if (!bucketTypes.includes('5min')) {
-              document.getElementById('bucket5min').style.display = 'none';
-            }
-            if (!bucketTypes.includes('1hr')) {
-              document.getElementById('bucket1hr').style.display = 'none';
-            }
+            // Create bucket type buttons dynamically
+            createBucketButtons();
             
             // Initial render
             updateChart();
@@ -246,21 +235,60 @@
       }
     });
     
-    // Bucket type selection
-    document.getElementById('bucket5min').addEventListener('click', function() {
-      setBucketType('5min', this);
-    });
-    
-    document.getElementById('bucket1hr').addEventListener('click', function() {
-      setBucketType('1hr', this);
-    });
+    function createBucketButtons() {
+      const bucketButtons = document.getElementById('bucketButtons');
+      bucketButtons.innerHTML = ''; // Clear existing buttons
+      
+      // Get unique bucket types
+      const bucketTypes = [...new Set(data.map(d => d.bucket_type))].sort();
+      
+      if (bucketTypes.length === 0) return;
+      
+      // Set the first bucket type as default
+      currentBucketType = bucketTypes[0];
+      
+      // Create a button for each bucket type
+      bucketTypes.forEach((type, index) => {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        g.setAttribute('transform', `translate(${index * 80}, 0)`);
+        g.style.cursor = 'pointer';
+        
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('class', index === 0 ? 'control-btn active' : 'control-btn');
+        rect.setAttribute('width', '70');
+        rect.setAttribute('height', '25');
+        rect.setAttribute('rx', '3');
+        
+        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', '35');
+        text.setAttribute('y', '17');
+        text.setAttribute('text-anchor', 'middle');
+        text.style.fill = 'white';
+        text.style.fontSize = '12px';
+        text.style.pointerEvents = 'none';
+        text.textContent = type;
+        
+        g.appendChild(rect);
+        g.appendChild(text);
+        
+        g.addEventListener('click', function() {
+          setBucketType(type, this);
+        });
+        
+        bucketButtons.appendChild(g);
+      });
+    }
     
     function setBucketType(type, element) {
       currentBucketType = type;
-      document.querySelectorAll('#bucketSelector .control-btn').forEach(btn => {
+      // Remove active class from all buttons
+      document.querySelectorAll('#bucketButtons .control-btn').forEach(btn => {
         btn.classList.remove('active');
       });
+      // Add active class to clicked button
       element.querySelector('.control-btn').classList.add('active');
+      // Reset viewport to start
+      viewportStart = 0;
       updateChart();
     }
     
