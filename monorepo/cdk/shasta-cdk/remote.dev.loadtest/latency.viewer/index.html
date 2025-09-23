@@ -437,10 +437,26 @@
             }
             
             console.log('Loaded', allData.length, 'data points');
-            console.log('Bucket types found:', [...new Set(allData.map(d => d.bucket_type))]);
+            const bucketTypes = [...new Set(allData.map(d => d.bucket_type))];
+            console.log('Bucket types found:', bucketTypes);
+            console.log('Sample data point:', allData[0]);
             
             document.getElementById('loading').style.display = 'none';
             document.getElementById('chartContainer').style.display = 'block';
+            
+            // Auto-select the first available bucket type if current selection doesn't exist
+            const currentSelection = document.querySelector('input[name="bucketType"]:checked').value;
+            if (!bucketTypes.includes(currentSelection) && bucketTypes.length > 0) {
+                console.log('Current selection', currentSelection, 'not found in data. Auto-selecting:', bucketTypes[0]);
+                
+                // Try to select the appropriate radio button
+                if (bucketTypes[0] === '5min') {
+                    document.getElementById('bucket5min').checked = true;
+                } else if (bucketTypes[0] === '1hr') {
+                    document.getElementById('bucket1hr').checked = true;
+                }
+            }
+            
             updateChart();
             updateStats();
         }
@@ -472,8 +488,24 @@
                 return;
             }
             
-            let filteredData = allData.filter(d => d.bucket_type === bucketType);
+            let filteredData = allData.filter(d => {
+                // Handle potential whitespace or case issues
+                const normalizedBucketType = (d.bucket_type || '').toString().trim();
+                return normalizedBucketType === bucketType;
+            });
             console.log('Filtered data points:', filteredData.length);
+            
+            // If no data found, try to see what bucket types are actually in the data
+            if (filteredData.length === 0) {
+                console.log('No data matched. Checking actual bucket_type values:');
+                const sampleValues = allData.slice(0, 5).map(d => ({
+                    bucket_type: d.bucket_type,
+                    type: typeof d.bucket_type,
+                    length: d.bucket_type ? d.bucket_type.length : 0,
+                    raw: JSON.stringify(d.bucket_type)
+                }));
+                console.table(sampleValues);
+            }
             
             if (filteredData.length === 0) {
                 showError('No data found for selected bucket type: ' + bucketType);
