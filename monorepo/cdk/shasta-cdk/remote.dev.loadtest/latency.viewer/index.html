@@ -351,7 +351,7 @@
         </div>
         
         <div id="loading" class="loading" style="display: none;">
-            Loading data...
+            <div>Loading data...</div>
         </div>
         
         <div id="error" class="error" style="display: none;"></div>
@@ -406,36 +406,91 @@
             document.getElementById('loading').style.display = 'block';
             document.getElementById('error').style.display = 'none';
             
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    processData(e.target.result);
-                } catch (error) {
-                    showError('Error processing file: ' + error.message);
-                }
-            };
-            reader.readAsText(file);
+            // Use streaming approach for large files
+            processFileStream(file);
         }
         
-        function processData(text) {
+        async function processFileStream(file) {
             allData = [];
-            const lines = text.trim().split('\n');
+            const CHUNK_SIZE = 1024 * 1024; // 1MB chunks
+            let buffer = '';
+            let offset = 0;
+            let lineCount = 0;
+            let errorCount = 0;
             
-            for (const line of lines) {
-                if (!line.trim()) continue;
+            console.log(`Starting to process file: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
+            
+            while (offset < file.size) {
+                // Read chunk
+                const chunk = file.slice(offset, offset + CHUNK_SIZE);
+                const text = await chunk.text();
+                
+                // Add to buffer
+                buffer += text;
+                
+                // Process complete lines
+                const lines = buffer.split('\n');
+                
+                // Keep the last line in buffer (might be incomplete)
+                buffer = lines[lines.length - 1];
+                
+                // Process all complete lines
+                for (let i = 0; i < lines.length - 1; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+                    
+                    lineCount++;
+                    try {
+                        const data = JSON.parse(line);
+                        
+                        // Debug first record
+                        if (allData.length === 0) {
+                            console.log('First record:', data);
+                            console.log('Fields:', Object.keys(data));
+                            console.log('bucket_type:', data.bucket_type);
+                        }
+                        
+                        allData.push(data);
+                    } catch (error) {
+                        errorCount++;
+                        if (errorCount <= 5) {
+                            console.error(`Error parsing line ${lineCount}:`, error.message);
+                            console.error('Line content:', line.substring(0, 100) + '...');
+                        }
+                    }
+                }
+                
+                offset += CHUNK_SIZE;
+                
+                // Update progress
+                const progress = Math.min(100, (offset / file.size) * 100);
+                document.getElementById('loading').innerHTML = `Loading data... ${progress.toFixed(0)}%`;
+            }
+            
+            // Process any remaining data in buffer
+            if (buffer.trim()) {
+                lineCount++;
                 try {
-                    const data = JSON.parse(line);
+                    const data = JSON.parse(buffer);
                     allData.push(data);
                 } catch (error) {
-                    console.error('Error parsing line:', line, error);
+                    errorCount++;
+                    console.error('Error parsing last line:', error.message);
                 }
             }
+            
+            console.log(`Finished processing. Total lines: ${lineCount}, Parsed: ${allData.length}, Errors: ${errorCount}`);
             
             if (allData.length === 0) {
                 showError('No valid data found in file');
                 return;
             }
             
+            // Continue with normal processing
+            processLoadedData();
+        }
+        
+        function processLoadedData() {
             console.log('Loaded', allData.length, 'data points');
             const bucketTypes = [...new Set(allData.map(d => d.bucket_type))];
             console.log('Bucket types found:', bucketTypes);
@@ -444,22 +499,37 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('chartContainer').style.display = 'block';
             
-            // Auto-select the first available bucket type if current selection doesn't exist
-            const currentSelection = document.querySelector('input[name="bucketType"]:checked').value;
-            if (!bucketTypes.includes(currentSelection) && bucketTypes.length > 0) {
-                console.log('Current selection', currentSelection, 'not found in data. Auto-selecting:', bucketTypes[0]);
+            // Check if bucket_type field exists
+            const hasBucketType = allData.some(d => d.bucket_type !== undefined && d.bucket_type !== null);
+            
+            if (!hasBucketType) {
+                console.warn('No bucket_type field found in data. This might be an older format.');
+                console.log('Available fields in first record:', Object.keys(allData[0]));
                 
-                // Try to select the appropriate radio button
-                if (bucketTypes[0] === '5min') {
-                    document.getElementById('bucket5min').checked = true;
-                } else if (bucketTypes[0] === '1hr') {
-                    document.getElementById('bucket1hr').checked = true;
+                // Hide bucket type controls if field doesn't exist
+                const bucketTypeControl = document.querySelector('.control-item:has(input[name="bucketType"])');
+                if (bucketTypeControl) {
+                    bucketTypeControl.style.display = 'none';
+                }
+            } else {
+                // Auto-select the first available bucket type if current selection doesn't exist
+                const currentSelection = document.querySelector('input[name="bucketType"]:checked').value;
+                if (!bucketTypes.includes(currentSelection) && bucketTypes.length > 0) {
+                    console.log('Current selection', currentSelection, 'not found in data. Auto-selecting:', bucketTypes[0]);
+                    
+                    // Try to select the appropriate radio button
+                    if (bucketTypes[0] === '5min') {
+                        document.getElementById('bucket5min').checked = true;
+                    } else if (bucketTypes[0] === '1hr') {
+                        document.getElementById('bucket1hr').checked = true;
+                    }
                 }
             }
             
             updateChart();
             updateStats();
         }
+        
         
         function formatDate(dateStr) {
             const date = new Date(dateStr);
@@ -488,11 +558,22 @@
                 return;
             }
             
-            let filteredData = allData.filter(d => {
-                // Handle potential whitespace or case issues
-                const normalizedBucketType = (d.bucket_type || '').toString().trim();
-                return normalizedBucketType === bucketType;
-            });
+            // Check if data has bucket_type field
+            const hasBucketType = allData.some(d => d.bucket_type !== undefined && d.bucket_type !== null);
+            
+            let filteredData;
+            if (!hasBucketType) {
+                // No bucket_type field, use all data
+                console.log('No bucket_type field in data, using all records');
+                filteredData = allData;
+            } else {
+                // Filter by bucket_type
+                filteredData = allData.filter(d => {
+                    // Handle potential whitespace or case issues
+                    const normalizedBucketType = (d.bucket_type || '').toString().trim();
+                    return normalizedBucketType === bucketType;
+                });
+            }
             console.log('Filtered data points:', filteredData.length);
             
             // If no data found, try to see what bucket types are actually in the data
