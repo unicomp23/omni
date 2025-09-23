@@ -329,7 +329,7 @@
       if (filteredData.length === 0) return;
       
       // Calculate visible data range
-      const pointSpacing = totalDataWidth / filteredData.length;
+      const pointSpacing = filteredData.length > 1 ? totalDataWidth / (filteredData.length - 1) : totalDataWidth;
       const startIndex = Math.floor(viewportStart / pointSpacing);
       const endIndex = Math.ceil((viewportStart + viewportWidth) / pointSpacing);
       const visibleData = filteredData.slice(Math.max(0, startIndex - 1), Math.min(filteredData.length, endIndex + 1));
@@ -388,36 +388,47 @@
       metrics.forEach((metric, idx) => {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         let d = '';
+        let firstPoint = true;
+        let pointCount = 0;
         
         filteredData.forEach((point, i) => {
           const x = (i * pointSpacing) - viewportStart;
-          const value = Math.min(point[metric] || 0, maxY); // Cap values at maxY
-          const y = 500 - (value / maxY) * 500;
+          const value = point[metric];
           
-          if (x >= -100 && x <= 1300) { // Only draw visible points with some buffer
-            if (i === 0 || x < -100) {
-              d += `M ${x} ${y} `;
-            } else {
-              d += `L ${x} ${y} `;
+          if (value !== undefined && value !== null) {
+            const cappedValue = Math.min(value, maxY); // Cap values at maxY
+            const y = 500 - (cappedValue / maxY) * 500;
+            
+            if (x >= -100 && x <= 1300) { // Only draw visible points with some buffer
+              if (firstPoint) {
+                d += `M ${x} ${y} `;
+                firstPoint = false;
+              } else {
+                d += `L ${x} ${y} `;
+              }
+              pointCount++;
             }
           }
         });
         
-        path.setAttribute('d', d);
-        path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', colors[metricColors[idx]]);
-        path.setAttribute('stroke-width', '2');
-        path.setAttribute('stroke-linejoin', 'round');
-        path.setAttribute('stroke-linecap', 'round');
-        chartLines.appendChild(path);
+        if (d) { // Only append if we have path data
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', colors[metricColors[idx]]);
+          path.setAttribute('stroke-width', '2');
+          path.setAttribute('stroke-linejoin', 'round');
+          path.setAttribute('stroke-linecap', 'round');
+          chartLines.appendChild(path);
+        }
         
         // Add interactive points
         filteredData.forEach((point, i) => {
           const x = (i * pointSpacing) - viewportStart;
-          const value = Math.min(point[metric] || 0, maxY); // Cap values at maxY
-          const y = 500 - (value / maxY) * 500;
+          const value = point[metric];
           
-          if (x >= 0 && x <= 1200) {
+          if (value !== undefined && value !== null && x >= 0 && x <= 1200) {
+            const cappedValue = Math.min(value, maxY); // Cap values at maxY
+            const y = 500 - (cappedValue / maxY) * 500;
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', x);
             circle.setAttribute('cy', y);
