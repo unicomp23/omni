@@ -334,12 +334,8 @@
       const endIndex = Math.ceil((viewportStart + viewportWidth) / pointSpacing);
       const visibleData = filteredData.slice(Math.max(0, startIndex - 1), Math.min(filteredData.length, endIndex + 1));
       
-      // Calculate Y scale
-      let maxY = 0;
-      visibleData.forEach(d => {
-        maxY = Math.max(maxY, d.p99_99_ms || 0, d.max_ms || 0);
-      });
-      maxY = maxY * 1.1; // Add 10% padding
+      // Fixed Y scale at 200ms
+      const maxY = 200;
       
       // Draw grid lines
       const yTicks = 10;
@@ -363,6 +359,28 @@
         yAxis.appendChild(text);
       }
       
+      // Add a line at 200ms to show the cap
+      const capLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      capLine.setAttribute('x1', 0);
+      capLine.setAttribute('y1', 0);
+      capLine.setAttribute('x2', 1200);
+      capLine.setAttribute('y2', 0);
+      capLine.setAttribute('stroke', '#ff4444');
+      capLine.setAttribute('stroke-width', '1');
+      capLine.setAttribute('stroke-dasharray', '5,5');
+      capLine.setAttribute('opacity', '0.5');
+      chartLines.appendChild(capLine);
+      
+      // Add label for cap
+      const capLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      capLabel.setAttribute('x', 1190);
+      capLabel.setAttribute('y', -5);
+      capLabel.setAttribute('class', 'axis-text');
+      capLabel.setAttribute('text-anchor', 'end');
+      capLabel.setAttribute('fill', '#ff4444');
+      capLabel.textContent = '200ms cap';
+      chartLines.appendChild(capLabel);
+      
       // Draw lines for each percentile
       const metrics = ['p50_ms', 'p90_ms', 'p95_ms', 'p99_ms', 'p99_9_ms', 'p99_99_ms'];
       const metricColors = ['p50', 'p90', 'p95', 'p99', 'p99_9', 'p99_99'];
@@ -373,7 +391,8 @@
         
         filteredData.forEach((point, i) => {
           const x = (i * pointSpacing) - viewportStart;
-          const y = 500 - (point[metric] / maxY) * 500;
+          const value = Math.min(point[metric] || 0, maxY); // Cap values at maxY
+          const y = 500 - (value / maxY) * 500;
           
           if (x >= -100 && x <= 1300) { // Only draw visible points with some buffer
             if (i === 0 || x < -100) {
@@ -395,7 +414,8 @@
         // Add interactive points
         filteredData.forEach((point, i) => {
           const x = (i * pointSpacing) - viewportStart;
-          const y = 500 - (point[metric] / maxY) * 500;
+          const value = Math.min(point[metric] || 0, maxY); // Cap values at maxY
+          const y = 500 - (value / maxY) * 500;
           
           if (x >= 0 && x <= 1200) {
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
