@@ -22,7 +22,9 @@ type BucketStats struct {
 	MinLatency   float64
 	MaxLatency   float64
 	AvgLatency   float64
+	P25          float64
 	P50          float64
+	P75          float64
 	P90          float64
 	P95          float64
 	P99          float64
@@ -38,7 +40,9 @@ type LatencyAnalysis struct {
 	MinLatency         float64
 	MaxLatency         float64
 	AvgLatency         float64
+	P25                float64
 	P50                float64
+	P75                float64
 	P90                float64
 	P95                float64
 	P99                float64
@@ -52,10 +56,10 @@ type LatencyAnalysis struct {
 
 // TimeBucket represents a time bucket for grouping messages (5min or 1hr)
 type TimeBucket struct {
-	StartTime    time.Time
-	EndTime      time.Time
-	Stats        BucketStats
-	Messages     []types.LatencyLogEntry // Store all messages for this bucket
+	StartTime time.Time
+	EndTime   time.Time
+	Stats     BucketStats
+	Messages  []types.LatencyLogEntry // Store all messages for this bucket
 }
 
 func main() {
@@ -65,14 +69,14 @@ func main() {
 	flag.BoolVar(&timeBuckets, "buckets", false, "Enable time bucket analysis (5-minute and 1-hour buckets)")
 	flag.BoolVar(&jsonlOutput, "jsonl", false, "Write JSONL records for time buckets to file")
 	flag.Parse()
-	
+
 	// Validate flag combinations
 	if jsonlOutput && !timeBuckets {
 		fmt.Printf("❌ Error: -jsonl flag requires -buckets flag to be enabled\n")
 		fmt.Printf("💡 Use: go run cmd/analyze/analyze_latency.go -buckets -jsonl [directory]\n")
 		os.Exit(1)
 	}
-	
+
 	// Default to downloads folder (where S3 download script puts files)
 	logDir := "./downloads"
 	args := flag.Args()
@@ -120,7 +124,7 @@ func main() {
 	filesProcessed := 0
 	var jsonlFile *os.File
 	var jsonlEncoder *json.Encoder
-	
+
 	// Create single JSONL output file if requested
 	if jsonlOutput {
 		jsonlOutputFile := "bucket_analysis.jsonl"
@@ -159,7 +163,7 @@ func main() {
 
 		// Analyze this file individually
 		fileAnalysis := analyzeLatencies(entries, timeBuckets)
-		
+
 		if timeBuckets {
 			// Show time bucket analysis when -buckets flag is used
 			if len(fileAnalysis.FiveMinuteBuckets) > 0 || len(fileAnalysis.OneHourBuckets) > 0 {
@@ -323,7 +327,9 @@ func analyzeLatencies(entries []types.LatencyLogEntry, timeBuckets bool) Latency
 		MinLatency:         latencies[0],
 		MaxLatency:         latencies[count-1],
 		AvgLatency:         totalLatency / float64(count),
+		P25:                percentile(latencies, 25.0),
 		P50:                percentile(latencies, 50.0),
+		P75:                percentile(latencies, 75.0),
 		P90:                percentile(latencies, 90.0),
 		P95:                percentile(latencies, 95.0),
 		P99:                percentile(latencies, 99.0),
@@ -364,7 +370,9 @@ func calculateBucketStats(latencies []float64) BucketStats {
 		MinLatency:   sortedLatencies[0],
 		MaxLatency:   sortedLatencies[len(sortedLatencies)-1],
 		AvgLatency:   total / float64(len(latencies)),
+		P25:          percentile(sortedLatencies, 25.0),
 		P50:          percentile(sortedLatencies, 50.0),
+		P75:          percentile(sortedLatencies, 75.0),
 		P90:          percentile(sortedLatencies, 90.0),
 		P95:          percentile(sortedLatencies, 95.0),
 		P99:          percentile(sortedLatencies, 99.0),
@@ -474,8 +482,10 @@ func displayFileResults(filename string, analysis LatencyAnalysis) {
 		analysis.TotalMessages, analysis.TimeSpan, analysis.ThroughputMsgSec)
 	fmt.Printf("   📊 Min: %.2f ms | Max: %.2f ms | Avg: %.2f ms\n",
 		analysis.MinLatency, analysis.MaxLatency, analysis.AvgLatency)
-	fmt.Printf("   🎯 P50: %.2f | P90: %.2f | P95: %.2f | P99: %.2f | P99.9: %.2f | P99.99: %.2f ms\n",
-		analysis.P50, analysis.P90, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
+	fmt.Printf("   🎯 P25: %.2f | P50: %.2f | P75: %.2f ms\n",
+		analysis.P25, analysis.P50, analysis.P75)
+	fmt.Printf("   🚀 P90: %.2f | P95: %.2f | P99: %.2f | P99.9: %.2f | P99.99: %.2f ms\n",
+		analysis.P90, analysis.P95, analysis.P99, analysis.P99_9, analysis.P99_99)
 }
 
 func displayResults(analysis LatencyAnalysis) {
@@ -490,7 +500,9 @@ func displayResults(analysis LatencyAnalysis) {
 	fmt.Println("════════════════════════════════════")
 	fmt.Printf("Min:               %.6f ms\n", analysis.MinLatency)
 	fmt.Printf("Average:           %.6f ms\n", analysis.AvgLatency)
+	fmt.Printf("P25:               %.6f ms\n", analysis.P25)
 	fmt.Printf("P50 (Median):      %.6f ms\n", analysis.P50)
+	fmt.Printf("P75:               %.6f ms\n", analysis.P75)
 	fmt.Printf("P90:               %.6f ms\n", analysis.P90)
 	fmt.Printf("P95:               %.6f ms\n", analysis.P95)
 	fmt.Printf("P99:               %.6f ms\n", analysis.P99)
@@ -584,9 +596,9 @@ func displayBuckets(buckets []TimeBucket, bucketType string) {
 	}
 
 	// Display header for bucket table
-	fmt.Printf("%-6s %-19s %-19s %8s %8s %8s %8s %8s %8s %8s %8s %8s %10s\n",
-		"Bucket", "Start", "End", "Messages", "Min", "Max", "Avg", "P50", "P90", "P95", "P99", "P99.9", "P99.99")
-	fmt.Println("──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
+	fmt.Printf("%-6s %-19s %-19s %8s %8s %8s %8s %8s %8s %8s %8s %8s %8s %10s\n",
+		"Bucket", "Start", "End", "Messages", "Min", "Max", "Avg", "P25", "P50", "P75", "P90", "P95", "P99", "P99.9", "P99.99")
+	fmt.Println("────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────")
 
 	for i, bucket := range buckets {
 		var timeFormat string
@@ -598,11 +610,12 @@ func displayBuckets(buckets []TimeBucket, bucketType string) {
 		startStr := bucket.StartTime.Format(timeFormat)
 		endStr := bucket.EndTime.Format(timeFormat)
 
-		fmt.Printf("%-6d %-19s %-19s %8d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
+		fmt.Printf("%-6d %-19s %-19s %8d %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %8.2f %10.2f\n",
 			i+1, startStr, endStr, bucket.Stats.MessageCount,
 			bucket.Stats.MinLatency, bucket.Stats.MaxLatency, bucket.Stats.AvgLatency,
-			bucket.Stats.P50, bucket.Stats.P90, bucket.Stats.P95,
-			bucket.Stats.P99, bucket.Stats.P99_9, bucket.Stats.P99_99)
+			bucket.Stats.P25, bucket.Stats.P50, bucket.Stats.P75,
+			bucket.Stats.P90, bucket.Stats.P95, bucket.Stats.P99,
+			bucket.Stats.P99_9, bucket.Stats.P99_99)
 	}
 }
 
@@ -617,7 +630,9 @@ type BucketJSONLRecord struct {
 	MinLatency    float64   `json:"min_ms"`
 	MaxLatency    float64   `json:"max_ms"`
 	AvgLatency    float64   `json:"avg_ms"`
+	P25           float64   `json:"p25_ms"`
 	P50           float64   `json:"p50_ms"`
+	P75           float64   `json:"p75_ms"`
 	P90           float64   `json:"p90_ms"`
 	P95           float64   `json:"p95_ms"`
 	P99           float64   `json:"p99_ms"`
@@ -639,7 +654,9 @@ func writeJSONLRecordsToFile(filename string, analysis LatencyAnalysis, encoder 
 			MinLatency:    bucket.Stats.MinLatency,
 			MaxLatency:    bucket.Stats.MaxLatency,
 			AvgLatency:    bucket.Stats.AvgLatency,
+			P25:           bucket.Stats.P25,
 			P50:           bucket.Stats.P50,
+			P75:           bucket.Stats.P75,
 			P90:           bucket.Stats.P90,
 			P95:           bucket.Stats.P95,
 			P99:           bucket.Stats.P99,
@@ -669,7 +686,9 @@ func writeJSONLRecordsToFile(filename string, analysis LatencyAnalysis, encoder 
 			MinLatency:    bucket.Stats.MinLatency,
 			MaxLatency:    bucket.Stats.MaxLatency,
 			AvgLatency:    bucket.Stats.AvgLatency,
+			P25:           bucket.Stats.P25,
 			P50:           bucket.Stats.P50,
+			P75:           bucket.Stats.P75,
 			P90:           bucket.Stats.P90,
 			P95:           bucket.Stats.P95,
 			P99:           bucket.Stats.P99,
