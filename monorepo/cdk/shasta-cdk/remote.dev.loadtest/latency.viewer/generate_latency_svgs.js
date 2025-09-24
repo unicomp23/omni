@@ -259,9 +259,14 @@ function buildSvg(bucketType, data) {
   }).join('\n');
 
   const title = `Latency Percentiles (${bucketType} buckets)`;
-  const footnote = hasClippedValues
-    ? 'Scale fixed to 0-400 ms (black-outlined markers indicate capped values; tooltip shows actual latency)'
-    : 'Scale fixed to 0-400 ms';
+  const footnoteParts = [];
+  if (bucketType === 'combined') {
+    footnoteParts.push('Filtered to 5min buckets within hours where 1hr p99.99 > 800 ms.');
+  }
+  footnoteParts.push(hasClippedValues
+    ? 'Scale fixed to 0-400 ms (black-outlined markers indicate capped values; tooltip shows actual latency).'
+    : 'Scale fixed to 0-400 ms.');
+  const footnote = footnoteParts.join(' ');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
@@ -499,11 +504,41 @@ Object.entries(bucketsByType).forEach(([bucketType, data]) => {
   console.log(`Generated ${fileName} (${data.length} records)`);
 });
 
-const combinedData = Object.entries(bucketsByType)
-  .filter(([bucketType]) => ['1hr', '5min'].includes(bucketType))
-  .flatMap(([, recordsForType]) => recordsForType);
+const highLatencyHours = (bucketsByType['1hr'] || []).filter(row => {
+  const value = row.p99_99_ms;
+  return typeof value === 'number' && Number.isFinite(value) && value > 800;
+});
 
-if (combinedData.length) {
+if (highLatencyHours.length) {
+  const fiveMinuteBuckets = bucketsByType['5min'] || [];
+  const hourRanges = highLatencyHours
+    .map(hour => {
+      const start = parseDate(hour.start_time);
+      const end = parseDate(hour.end_time) || (start ? new Date(start.getTime() + 60 * 60 * 1000) : null);
+      if (!start || !end) {
+        return null;
+      }
+      return { record: hour, start, end };
+    })
+    .filter(Boolean);
+
+  const combinedData = [];
+
+  hourRanges.forEach(({ record }) => {
+    combinedData.push(record);
+  });
+
+  fiveMinuteBuckets.forEach(bucket => {
+    const bucketStart = parseDate(bucket.start_time);
+    if (!bucketStart) {
+      return;
+    }
+    const match = hourRanges.some(({ start, end }) => bucketStart >= start && bucketStart < end);
+    if (match) {
+      combinedData.push(bucket);
+    }
+  });
+
   const combinedSvg = buildSvg('combined', combinedData);
   if (combinedSvg) {
     const outputPath = path.join(outputDir, 'latency-percentiles-combined.svg');

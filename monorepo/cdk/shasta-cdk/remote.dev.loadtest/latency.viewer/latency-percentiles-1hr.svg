@@ -6180,7 +6180,7 @@
         <text x="26" y="2" font-size="13">p99.99</text>
       </g>
     
-   <text x="80" y="584" font-size="12" fill="#555">Scale fixed to 0-400 ms (black-outlined markers indicate capped values; tooltip shows actual latency)</text>
+   <text x="80" y="584" font-size="12" fill="#555">Scale fixed to 0-400 ms (black-outlined markers indicate capped values; tooltip shows actual latency).</text>
    <rect id="hover-target" x="80" y="40" width="80480" height="420" fill="transparent" pointer-events="none" />
    <line id="hover-line" x1="80" x2="80" y1="40" y2="460" stroke="#888" stroke-width="1" stroke-dasharray="6 6" visibility="hidden" />
    <g id="tooltip" visibility="hidden" pointer-events="none" transform="translate(0,0)">
