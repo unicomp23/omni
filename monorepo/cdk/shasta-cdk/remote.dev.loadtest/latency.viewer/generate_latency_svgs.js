@@ -175,23 +175,42 @@ function buildSvg(bucketType, data) {
   const interactivePayload = {
     isCombined: bucketType === 'combined',
     categories: categoryOrder,
-    buckets: sorted.map((row, index) => ({
-      label: formatLabel(row),
-      category: row.bucket_type || bucketType,
-      x: xScale(index),
-      values: percentiles.map(p => {
-        const raw = row[p.key];
-        if (typeof raw === 'number' && Number.isFinite(raw)) {
-          const clipped = raw > yDomainMax;
-          return {
-            label: p.label,
-            display: `${raw.toFixed(3)} ms${clipped ? ' (capped)' : ''}`,
-            clipped
-          };
+    buckets: sorted.map((row, index) => {
+      const start = parseDate(row.start_time);
+      const end = parseDate(row.end_time);
+      const startMs = start ? start.getTime() : null;
+      let endMs = end ? end.getTime() : null;
+      if (startMs != null && endMs == null) {
+        const durationMs = row.bucket_type === '1hr'
+          ? 60 * 60 * 1000
+          : row.bucket_type === '5min'
+            ? 5 * 60 * 1000
+            : 0;
+        if (durationMs) {
+          endMs = startMs + durationMs;
         }
-        return { label: p.label, display: 'n/a', clipped: false };
-      })
-    })),
+      }
+
+      return {
+        label: formatLabel(row),
+        category: row.bucket_type || bucketType,
+        x: xScale(index),
+        startMs,
+        endMs,
+        values: percentiles.map(p => {
+          const raw = row[p.key];
+          if (typeof raw === 'number' && Number.isFinite(raw)) {
+            const clipped = raw > yDomainMax;
+            return {
+              label: p.label,
+              display: `${raw.toFixed(3)} ms${clipped ? ' (capped)' : ''}`,
+              clipped
+            };
+          }
+          return { label: p.label, display: 'n/a', clipped: false };
+        })
+      };
+    }),
     chart: {
       left: margin.left,
       right: width - margin.right,
@@ -357,6 +376,11 @@ function buildSvg(bucketType, data) {
        }
 
        function buildTooltipSections(pointerX) {
+         var pointerAnchor = findNearestBucket(buckets, pointerX);
+         var pointerTime = pointerAnchor && typeof pointerAnchor.startMs === 'number'
+           ? pointerAnchor.startMs
+           : null;
+
          if (isCombined && combinedCategories.length > 1) {
            var sections = [];
            var anchor = null;
@@ -365,11 +389,26 @@ function buildSvg(bucketType, data) {
              if (!list || !list.length) {
                return;
              }
-             var nearest = findNearestBucket(list, pointerX);
+             var nearest = null;
+             if (category === '1hr' && pointerTime != null) {
+               nearest = list.find(function(entry) {
+                 if (typeof entry.startMs !== 'number') {
+                   return false;
+                 }
+                 var endBound = typeof entry.endMs === 'number' ? entry.endMs : entry.startMs;
+                 if (endBound === null) {
+                   return pointerTime >= entry.startMs;
+                 }
+                 return pointerTime >= entry.startMs && pointerTime < endBound;
+               }) || null;
+             }
+             if (!nearest) {
+               nearest = findNearestBucket(list, pointerX);
+             }
              if (!nearest) {
                return;
              }
-             if (!anchor) {
+             if (!anchor || category === '1hr') {
                anchor = nearest;
              }
              var header = '[' + category + '] ' + nearest.label;
@@ -381,10 +420,13 @@ function buildSvg(bucketType, data) {
                sections.push({ text: '', bold: false, spacer: true });
              }
            });
+           if (!anchor && pointerAnchor) {
+             anchor = pointerAnchor;
+           }
            return { anchor: anchor, lines: sections };
          }
 
-         var nearestBucket = findNearestBucket(buckets, pointerX);
+         var nearestBucket = pointerAnchor;
          if (!nearestBucket) {
            return { anchor: null, lines: [] };
          }
