@@ -37,6 +37,16 @@ const percentiles = [
   { key: 'p99_99_ms', label: 'p99.99', color: '#8c564b' }
 ];
 
+const summaryMetrics = [
+  { key: 'avg_ms', label: 'Mean' },
+  { key: 'p50_ms', label: 'Median' },
+  { key: 'p25_ms', label: '25th percentile' },
+  { key: 'p75_ms', label: '75th percentile' },
+  { key: 'min_ms', label: 'Min' },
+  { key: 'max_ms', label: 'Max' },
+  { key: 'p99_ms', label: '99th percentile' }
+];
+
 function safeJSONStringify(value) {
   return JSON.stringify(value)
     .replace(/</g, '\\u003C')
@@ -111,6 +121,92 @@ function buildSvg(bucketType, data) {
   const yDomainMax = 400;
   const yTickStep = 50;
   const hasClippedValues = percentileValues.some(value => value > yDomainMax);
+
+  const metricsCache = new Map();
+
+  function computeMetrics(row) {
+    const metricsByKey = new Map();
+
+    function addMetric(key, label, rawValue, { display, clipped = false, fromPercentile = false, fromSummary = false } = {}) {
+      const valueValid = typeof rawValue === 'number' && Number.isFinite(rawValue);
+      let entry = metricsByKey.get(key);
+      if (!entry) {
+        entry = {
+          labels: [],
+          display: 'n/a',
+          hasValue: false,
+          clipped: false,
+          hasPercentile: false,
+          hasSummary: false
+        };
+        metricsByKey.set(key, entry);
+      }
+      if (!entry.labels.includes(label)) {
+        entry.labels.push(label);
+      }
+      if (valueValid && (!entry.hasValue || fromPercentile)) {
+        entry.display = display;
+        entry.hasValue = true;
+        if (fromPercentile) {
+          entry.clipped = clipped;
+        }
+      }
+      if (fromPercentile) {
+        entry.hasPercentile = true;
+        if (valueValid) {
+          entry.clipped = clipped;
+        }
+      }
+      if (fromSummary) {
+        entry.hasSummary = true;
+      }
+    }
+
+    percentiles.forEach(p => {
+      const rawVal = row[p.key];
+      const valueValid = typeof rawVal === 'number' && Number.isFinite(rawVal);
+      const clipped = valueValid ? rawVal > yDomainMax : false;
+      const display = valueValid
+        ? `${rawVal.toFixed(3)} ms${clipped ? ' (capped)' : ''}`
+        : 'n/a';
+      addMetric(p.key, p.label, rawVal, {
+        display,
+        clipped,
+        fromPercentile: true
+      });
+    });
+
+    summaryMetrics.forEach(stat => {
+      const rawVal = row[stat.key];
+      const valueValid = typeof rawVal === 'number' && Number.isFinite(rawVal);
+      const display = valueValid ? `${rawVal.toFixed(3)} ms` : 'n/a';
+      addMetric(stat.key, stat.label, rawVal, {
+        display,
+        fromSummary: true
+      });
+    });
+
+    const metrics = [];
+    metricsByKey.forEach(entry => {
+      const label = entry.labels.join(' / ');
+      metrics.push({
+        label,
+        display: entry.display,
+        group: entry.hasPercentile ? 'percentile' : 'summary',
+        clipped: entry.clipped
+      });
+    });
+    return metrics;
+  }
+
+  function getMetrics(row) {
+    if (metricsCache.has(row)) {
+      return metricsCache.get(row);
+    }
+    const metrics = computeMetrics(row);
+    metricsCache.set(row, metrics);
+    return metrics;
+  }
 
   const margin = { top: 40, right: 220, bottom: 140, left: 80 };
   const chartHeight = 420;
@@ -197,18 +293,11 @@ function buildSvg(bucketType, data) {
         x: xScale(index),
         startMs,
         endMs,
-        values: percentiles.map(p => {
-          const raw = row[p.key];
-          if (typeof raw === 'number' && Number.isFinite(raw)) {
-            const clipped = raw > yDomainMax;
-            return {
-              label: p.label,
-              display: `${raw.toFixed(3)} ms${clipped ? ' (capped)' : ''}`,
-              clipped
-            };
-          }
-          return { label: p.label, display: 'n/a', clipped: false };
-        })
+        metrics: getMetrics(row).map(metric => ({
+          label: metric.label,
+          display: metric.display,
+          group: metric.group
+        }))
       };
     }),
     chart: {
@@ -240,17 +329,17 @@ function buildSvg(bucketType, data) {
       const titleLabel = bucketType === 'combined'
         ? `${formatLabel(row)} (${row.bucket_type || 'unknown'})`
         : formatLabel(row);
-      const tooltipContent = escapeXml([
-        titleLabel,
-        ...percentiles.map(p => {
-          const rawVal = row[p.key];
-          if (typeof rawVal === 'number' && Number.isFinite(rawVal)) {
-            const clippedVal = rawVal > yDomainMax;
-            return `${p.label}: ${rawVal.toFixed(3)} ms${clippedVal ? ' (capped)' : ''}`;
-          }
-          return `${p.label}: n/a`;
-        })
-      ].join('\n')).replace(/\n/g, '&#10;');
+      const metrics = getMetrics(row);
+      const tooltipLines = [titleLabel];
+      let previousGroup = null;
+      metrics.forEach(metric => {
+        if (previousGroup && previousGroup !== metric.group) {
+          tooltipLines.push('');
+        }
+        tooltipLines.push(`${metric.label}: ${metric.display}`);
+        previousGroup = metric.group;
+      });
+      const tooltipContent = escapeXml(tooltipLines.join('\n')).replace(/\n/g, '&#10;');
       circles.push(`<circle cx="${x}" cy="${y}" r="5" fill="${percentile.color}"${strokeAttrs}><title>${tooltipContent}</title></circle>`);
     });
 
@@ -413,29 +502,43 @@ function buildSvg(bucketType, data) {
              }
              var header = '[' + category + '] ' + nearest.label;
              sections.push({ text: header, bold: true });
-             nearest.values.forEach(function(v) {
-               sections.push({ text: '  ' + v.label + ': ' + v.display, bold: false });
-             });
+             if (nearest.metrics && nearest.metrics.length) {
+               var lastGroup = null;
+               nearest.metrics.forEach(function(metric) {
+                 if (lastGroup && lastGroup !== metric.group) {
+                   sections.push({ text: '', bold: false, spacer: true });
+                 }
+                 sections.push({ text: '  ' + metric.label + ': ' + metric.display, bold: false });
+                 lastGroup = metric.group;
+               });
+             }
              if (idx !== combinedCategories.length - 1) {
                sections.push({ text: '', bold: false, spacer: true });
              }
            });
            if (!anchor && pointerAnchor) {
              anchor = pointerAnchor;
-           }
-           return { anchor: anchor, lines: sections };
          }
-
-         var nearestBucket = pointerAnchor;
-         if (!nearestBucket) {
-           return { anchor: null, lines: [] };
-         }
-         var lines = [{ text: nearestBucket.label, bold: true }];
-         nearestBucket.values.forEach(function(v) {
-           lines.push({ text: v.label + ': ' + v.display, bold: false });
-         });
-         return { anchor: nearestBucket, lines: lines };
+         return { anchor: anchor, lines: sections };
        }
+
+        var nearestBucket = pointerAnchor;
+        if (!nearestBucket) {
+          return { anchor: null, lines: [] };
+        }
+        var lines = [{ text: nearestBucket.label, bold: true }];
+        if (nearestBucket.metrics && nearestBucket.metrics.length) {
+          var lastGroup = null;
+          nearestBucket.metrics.forEach(function(metric) {
+            if (lastGroup && lastGroup !== metric.group) {
+              lines.push({ text: '', bold: false, spacer: true });
+            }
+            lines.push({ text: metric.label + ': ' + metric.display, bold: false });
+            lastGroup = metric.group;
+          });
+        }
+        return { anchor: nearestBucket, lines: lines };
+      }
 
        function updateTooltip(pointerX) {
            while (tooltipText.firstChild) {
