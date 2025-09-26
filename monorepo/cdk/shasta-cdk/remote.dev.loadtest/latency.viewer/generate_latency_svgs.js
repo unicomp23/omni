@@ -66,7 +66,7 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
-function toCsvValue(value) {
+function toCsvValue(value, key) {
   if (value == null) {
     return '';
   }
@@ -74,7 +74,8 @@ function toCsvValue(value) {
     if (!Number.isFinite(value)) {
       return '';
     }
-    return value.toString();
+    const rounded = Number(value.toFixed(3));
+    return Number.isFinite(rounded) ? rounded.toString() : '';
   }
   const stringValue = String(value);
   if (/[",\n]/.test(stringValue)) {
@@ -86,7 +87,7 @@ function toCsvValue(value) {
 function buildCsvContent(rows, keys) {
   const headerLine = keys.join(',');
   const dataLines = rows.map(row => keys
-    .map(key => toCsvValue(Object.prototype.hasOwnProperty.call(row, key) ? row[key] : ''))
+    .map(key => toCsvValue(Object.prototype.hasOwnProperty.call(row, key) ? row[key] : '', key))
     .join(','));
   return [headerLine, ...dataLines].join('\n');
 }
