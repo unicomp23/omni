@@ -28,6 +28,9 @@ const records = rawLines.map((line, idx) => {
   }
 });
 
+const HIGH_PERCENTILE_THRESHOLD_MS = 800;
+const HIGH_PERCENTILE_CSV_FILENAME = 'latency-5min-p99_99-over-800.csv';
+
 const percentiles = [
   { key: 'p50_ms', label: 'p50', color: '#1f77b4' },
   { key: 'p90_ms', label: 'p90', color: '#ff7f0e' },
@@ -63,6 +66,31 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
+function toCsvValue(value) {
+  if (value == null) {
+    return '';
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      return '';
+    }
+    return value.toString();
+  }
+  const stringValue = String(value);
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
+}
+
+function buildCsvContent(rows, keys) {
+  const headerLine = keys.join(',');
+  const dataLines = rows.map(row => keys
+    .map(key => toCsvValue(Object.prototype.hasOwnProperty.call(row, key) ? row[key] : ''))
+    .join(','));
+  return [headerLine, ...dataLines].join('\n');
+}
+
 function groupByBucketType(items) {
   return items.reduce((acc, item) => {
     const bucketType = item.bucket_type || 'unknown';
@@ -75,6 +103,8 @@ function groupByBucketType(items) {
 }
 
 const bucketsByType = groupByBucketType(records);
+const oneHourBuckets = bucketsByType['1hr'] || [];
+const fiveMinuteBuckets = bucketsByType['5min'] || [];
 
 function parseDate(value) {
   const date = new Date(value);
@@ -649,13 +679,12 @@ Object.entries(bucketsByType).forEach(([bucketType, data]) => {
   console.log(`Generated ${fileName} (${data.length} records)`);
 });
 
-const highLatencyHours = (bucketsByType['1hr'] || []).filter(row => {
+const highLatencyHours = oneHourBuckets.filter(row => {
   const value = row.p99_99_ms;
-  return typeof value === 'number' && Number.isFinite(value) && value > 800;
+  return typeof value === 'number' && Number.isFinite(value) && value > HIGH_PERCENTILE_THRESHOLD_MS;
 });
 
 if (highLatencyHours.length) {
-  const fiveMinuteBuckets = bucketsByType['5min'] || [];
   const hourRanges = highLatencyHours
     .map(hour => {
       const start = parseDate(hour.start_time);
@@ -690,4 +719,64 @@ if (highLatencyHours.length) {
     fs.writeFileSync(outputPath, combinedSvg, 'utf8');
     console.log(`Generated latency-percentiles-combined.svg (${combinedData.length} records)`);
   }
+}
+
+const highLatencyFiveMinuteBuckets = fiveMinuteBuckets
+  .filter(row => {
+    const value = row.p99_99_ms;
+    return typeof value === 'number' && Number.isFinite(value) && value > HIGH_PERCENTILE_THRESHOLD_MS;
+  })
+  .sort((a, b) => {
+    const startA = parseDate(a.start_time);
+    const startB = parseDate(b.start_time);
+    if (startA && startB) {
+      return startA - startB;
+    }
+    if (startA) {
+      return -1;
+    }
+    if (startB) {
+      return 1;
+    }
+    return (a.bucket_index ?? 0) - (b.bucket_index ?? 0);
+  });
+
+if (highLatencyFiveMinuteBuckets.length) {
+  const keySet = new Set();
+  highLatencyFiveMinuteBuckets.forEach(row => {
+    Object.keys(row).forEach(key => keySet.add(key));
+  });
+
+  const candidateKeys = Array.from(keySet);
+  const preferredOrder = [
+    'filename',
+    'bucket_type',
+    'bucket_index',
+    'start_time',
+    'end_time',
+    'total_messages',
+    'min_ms',
+    'max_ms',
+    'avg_ms',
+    'p25_ms',
+    'p50_ms',
+    'p75_ms',
+    'p90_ms',
+    'p95_ms',
+    'p99_ms',
+    'p99_9_ms',
+    'p99_99_ms'
+  ];
+  const orderedKeys = preferredOrder.filter(key => candidateKeys.includes(key));
+  const remainingKeys = candidateKeys
+    .filter(key => !preferredOrder.includes(key))
+    .sort();
+  const csvKeys = [...orderedKeys, ...remainingKeys];
+
+  const csvContent = buildCsvContent(highLatencyFiveMinuteBuckets, csvKeys);
+  const csvPath = path.join(outputDir, HIGH_PERCENTILE_CSV_FILENAME);
+  fs.writeFileSync(csvPath, csvContent, 'utf8');
+  console.log(`Generated ${HIGH_PERCENTILE_CSV_FILENAME} (${highLatencyFiveMinuteBuckets.length} records)`);
+} else {
+  console.log(`No 5min buckets with p99.99 > ${HIGH_PERCENTILE_THRESHOLD_MS} ms; skipping ${HIGH_PERCENTILE_CSV_FILENAME}`);
 }
