@@ -159,7 +159,7 @@ async function downloadChunk(startDate, endDate, chunkIndex, totalChunks) {
                                 }
 
                                 // Save JSON file
-                                const jsonFile = `chunk_${chunkLabel}.json`;
+                                const jsonFile = `bixby_logs/chunk_${chunkLabel}.json`;
                                 const outputData = {
                                     metadata: {
                                         chunkIndex: chunkIndex + 1,
@@ -301,8 +301,8 @@ async function downloadAllChunks() {
     console.log(`📄 Total messages downloaded: ${totalMessages.toLocaleString()}`);
 
     // List generated files
-    const files = fs.readdirSync('.').filter(f => f.startsWith('chunk_') && f.endsWith('.json'));
-    const totalSize = files.reduce((sum, f) => sum + fs.statSync(f).size, 0);
+    const files = fs.readdirSync('bixby_logs').filter(f => f.startsWith('chunk_') && f.endsWith('.json'));
+    const totalSize = files.reduce((sum, f) => sum + fs.statSync(path.join('bixby_logs', f)).size, 0);
 
     console.log(`📁 Files generated: ${files.length}`);
     console.log(`💾 Total size: ${(totalSize / 1024 / 1024).toFixed(1)} MB`);
@@ -312,7 +312,7 @@ async function downloadAllChunks() {
     }
 
     // Create summary file
-    const summaryFile = 'download_summary.json';
+    const summaryFile = 'bixby_logs/download_summary.json';
     const summary = {
         metadata: {
             dateRange: {
