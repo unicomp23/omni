@@ -3,6 +3,7 @@
     "bixby_entries": 8545284,
     "master_entries": 4422631,
     "matched_entries": 4156756,
+    "negative_latencies": 88680,
     "unmatched_bixby": 4299848,
     "unmatched_master": 265875,
     "start_time": "2025-09-07T00:00:02+00:00",

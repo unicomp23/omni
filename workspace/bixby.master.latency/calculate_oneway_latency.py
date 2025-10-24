@@ -191,6 +191,7 @@ def main():
 
     matched = 0
     unmatched_bixby = 0
+    negative_latencies = 0
     min_time = None
     max_time = None
 
@@ -206,6 +207,7 @@ def main():
 
         # Skip negative latencies (clock skew issues)
         if one_way_latency < 0:
+            negative_latencies += 1
             continue
 
         matched += 1
@@ -223,7 +225,8 @@ def main():
             hour_key = dt.strftime('%Y-%m-%d %H:00')
             hourly_latencies[hour_key].append(one_way_latency)
 
-    print(f"✅ Matched {matched:,} entries")
+    print(f"✅ Matched {matched:,} entries (valid positive latencies)")
+    print(f"⚠️  Filtered negative latencies: {negative_latencies:,} (clock skew)")
     print(f"⚠️  Unmatched Bixby entries: {unmatched_bixby:,}")
     print(f"⚠️  Unmatched Master entries: {len(master_data) - matched:,}\n")
 
@@ -237,6 +240,7 @@ def main():
             'bixby_entries': len(bixby_data),
             'master_entries': len(master_data),
             'matched_entries': matched,
+            'negative_latencies': negative_latencies,
             'unmatched_bixby': unmatched_bixby,
             'unmatched_master': len(master_data) - matched,
             'start_time': min_time.isoformat() if min_time else None,
@@ -262,7 +266,8 @@ def main():
     print("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER)")
     print("=" * 80)
     print(f"Time Period: {results['metadata']['start_time']} to {results['metadata']['end_time']}")
-    print(f"Matched Entries: {matched:,}")
+    print(f"Matched Entries: {matched:,} (valid positive latencies)")
+    print(f"Filtered Negative Latencies: {negative_latencies:,} (clock skew)")
     print(f"Measurement: Bixby send time → Master receive time")
     print("=" * 80)
     print()
@@ -307,7 +312,8 @@ def main():
         f.write("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER)\n")
         f.write("=" * 80 + "\n")
         f.write(f"Time Period: {results['metadata']['start_time']} to {results['metadata']['end_time']}\n")
-        f.write(f"Matched Entries: {matched:,}\n")
+        f.write(f"Matched Entries: {matched:,} (valid positive latencies)\n")
+        f.write(f"Filtered Negative Latencies: {negative_latencies:,} (clock skew)\n")
         f.write(f"Measurement: Bixby send time → Master receive time\n")
         f.write("=" * 80 + "\n\n")
 
