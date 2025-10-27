@@ -1,0 +1,105 @@
+{
+  "timeWindow": {
+    "start": "2025-10-24T16:25:20.063Z",
+    "end": "2025-10-24T16:55:20.063Z"
+  },
+  "bixby": {
+    "indexes": [],
+    "sourceCategories": [
+      "OS/Linux/System"
+    ],
+    "envs": [
+      "prod"
+    ],
+    "collectors": [
+      "bixby-i-058ea7774c452fc61-ap-southeast-1-prod-ap-southeast-1",
+      "bixby-i-07d262f52ef82f2c1-us-east-2-prod-us-east-2",
+      "bixby-i-0345e3d3b355ffa52-us-west-2-prod-us-west-2",
+      "bixby-i-0d3c5e8170f26f0bd-us-west-2-prod-us-west-2",
+      "bixby-i-0b97e50f14d8b8eed-eu-central-1-prod-eu-central-1",
+      "bixby-i-000aa46f0c726d48d-us-east-1-prod-us-east-1",
+      "bixby-i-0facf45dc4e637995-ap-south-1-prod-ap-south-1",
+      "bixby-i-00b8b990cb6655836-ap-south-1-prod-ap-south-1",
+      "bixby-i-0433603201c5d0243-us-east-2-prod-us-east-2",
+      "bixby-i-096c2a81b725e52d9-us-east-1-prod-us-east-1",
+      "bixby-i-05d89cf227c42bef6-us-east-1-prod-us-east-1",
+      "bixby-i-0d9fe175aacbd6fb5-us-west-2-prod-us-west-2",
+      "bixby-i-0a1ebb480dd0077ba-eu-west-1-prod-eu-west-1",
+      "bixby-i-01a976b8b518c2fe1-ap-southeast-1-prod-ap-southeast-1",
+      "bixby-i-0f595a1941385c754-us-east-2-prod-us-east-2",
+      "bixby-i-0d093cb7203913721-ap-southeast-2-prod-ap-southeast-2",
+      "bixby-i-0aca7f975b6a71c55-sa-east-1-prod-sa-east-1",
+      "bixby-i-05904a7814ed361d1-us-east-2-prod-us-east-2",
+      "bixby-i-0fb4da9adf855d62e-eu-west-1-prod-eu-west-1",
+      "bixby-i-0bb4f9126e374c370-ap-southeast-2-prod-ap-southeast-2",
+      "bixby-i-07f380d1c6f78ac78-us-east-1-prod-us-east-1",
+      "bixby-i-074b46211c8c3ea8e-us-east-1-prod-us-east-1",
+      "bixby-i-0438a1907ef945a37-us-west-2-prod-us-west-2",
+      "bixby-i-01b5742f0aa794a45-us-west-2-prod-us-west-2",
+      "bixby-i-0d11aa7a96c545ce3-us-east-2-prod-us-east-2",
+      "bixby-i-0187f865e9af79d89-eu-west-1-prod-eu-west-1",
+      "bixby-i-02ddffd3f894cc6ed-eu-central-1-prod-eu-central-1"
+    ],
+    "hosts": [
+      "bixby-i-058ea7774c452fc61-ap-southeast-1",
+      "bixby-i-07d262f52ef82f2c1-us-east-2",
+      "bixby-i-0345e3d3b355ffa52-us-west-2",
+      "bixby-i-0d3c5e8170f26f0bd-us-west-2",
+      "bixby-i-0b97e50f14d8b8eed-eu-central-1",
+      "bixby-i-000aa46f0c726d48d-us-east-1",
+      "bixby-i-0facf45dc4e637995-ap-south-1",
+      "bixby-i-00b8b990cb6655836-ap-south-1",
+      "bixby-i-0433603201c5d0243-us-east-2",
+      "bixby-i-096c2a81b725e52d9-us-east-1",
+      "bixby-i-05d89cf227c42bef6-us-east-1",
+      "bixby-i-0d9fe175aacbd6fb5-us-west-2",
+      "bixby-i-0a1ebb480dd0077ba-eu-west-1",
+      "bixby-i-01a976b8b518c2fe1-ap-southeast-1",
+      "bixby-i-0f595a1941385c754-us-east-2",
+      "bixby-i-0d093cb7203913721-ap-southeast-2",
+      "bixby-i-0aca7f975b6a71c55-sa-east-1",
+      "bixby-i-05904a7814ed361d1-us-east-2",
+      "bixby-i-0fb4da9adf855d62e-eu-west-1",
+      "bixby-i-0bb4f9126e374c370-ap-southeast-2",
+      "bixby-i-07f380d1c6f78ac78-us-east-1",
+      "bixby-i-074b46211c8c3ea8e-us-east-1",
+      "bixby-i-0438a1907ef945a37-us-west-2",
+      "bixby-i-01b5742f0aa794a45-us-west-2",
+      "bixby-i-0d11aa7a96c545ce3-us-east-2",
+      "bixby-i-0187f865e9af79d89-eu-west-1",
+      "bixby-i-02ddffd3f894cc6ed-eu-central-1"
+    ]
+  },
+  "master": {
+    "indexes": [],
+    "sourceCategories": [
+      "OS/Linux/System"
+    ],
+    "envs": [],
+    "collectors": [
+      "node-master-i-014fc48acd566d3de-us-east-1-automation1012-eng-us-east-1",
+      "node-master-i-095d1abc325e3f5f5-us-east-1-eng-us-east-1",
+      "node-master-i-0918d036ffd8f3da9-us-east-1-stage-us-east-1",
+      "node-master-i-04aab9a4f2e416345-us-east-1-prod-us-east-1",
+      "node-master-i-088741458f4a41c05-us-east-1-automation201-eng-us-east-1",
+      "node-master-i-0cd965cb1c0381e07-us-east-1-automation202-eng-us-east-1",
+      "node-master-i-0f58d4fd59a844b9a-us-east-1-automation205-eng-us-east-1",
+      "node-master-i-0617f909c35f7182c-us-east-1-automation206-eng-us-east-1",
+      "node-master-i-0af90fbbf8e4a8091-us-east-1-automation204-eng-us-east-1",
+      "node-master-i-0485ef743559d6a38-us-east-1-automation200-eng-us-east-1"
+    ],
+    "hosts": [
+      "node-master-i-014fc48acd566d3de-us-east-1-automation1012",
+      "node-master-i-095d1abc325e3f5f5-us-east-1",
+      "node-master-i-0918d036ffd8f3da9-us-east-1",
+      "node-master-i-04aab9a4f2e416345-us-east-1",
+      "node-master-i-088741458f4a41c05-us-east-1-automation201",
+      "node-master-i-0cd965cb1c0381e07-us-east-1-automation202",
+      "node-master-i-0f58d4fd59a844b9a-us-east-1-automation205",
+      "node-master-i-0617f909c35f7182c-us-east-1-automation206",
+      "node-master-i-0af90fbbf8e4a8091-us-east-1-automation204",
+      "node-master-i-0485ef743559d6a38-us-east-1-automation200"
+    ]
+  },
+  "timestamp": "2025-10-24T16:55:33.381Z"
+}

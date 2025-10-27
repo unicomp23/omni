@@ -88,13 +88,18 @@ bixby.master.latency/
 ├── README.md                          # This file
 ├── analyze_latency.py                 # Original round-trip analysis
 ├── calculate_oneway_latency.py        # One-way latency calculation
+├── detect_gaps.py                     # Detect missing data gaps
+│
 ├── latency_report.txt                 # Round-trip results
 ├── oneway_latency_report.txt          # One-way results (FINAL)
 ├── oneway_latency_report.json         # One-way results (JSON)
+├── gap_analysis_bixby_logs.json       # Gap detection report for Bixby
+├── gap_analysis_master_logs.json      # Gap detection report for Master
 │
 └── latency.study/                     # Downloaded logs
-    ├── download_chunks.js             # Script to download Bixby logs
-    ├── download_master_chunks.js      # Script to download Master logs
+    ├── download_lib.js                # Shared download logic (DRY)
+    ├── download_chunks.js             # Download Bixby logs (19 lines)
+    ├── download_master_chunks.js      # Download Master logs (19 lines)
     │
     ├── bixby_logs/                    # Client-side logs (1,942 files)
     │   ├── chunk_20250907_0000.json
@@ -152,12 +157,60 @@ cd latency.study
 export SUMO_ACCESS_ID="your-access-id"
 export SUMO_ACCESS_KEY="your-access-key"
 
-# Download Bixby logs
+# Download Bixby logs (skips existing chunks automatically)
 ./download_chunks.js
 
-# Download Master logs
+# Download Master logs (skips existing chunks automatically)
+./download_master_chunks.js
+
+# To force re-download all chunks (overwrite existing)
+./download_chunks.js --force
+./download_master_chunks.js --force
+```
+
+**Note**: The download scripts automatically skip chunks that already exist. This means you can safely re-run them to fill any gaps in your data - they'll only download what's missing!
+
+### Check for Data Gaps
+```bash
+# Detect gaps in downloaded data
+./detect_gaps.py latency.study/bixby_logs
+./detect_gaps.py latency.study/master_logs
+```
+
+The gap detection script will check for:
+- Missing 15-minute time intervals
+- Timestamp discontinuities between chunks
+- Large gaps within individual chunks
+- Discrepancies between requested and actual time ranges
+- Anomalously low message counts
+
+Results are saved to:
+- `gap_analysis_bixby_logs.json`
+- `gap_analysis_master_logs.json`
+
+### Fill Data Gaps
+
+**Simply re-run the download scripts!** They automatically skip existing chunks and only download missing ones:
+
+```bash
+cd latency.study
+
+# Set credentials (if not already set)
+export SUMO_ACCESS_ID="your-access-id"
+export SUMO_ACCESS_KEY="your-access-key"
+
+# Fill gaps in Bixby logs
+./download_chunks.js
+
+# Fill gaps in Master logs
 ./download_master_chunks.js
 ```
+
+The scripts will:
+1. Check each 15-minute chunk to see if it exists
+2. Skip existing chunks (shows ⏭️ in output)
+3. Download only missing chunks
+4. Show summary of new vs skipped chunks
 
 ## Results
 

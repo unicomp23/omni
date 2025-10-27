@@ -56,7 +56,7 @@ def compute_stats(latencies):
     }
 
 def extract_bixby_data(json_file):
-    """Extract latencyId, endTimeMs, and latencyMs from Bixby log file."""
+    """Extract latencyId, endTimeMs, and latencyMs from Bixby log file (PRODUCTION ONLY)."""
     data = {}
 
     try:
@@ -69,6 +69,11 @@ def extract_bixby_data(json_file):
     messages = payload.get('messages', [])
     for message in messages:
         message_map = message.get('map', {})
+
+        # FILTER: Only production environment
+        if message_map.get('env') != 'prod':
+            continue
+
         raw_line = message_map.get('_raw', '')
 
         # Extract latencyId
@@ -108,7 +113,7 @@ def extract_bixby_data(json_file):
     return data
 
 def extract_master_data(json_file):
-    """Extract latencyId and receiveTimeMs from Master log file."""
+    """Extract latencyId and receiveTimeMs from Master log file (PRODUCTION ONLY)."""
     data = {}
 
     try:
@@ -121,6 +126,12 @@ def extract_master_data(json_file):
     messages = payload.get('messages', [])
     for message in messages:
         message_map = message.get('map', {})
+
+        # FILTER: Only production collectors
+        collector = message_map.get('_collector', '')
+        if '-prod-' not in collector:
+            continue
+
         raw_line = message_map.get('_raw', '')
 
         # Extract latencyId
@@ -157,9 +168,10 @@ def main():
         print("Error: bixby_logs or master_logs directory not found", file=sys.stderr)
         sys.exit(1)
 
-    print("🔍 Loading Bixby logs (client side)...")
+    print("🔍 Loading Bixby logs (client side, PRODUCTION ONLY)...")
     bixby_files = sorted(bixby_dir.glob('chunk_*.json'))
     print(f"   Found {len(bixby_files)} Bixby chunk files")
+    print(f"   Filtering for env=prod only")
 
     bixby_data = {}
     for i, bixby_file in enumerate(bixby_files, 1):
@@ -170,9 +182,10 @@ def main():
 
     print(f"✅ Loaded {len(bixby_data):,} Bixby entries with latencyId\n")
 
-    print("🔍 Loading Master logs (server side)...")
+    print("🔍 Loading Master logs (server side, PRODUCTION ONLY)...")
     master_files = sorted(master_dir.glob('master_chunk_*.json'))
     print(f"   Found {len(master_files)} Master chunk files")
+    print(f"   Filtering for _collector=*-prod-* only")
 
     master_data = {}
     for i, master_file in enumerate(master_files, 1):
@@ -246,7 +259,7 @@ def main():
             'start_time': min_time.isoformat() if min_time else None,
             'end_time': max_time.isoformat() if max_time else None,
             'measurement_type': 'one-way',
-            'description': 'One-way latency from Bixby send to Master receive, calculated by correlating latencyId'
+            'description': 'One-way latency from Bixby send to Master receive, calculated by correlating latencyId (PRODUCTION ONLY: Bixby env=prod, Master _collector=*-prod-*)'
         },
         'hourly': {},
         'overall': None
@@ -263,12 +276,13 @@ def main():
 
     # Print report
     print("=" * 80)
-    print("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER)")
+    print("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER) - PRODUCTION ONLY")
     print("=" * 80)
     print(f"Time Period: {results['metadata']['start_time']} to {results['metadata']['end_time']}")
     print(f"Matched Entries: {matched:,} (valid positive latencies)")
     print(f"Filtered Negative Latencies: {negative_latencies:,} (clock skew)")
     print(f"Measurement: Bixby send time → Master receive time")
+    print(f"Filters: Bixby env=prod, Master _collector=*-prod-*")
     print("=" * 80)
     print()
 
@@ -309,12 +323,13 @@ def main():
     text_output = Path(__file__).parent / 'oneway_latency_report.txt'
     with open(text_output, 'w') as f:
         f.write("=" * 80 + "\n")
-        f.write("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER)\n")
+        f.write("ONE-WAY LATENCY ANALYSIS (BIXBY → MASTER) - PRODUCTION ONLY\n")
         f.write("=" * 80 + "\n")
         f.write(f"Time Period: {results['metadata']['start_time']} to {results['metadata']['end_time']}\n")
         f.write(f"Matched Entries: {matched:,} (valid positive latencies)\n")
         f.write(f"Filtered Negative Latencies: {negative_latencies:,} (clock skew)\n")
         f.write(f"Measurement: Bixby send time → Master receive time\n")
+        f.write(f"Filters: Bixby env=prod, Master _collector=*-prod-*\n")
         f.write("=" * 80 + "\n\n")
 
         f.write("OVERALL STATISTICS\n")
