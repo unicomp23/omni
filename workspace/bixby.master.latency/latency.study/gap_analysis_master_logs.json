@@ -1,0 +1,41 @@
+{
+  "directory": "latency.study/master_logs",
+  "chunks_analyzed": 2012,
+  "issues_found": 2,
+  "timestamp": "2025-10-24T16:09:31.575272+00:00",
+  "issues": [
+    {
+      "type": "missing_chunks",
+      "severity": "high",
+      "expected": 2015,
+      "actual": 2012,
+      "missing": 3
+    },
+    {
+      "type": "sequence_gaps",
+      "severity": "high",
+      "gaps": [
+        {
+          "expected_start": "2025-09-08T08:30:00Z",
+          "expected_end": "2025-09-08T08:45:00Z",
+          "found": "2025-09-08T08:45:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-13T02:00:00Z",
+          "expected_end": "2025-09-13T02:15:00Z",
+          "found": "2025-09-13T02:15:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-14T21:15:00Z",
+          "expected_end": "2025-09-14T21:30:00Z",
+          "found": "2025-09-14T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-25T01:30:00Z",
+          "expected_end": "2025-09-25T01:45:00Z",
+          "found": "2025-09-25T01:45:00.000Z"
+        }
+      ]
+    }
+  ]
+}

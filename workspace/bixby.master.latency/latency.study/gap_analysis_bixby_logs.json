@@ -1,0 +1,90 @@
+{
+  "directory": "latency.study/bixby_logs",
+  "chunks_analyzed": 1942,
+  "issues_found": 4,
+  "timestamp": "2025-10-24T16:09:01.483854+00:00",
+  "issues": [
+    {
+      "type": "missing_chunks",
+      "severity": "high",
+      "expected": 1950,
+      "actual": 1942,
+      "missing": 8
+    },
+    {
+      "type": "sequence_gaps",
+      "severity": "high",
+      "gaps": [
+        {
+          "expected_start": "2025-09-17T19:45:00Z",
+          "expected_end": "2025-09-17T20:00:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T20:00:00Z",
+          "expected_end": "2025-09-17T20:15:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T20:15:00Z",
+          "expected_end": "2025-09-17T20:30:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T20:30:00Z",
+          "expected_end": "2025-09-17T20:45:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T20:45:00Z",
+          "expected_end": "2025-09-17T21:00:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T21:00:00Z",
+          "expected_end": "2025-09-17T21:15:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-17T21:15:00Z",
+          "expected_end": "2025-09-17T21:30:00Z",
+          "found": "2025-09-17T21:30:00.000Z"
+        },
+        {
+          "expected_start": "2025-09-23T05:45:00Z",
+          "expected_end": "2025-09-23T06:00:00Z",
+          "found": "2025-09-23T06:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "type": "timestamp_discontinuities",
+      "severity": "medium",
+      "discontinuities": [
+        {
+          "chunk1": "chunk_20250917_1930.json",
+          "chunk2": "chunk_20250917_2130.json",
+          "last_timestamp_chunk1": "2025-09-17T19:44:59+00:00",
+          "first_timestamp_chunk2": "2025-09-17T21:30:00+00:00",
+          "gap_seconds": 6301.0,
+          "gap_minutes": 105.01666666666667
+        }
+      ]
+    },
+    {
+      "type": "range_discrepancies",
+      "severity": "medium",
+      "discrepancies": [
+        {
+          "filename": "chunk_20250927_0715.json",
+          "requested_from": "2025-09-27T07:15:00.000Z",
+          "requested_to": "2025-09-27T07:30:00.000Z",
+          "actual_from": "2025-09-27T07:15:00.000Z",
+          "actual_to": "2025-09-27T07:21:55.000Z",
+          "coverage_percent": 46.111111111111114,
+          "message_count": 1877
+        }
+      ]
+    }
+  ]
+}
