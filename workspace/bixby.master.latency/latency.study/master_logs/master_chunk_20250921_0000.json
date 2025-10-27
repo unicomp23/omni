@@ -1,7 +1,7 @@
 {
   "metadata": {
     "chunkIndex": 1345,
-    "totalChunks": 2016,
+    "totalChunks": 4608,
     "requestedRange": {
       "from": "2025-09-21T00:00:00.000Z",
       "to": "2025-09-21T00:15:00.000Z"
@@ -12,15 +12,7 @@
     },
     "query": "\"RegisterStream RECEIVED\" AND receiveTimeMs",
     "totalMessages": 2563,
-    "stats": {
-      "count": 2563,
-      "withLatencyId": 2563,
-      "receiveTimeRange": {
-        "min": "2025-09-21T00:00:00.576Z",
-        "max": "2025-09-21T00:14:58.599Z"
-      }
-    },
-    "downloadTime": "2025-10-23T21:44:04.986Z"
+    "downloadTime": "2025-10-24T18:04:15.631Z"
   },
   "messages": [
     {
@@ -58629,29 +58621,6 @@
     },
     {
       "map": {
-        "_blockid": "7896839699583943583",
-        "_loglevel": "INFO",
-        "_messagetime": "1758412805000",
-        "_raw": "Sep 21 00:00:05 node-master-i-0df4ec136090f1daf-us-east-1-automation853 tecate_server[7804]: <info> 2025/09/21 00:00:05.956 [master-server.js:210] RegisterStream RECEIVED latencyId=4d6fd565-0745-4d0b-b775-493af62f7421 streamUrl=tecate://bixby-i-06fa8f4aa99b891b2-us-east-1-automation853.eng.cantina.com:8443/338233590 receiveTimeMs=1758412805956 type=request_received",
-        "_collectorid": "312138819",
-        "_sourceid": "1900447115",
-        "_collector": "node-master-i-0df4ec136090f1daf-us-east-1-automation853-eng-us-east-1",
-        "_messagecount": "8",
-        "_sourcehost": "node-master-i-0df4ec136090f1daf-us-east-1-automation853",
-        "_searchabletime": "1758412956057",
-        "_messageid": "-7550885014549586039",
-        "_sourcename": "/var/log/messages",
-        "_size": "367",
-        "_view": "",
-        "_receipttime": "1758412809483",
-        "_sourcecategory": "OS/Linux/System",
-        "_format": "t:cache:o:0:l:15:p:MMM dd HH:mm:ss",
-        "_source": "Messages",
-        "region": "us-east-1"
-      }
-    },
-    {
-      "map": {
         "_blockid": "-346297121584100425",
         "_loglevel": "INFO",
         "_messagetime": "1758412805000",
@@ -58667,6 +58636,29 @@
         "_size": "369",
         "_view": "",
         "_receipttime": "1758412807982",
+        "_sourcecategory": "OS/Linux/System",
+        "_format": "t:cache:o:0:l:15:p:MMM dd HH:mm:ss",
+        "_source": "Messages",
+        "region": "us-east-1"
+      }
+    },
+    {
+      "map": {
+        "_blockid": "7896839699583943583",
+        "_loglevel": "INFO",
+        "_messagetime": "1758412805000",
+        "_raw": "Sep 21 00:00:05 node-master-i-0df4ec136090f1daf-us-east-1-automation853 tecate_server[7804]: <info> 2025/09/21 00:00:05.956 [master-server.js:210] RegisterStream RECEIVED latencyId=4d6fd565-0745-4d0b-b775-493af62f7421 streamUrl=tecate://bixby-i-06fa8f4aa99b891b2-us-east-1-automation853.eng.cantina.com:8443/338233590 receiveTimeMs=1758412805956 type=request_received",
+        "_collectorid": "312138819",
+        "_sourceid": "1900447115",
+        "_collector": "node-master-i-0df4ec136090f1daf-us-east-1-automation853-eng-us-east-1",
+        "_messagecount": "8",
+        "_sourcehost": "node-master-i-0df4ec136090f1daf-us-east-1-automation853",
+        "_searchabletime": "1758412956057",
+        "_messageid": "-7550885014549586039",
+        "_sourcename": "/var/log/messages",
+        "_size": "367",
+        "_view": "",
+        "_receipttime": "1758412809483",
         "_sourcecategory": "OS/Linux/System",
         "_format": "t:cache:o:0:l:15:p:MMM dd HH:mm:ss",
         "_source": "Messages",
