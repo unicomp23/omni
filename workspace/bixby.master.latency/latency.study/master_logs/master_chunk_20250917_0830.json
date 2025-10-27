@@ -1,7 +1,7 @@
 {
   "metadata": {
     "chunkIndex": 995,
-    "totalChunks": 2016,
+    "totalChunks": 4608,
     "requestedRange": {
       "from": "2025-09-17T08:30:00.000Z",
       "to": "2025-09-17T08:45:00.000Z"
@@ -12,15 +12,7 @@
     },
     "query": "\"RegisterStream RECEIVED\" AND receiveTimeMs",
     "totalMessages": 2432,
-    "stats": {
-      "count": 2432,
-      "withLatencyId": 2432,
-      "receiveTimeRange": {
-        "min": "2025-09-17T08:30:00.101Z",
-        "max": "2025-09-17T08:44:58.690Z"
-      }
-    },
-    "downloadTime": "2025-10-23T20:48:55.430Z"
+    "downloadTime": "2025-10-24T17:02:16.827Z"
   },
   "messages": [
     {
