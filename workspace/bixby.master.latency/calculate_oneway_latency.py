@@ -200,6 +200,7 @@ def main():
 
     # Correlate and calculate one-way latency
     hourly_latencies = defaultdict(list)
+    hourly_high_latency_counts = defaultdict(int)  # Track latencies > 600ms per hour
     all_latencies = []
 
     matched = 0
@@ -237,6 +238,10 @@ def main():
 
             hour_key = dt.strftime('%Y-%m-%d %H:00')
             hourly_latencies[hour_key].append(one_way_latency)
+
+            # Track high latency events (> 600ms)
+            if one_way_latency > 600:
+                hourly_high_latency_counts[hour_key] += 1
 
     print(f"✅ Matched {matched:,} entries (valid positive latencies)")
     print(f"⚠️  Filtered negative latencies: {negative_latencies:,} (clock skew)")
@@ -355,6 +360,44 @@ def main():
         f.write("=" * 80 + "\n")
 
     print(f"✅ Text report saved to: {text_output}")
+
+    # Save high latency (> 600ms) report
+    high_latency_output = Path(__file__).parent / 'high_latency_hours.txt'
+    with open(high_latency_output, 'w') as f:
+        f.write("=" * 80 + "\n")
+        f.write("HIGH LATENCY HOURS (> 600ms) - PRODUCTION ONLY\n")
+        f.write("=" * 80 + "\n")
+        f.write(f"Time Period: {results['metadata']['start_time']} to {results['metadata']['end_time']}\n")
+        f.write(f"Threshold: > 600ms\n")
+        f.write(f"Filters: Bixby env=prod, Master _collector=*-prod-*\n")
+        f.write("=" * 80 + "\n\n")
+
+        # Calculate total high latency events
+        total_high_latency = sum(hourly_high_latency_counts.values())
+        hours_with_high_latency = len(hourly_high_latency_counts)
+
+        f.write(f"Total high latency events (> 600ms): {total_high_latency:,}\n")
+        f.write(f"Hours with high latency events: {hours_with_high_latency}\n")
+        f.write(f"Percentage of all requests: {(total_high_latency / matched * 100):.3f}%\n\n")
+
+        if hourly_high_latency_counts:
+            f.write("HOURLY BREAKDOWN\n")
+            f.write("-" * 80 + "\n")
+            f.write(f"{'Hour':<20} {'Count >600ms':>15} {'Total Requests':>15} {'Percentage':>12}\n")
+            f.write("-" * 80 + "\n")
+
+            for hour in sorted(hourly_high_latency_counts.keys()):
+                count = hourly_high_latency_counts[hour]
+                total_for_hour = len(hourly_latencies[hour])
+                percentage = (count / total_for_hour * 100) if total_for_hour > 0 else 0
+                f.write(f"{hour:<20} {count:>15,} {total_for_hour:>15,} {percentage:>11.2f}%\n")
+
+            f.write("=" * 80 + "\n")
+        else:
+            f.write("No high latency events (> 600ms) detected.\n")
+            f.write("=" * 80 + "\n")
+
+    print(f"✅ High latency report saved to: {high_latency_output}")
 
 if __name__ == '__main__':
     main()
