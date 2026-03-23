@@ -8,7 +8,7 @@ if [ -z "${SSH_AUTH_SOCK:-}" ]; then
 fi
 
 # Start the containers with build
-docker-compose up -d --build
+docker compose up -d --build
 
 echo "Development environment is ready!"
 echo "You can connect using: ssh -p 2222 root@localhost"
