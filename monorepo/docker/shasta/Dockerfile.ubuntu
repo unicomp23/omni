@@ -1,261 +1,300 @@
-# Use a lightweight ARM64 base image
-FROM arm64v8/ubuntu:22.04 AS build
+# syntax=docker/dockerfile:1
 
-# Set DEBIAN_FRONTEND to noninteractive
-ENV DEBIAN_FRONTEND=noninteractive
+ARG UBUNTU_VERSION=24.04
+FROM arm64v8/ubuntu:${UBUNTU_VERSION}
 
-# Install required packages and remove unnecessary ones
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    wget \
-    ca-certificates \
-    gnupg \
-    apt-transport-https \
-    curl \
-    build-essential \
-    cmake \
-    ninja-build \
-    ccache \
-    git \
-    git-lfs \
-    yasm \
-    unzip \
-    zip \
-    emacs \
-    exuberant-ctags \
-    python2.7 \
-    python-pip \
-    clang-13 \
-    libstdc++-12-dev \
-    zlib1g-dev \
-    libjemalloc-dev \
-    jq \
-    autoconf \
-    automake \
-    libtool \
-    openssl \
-    libssl-dev \
-    dnsutils \
-    netcat \
-    net-tools \
-    iputils-ping \
-    ripgrep \
-    && rm -rf /var/lib/apt/lists/*
+ARG DEBIAN_FRONTEND=noninteractive
+ARG NVM_VERSION=0.40.6
+ARG NODE_VERSION=24.18.0
+ARG GO_VERSION=1.26.5
+ARG GO_SHA256=fe4789e92b1f33358680864bbe8704289e7bb5fc207d80623c308935bd696d49
+ARG MAVEN_VERSION=3.9.16
+ARG MAVEN_SHA512=831a8591fe20c8243b1dbe7d71e3244f31d1665b0804b2e825e38cbbe5ce0cafb8338851f90780735568773e0a6cd07bbec107cda0b896b008b861075358b6f6
+ARG GRADLE_VERSION=9.6.1
+ARG GRADLE_SHA256=9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14
+ARG KAFKA_VERSION=4.3.1
+ARG KAFKA_SHA512=C7D7B2318CB51AA0C61D3246A51C349210073C5C9B754947EF965A439F2F939E8600F204E134A75AC31FAF3829C9370960EF7C6A9886C8A1DBF0339A21F4C54C
+ARG CDK8S_CLI_VERSION=2.207.45
+ARG AWS_CDK_VERSION=2.1135.0
+ARG TYPESCRIPT_VERSION=7.0.2
+ARG TYPESCRIPT_LANGUAGE_SERVER_VERSION=5.3.0
+ARG CODEX_VERSION=0.146.0
+ARG CLAUDE_CODE_VERSION=2.1.220
+ARG GIT_USER_EMAIL=john.davis@cantina.ai
+ARG GIT_USER_NAME="John Davis"
 
-# Set up Python and pip
-RUN ln -sf /usr/bin/python2.7 /usr/bin/python && \
-    ln -sf /usr/bin/pip2 /usr/bin/pip && \
-    pip install --no-cache-dir --upgrade pip
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Set up Git configuration
-RUN git config --global user.email "john.davis@cantina.ai" && \
-    git config --global user.name "John Davis"
+ENV NVM_DIR=/root/.nvm \
+    SDKMAN_DIR=/root/.sdkman
 
-# Install Deno
-RUN curl -fsSL https://deno.land/x/install/install.sh | sh && \
-    mv /root/.deno/bin/deno /usr/local/bin
-
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
-    echo "source \$HOME/.cargo/env" >> /root/.bashrc
-ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Install NVM
-RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash || exit 1
-
-# Set up NVM environment
-ENV NVM_DIR=/root/.nvm
-
-# Install Node.js and npm
-ENV NODE_VERSION=20.x
-ENV NPM_VERSION=10.9.9
-RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - && \
-    apt-get install -y nodejs && \
-    npm install -g npm@${NPM_VERSION}
-
-# Verify installation
-RUN node --version && npm --version
-
-# Install global npm packages
-RUN npm install -g cdk8s-cli aws-cdk typescript typescript-language-server @anthropic-ai/claude-code
-
-# Add NVM to PATH and bash profile
-RUN echo 'export NVM_DIR="$HOME/.nvm"' >> $HOME/.bashrc && \
-    echo '[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"' >> $HOME/.bashrc && \
-    echo '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' >> $HOME/.bashrc
-
-# Create necessary directories and clone repositories
-WORKDIR /root/repo/dev
-RUN echo "git clone git@github.com:airtimemedia/shasta.git" >> clone.shasta.sh && \
-    echo "git clone git@github.com:unicomp23/omni.git" >> clone.omni.sh && \
-    chmod +x ./clone.shasta.sh ./clone.omni.sh
-
-# Install AWS CLI
-RUN curl "https://d1vvhvl2y92vvt.cloudfront.net/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip" && \
-    unzip awscliv2.zip && \
-    ./aws/install && \
-    rm -rf awscliv2.zip ./aws
-
-# Install Boost libraries
-RUN apt-get update && apt-get install -y --no-install-recommends libboost-all-dev && rm -rf /var/lib/apt/lists/*
-
-# Optionally, set the default clang version to clang-13
-RUN update-alternatives --install /usr/bin/clang clang /usr/bin/clang-13 100 && \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-13 100
-
-# Install Docker Engine and Docker CLI
+# Core development and SSH packages.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release && \
-    install -m 0755 -d /etc/apt/keyrings && \
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    chmod a+r /etc/apt/keyrings/docker.gpg && \
-    echo \
-    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends \
-    docker-ce \
-    docker-ce-cli \
-    containerd.io \
-    docker-compose-plugin && \
+        autoconf \
+        automake \
+        bash-completion \
+        build-essential \
+        ca-certificates \
+        ccache \
+        clang \
+        curl \
+        dnsutils \
+        emacs-nox \
+        git \
+        git-lfs \
+        gnupg \
+        groff \
+        iputils-ping \
+        java-common \
+        jq \
+        less \
+        libboost-all-dev \
+        libjemalloc-dev \
+        libssl-dev \
+        libtool \
+        net-tools \
+        netcat-openbsd \
+        ninja-build \
+        openssh-server \
+        openssl \
+        python-is-python3 \
+        python3 \
+        python3-pip \
+        ripgrep \
+        universal-ctags \
+        unzip \
+        yasm \
+        zip \
+        zlib1g-dev && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-RUN dpkg -i session-manager-plugin.deb
+# Add vendor repositories for tools that are newer than Ubuntu's packages.
+RUN install -m 0755 -d /etc/apt/keyrings && \
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+        -o /etc/apt/keyrings/docker.asc && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /etc/apt/keyrings/github-cli.gpg && \
+    curl -fsSL https://apt.releases.hashicorp.com/gpg | \
+        gpg --batch --dearmor -o /etc/apt/keyrings/hashicorp.gpg && \
+    curl -fsSL https://apt.kitware.com/keys/kitware-archive-latest.asc | \
+        gpg --batch --dearmor -o /etc/apt/keyrings/kitware.gpg && \
+    curl -fsSL https://apt.corretto.aws/corretto.key | \
+        gpg --batch --dearmor -o /etc/apt/keyrings/corretto.gpg && \
+    chmod a+r /etc/apt/keyrings/* && \
+    source /etc/os-release && \
+    repository_arch="$(dpkg --print-architecture)" && \
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu %s stable\n' \
+        "${repository_arch}" "${VERSION_CODENAME}" \
+        > /etc/apt/sources.list.d/docker.list && \
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/github-cli.gpg] https://cli.github.com/packages stable main\n' \
+        "${repository_arch}" \
+        > /etc/apt/sources.list.d/github-cli.list && \
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/hashicorp.gpg] https://apt.releases.hashicorp.com %s main\n' \
+        "${repository_arch}" "${VERSION_CODENAME}" \
+        > /etc/apt/sources.list.d/hashicorp.list && \
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/kitware.gpg] https://apt.kitware.com/ubuntu/ %s main\n' \
+        "${repository_arch}" "${VERSION_CODENAME}" \
+        > /etc/apt/sources.list.d/kitware.list && \
+    printf 'deb [arch=%s signed-by=/etc/apt/keyrings/corretto.gpg] https://apt.corretto.aws stable main\n' \
+        "${repository_arch}" \
+        > /etc/apt/sources.list.d/corretto.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        cmake \
+        docker-buildx-plugin \
+        docker-ce-cli \
+        docker-compose-plugin \
+        gh \
+        java-21-amazon-corretto-jdk \
+        terraform && \
+    rm -rf /var/lib/apt/lists/*
 
-# Set working directory to /tmp for Cloudflare Tunnel installation
+RUN git config --global user.email "${GIT_USER_EMAIL}" && \
+    git config --global user.name "${GIT_USER_NAME}"
+
+# Install Deno and Rust.
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://deno.land/install.sh | sh && \
+    install -m 0755 /root/.deno/bin/deno /usr/local/bin/deno && \
+    rm -rf /root/.deno
+
+RUN curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs | sh -s -- -y
+
+# Install Node through NVM once, then expose the default version to all processes.
+RUN git clone --depth 1 --branch "v${NVM_VERSION}" https://github.com/nvm-sh/nvm.git "${NVM_DIR}" && \
+    source "${NVM_DIR}/nvm.sh" && \
+    nvm install "${NODE_VERSION}" && \
+    nvm alias default "${NODE_VERSION}" && \
+    ln -s "${NVM_DIR}/versions/node/v${NODE_VERSION}" /opt/node && \
+    rm -rf "${NVM_DIR}/.git"
+
+ENV PATH="/opt/node/bin:/root/.cargo/bin:${PATH}"
+
+RUN npm install -g \
+        "cdk8s-cli@${CDK8S_CLI_VERSION}" \
+        "aws-cdk@${AWS_CDK_VERSION}" \
+        "typescript@${TYPESCRIPT_VERSION}" \
+        "typescript-language-server@${TYPESCRIPT_LANGUAGE_SERVER_VERSION}" \
+        "@openai/codex@${CODEX_VERSION}" \
+        "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && \
+    npm cache clean --force
+
+# Install AWS and remote-access utilities.
 WORKDIR /tmp
+RUN curl -fsSL https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip -o awscliv2.zip && \
+    unzip -q awscliv2.zip && \
+    ./aws/install && \
+    rm -rf awscliv2.zip aws
 
-# Download and install Cloudflare Tunnel (cloudflared)
-RUN curl -sL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb -o cloudflared.deb && \
+RUN curl -fsSL \
+        https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_arm64/session-manager-plugin.deb \
+        -o session-manager-plugin.deb && \
+    dpkg -i session-manager-plugin.deb && \
+    rm -f session-manager-plugin.deb
+
+RUN curl -fsSL \
+        https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb \
+        -o cloudflared.deb && \
     dpkg -i cloudflared.deb && \
     rm -f cloudflared.deb
 
-# Change working directory back to /root/repo/dev or any other directory as needed
-WORKDIR /root/repo/dev
+# Install current JVM build tools with verified archives.
+RUN maven_archive="apache-maven-${MAVEN_VERSION}-bin.tar.gz" && \
+    curl -fsSL \
+        "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/${maven_archive}" \
+        -o "${maven_archive}" && \
+    printf '%s  %s\n' "${MAVEN_SHA512}" "${maven_archive}" | sha512sum -c - && \
+    install -d /opt/maven && \
+    tar -xzf "${maven_archive}" -C /opt/maven && \
+    ln -s "/opt/maven/apache-maven-${MAVEN_VERSION}" /opt/maven/latest && \
+    rm -f "${maven_archive}"
 
-# Install OpenSSH server
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        openssh-server && \
-    rm -rf /var/lib/apt/lists/*
+RUN gradle_archive="gradle-${GRADLE_VERSION}-bin.zip" && \
+    curl -fsSL \
+        "https://services.gradle.org/distributions/${gradle_archive}" \
+        -o "${gradle_archive}" && \
+    printf '%s  %s\n' "${GRADLE_SHA256}" "${gradle_archive}" | sha256sum -c - && \
+    install -d /opt/gradle && \
+    unzip -q "${gradle_archive}" -d /opt/gradle && \
+    ln -s "/opt/gradle/gradle-${GRADLE_VERSION}" /opt/gradle/latest && \
+    rm -f "${gradle_archive}"
 
-# Configure SSH server
-RUN mkdir /var/run/sshd && \
-    echo 'root:pwd' | chpasswd && \
-    sed -i 's/#*PasswordAuthentication .*/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
-    sed -i 's/#*PermitRootLogin .*/PermitRootLogin yes/' /etc/ssh/sshd_config
+# Install Kotlin through SDKMAN so it can be managed independently.
+RUN curl -fsSL https://get.sdkman.io | bash && \
+    source "${SDKMAN_DIR}/bin/sdkman-init.sh" && \
+    sdk install kotlin
 
-# Expose SSH server port
-EXPOSE 22
+# Install Go with the upstream checksum.
+RUN go_archive="go${GO_VERSION}.linux-arm64.tar.gz" && \
+    curl -fsSL "https://go.dev/dl/${go_archive}" -o "${go_archive}" && \
+    printf '%s  %s\n' "${GO_SHA256}" "${go_archive}" | sha256sum -c - && \
+    rm -rf /usr/local/go && \
+    tar -xzf "${go_archive}" -C /usr/local && \
+    rm -f "${go_archive}"
 
-# Download typescript-ctags configuration file
-RUN curl https://raw.githubusercontent.com/jb55/typescript-ctags/master/.ctags -o /root/.ctags
-
-# Install AWS Corretto dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends java-common && rm -rf /var/lib/apt/lists/*
-
-# Install AWS Corretto
-RUN wget -O corretto.deb https://corretto.aws/downloads/latest/amazon-corretto-11-aarch64-linux-jdk.deb && \
-    dpkg --install corretto.deb && \
-    rm -f corretto.deb
-
-# Install SDKMAN and Kotlin
-RUN curl -s "https://get.sdkman.io" | bash && \
-    bash -c "source \$HOME/.sdkman/bin/sdkman-init.sh && sdk install kotlin"
-
-# Disable Emacs backup files
-RUN echo "(setq make-backup-files nil)" >> /root/.emacs
-
-RUN apt-get update && apt-get install -y groff less
-
-# Install Maven
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends maven && \
-    rm -rf /var/lib/apt/lists/*
-
-# Install Gradle
-RUN wget -q https://services.gradle.org/distributions/gradle-7.6.1-bin.zip -O gradle.zip && \
-    unzip -d /opt/gradle gradle.zip && \
-    rm gradle.zip && \
-    ln -s /opt/gradle/gradle-7.6.1 /opt/gradle/latest
-
-# Add Maven and Gradle to PATH for all shells
-RUN echo 'export PATH=$PATH:/usr/bin:/opt/gradle/latest/bin' >> /etc/profile.d/maven_gradle.sh && \
-    chmod +x /etc/profile.d/maven_gradle.sh
-
-# Ensure profile is sourced for SSH sessions
-RUN echo '. /etc/profile' >> /etc/ssh/sshrc
-
-# Install Docker Buildx
-RUN BUILDX_VERSION=$(curl -s https://api.github.com/repos/docker/buildx/releases/latest | grep '"tag_name":' | cut -d'"' -f4) && \
-    mkdir -p /root/.docker/cli-plugins && \
-    curl -L "https://github.com/docker/buildx/releases/download/${BUILDX_VERSION}/buildx-${BUILDX_VERSION}.linux-arm64" -o /root/.docker/cli-plugins/docker-buildx && \
-    chmod +x /root/.docker/cli-plugins/docker-buildx
-
-# Remove the old golang-go package installation and add the official Go installation
-RUN rm -rf /usr/local/go && \
-    curl -fsSL https://go.dev/dl/go1.22.1.linux-arm64.tar.gz | tar -C /usr/local -xzf - && \
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> /etc/profile && \
-    echo 'export PATH=$PATH:/usr/local/go/bin' >> /root/.bashrc
-
-# Install HashiCorp's official GPG key
-RUN wget -O- https://apt.releases.hashicorp.com/gpg | \
-    gpg --dearmor | \
-    tee /usr/share/keyrings/hashicorp-archive-keyring.gpg > /dev/null
-
-# Add HashiCorp repository
-RUN echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
-    https://apt.releases.hashicorp.com $(lsb_release -cs) main" | \
-    tee /etc/apt/sources.list.d/hashicorp.list
-
-# Install Terraform
-RUN apt-get update && \
-    apt-get install -y terraform && \
-    rm -rf /var/lib/apt/lists/*
-
-# Enable Terraform autocomplete
-RUN terraform -install-autocomplete
-
-# Remove existing CMake installation and install latest version
-RUN apt-get update && \
-    apt-get remove --purge -y cmake && \
-    wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository "deb https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends cmake && \
-    rm -rf /var/lib/apt/lists/*
-
-# Create directory structure and add wrapper script
-RUN mkdir -p /opt/media-tools-bin/linux/cmake/3.26.4/bin
-
-# Copy and set up CMake wrapper script
-COPY cmake-wrapper.sh /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake
-RUN chmod +x /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake && \
-    # Verify the wrapper script works
+# Keep the historical CMake path expected by media tooling.
+COPY cmake-wrapper.sh /usr/local/bin/cmake-wrapper
+RUN chmod 0755 /usr/local/bin/cmake-wrapper && \
+    install -d /opt/media-tools-bin/linux/cmake/3.26.4/bin && \
+    ln -s /usr/local/bin/cmake-wrapper \
+        /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake && \
     /opt/media-tools-bin/linux/cmake/3.26.4/bin/cmake --version
 
-# Set environment variables
-ENV CMAKE_COMMAND=/usr/bin/cmake \
-    PATH="/usr/bin:${PATH}"
+ENV CMAKE_COMMAND=/usr/bin/cmake
 
-# Install Apache Kafka
-WORKDIR /opt
-RUN wget https://archive.apache.org/dist/kafka/3.6.0/kafka_2.13-3.6.0.tgz && \
-    tar -xzf kafka_2.13-3.6.0.tgz && \
-    ln -s kafka_2.13-3.6.0 kafka && \
-    rm kafka_2.13-3.6.0.tgz && \
-    echo 'export PATH="/opt/kafka/bin:$PATH"' >> /root/.bashrc
+# Install Kafka command-line tools with the upstream checksum.
+RUN kafka_archive="kafka_2.13-${KAFKA_VERSION}.tgz" && \
+    curl -fsSL \
+        "https://archive.apache.org/dist/kafka/${KAFKA_VERSION}/${kafka_archive}" \
+        -o "${kafka_archive}" && \
+    printf '%s  %s\n' "${KAFKA_SHA512}" "${kafka_archive}" | sha512sum -c - && \
+    tar -xzf "${kafka_archive}" -C /opt && \
+    ln -s "/opt/kafka_2.13-${KAFKA_VERSION}" /opt/kafka && \
+    rm -f "${kafka_archive}"
 
-# Update PATH to include Kafka
-ENV PATH="/opt/kafka/bin:${PATH}"
+ENV PATH="/usr/local/go/bin:/opt/maven/latest/bin:/opt/gradle/latest/bin:/opt/kafka/bin:${PATH}"
 
-# Change back to working directory
+RUN printf '%s\n' \
+        'export PATH="/usr/local/go/bin:/opt/maven/latest/bin:/opt/gradle/latest/bin:/opt/kafka/bin:/opt/node/bin:/root/.cargo/bin:$PATH"' \
+        > /etc/profile.d/dev-tools.sh && \
+    printf '%s\n' \
+        'export NVM_DIR="/root/.nvm"' \
+        'if [ -s "$NVM_DIR/nvm.sh" ]; then' \
+        '    . "$NVM_DIR/nvm.sh"' \
+        '    nvm deactivate --silent >/dev/null 2>&1 || true' \
+        '    nvm use --silent default >/dev/null' \
+        'fi' \
+        'case $- in *i*) [ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion" ;; esac' \
+        > /etc/profile.d/nvm.sh && \
+    chmod 0644 /etc/profile.d/dev-tools.sh /etc/profile.d/nvm.sh && \
+    terraform -install-autocomplete
+
+# Preserve the existing helper scripts for cloning private repositories.
 WORKDIR /root/repo/dev
+RUN printf '%s\n' \
+        '#!/bin/sh' \
+        'exec git clone git@github.com:airtimemedia/shasta.git' \
+        > clone.shasta.sh && \
+    printf '%s\n' \
+        '#!/bin/sh' \
+        'exec git clone git@github.com:unicomp23/omni.git' \
+        > clone.omni.sh && \
+    chmod 0755 clone.shasta.sh clone.omni.sh
 
-# Start SSH server
-CMD ["/usr/sbin/sshd", "-D"]
+RUN curl -fsSL \
+        https://raw.githubusercontent.com/jb55/typescript-ctags/master/.ctags \
+        -o /root/.ctags && \
+    printf '%s\n' '(setq make-backup-files nil)' > /root/.emacs
+
+# Keep password-based root SSH access and initialize every SSH shell consistently.
+RUN install -d -m 0755 /run/sshd && \
+    ssh-keygen -A && \
+    echo 'root:pwd' | chpasswd && \
+    printf '%s\n' \
+        '. /etc/profile.d/dev-tools.sh' \
+        '[ -s "/root/.sdkman/bin/sdkman-init.sh" ] && . "/root/.sdkman/bin/sdkman-init.sh"' \
+        '. /etc/profile.d/nvm.sh' \
+        > /etc/ssh/shasta.bash_env && \
+    sed -i '/#THIS MUST BE AT THE END OF THE FILE FOR SDKMAN TO WORK!!!/,+2d' \
+        /root/.bashrc && \
+    sed -i '1i. /etc/ssh/shasta.bash_env' /root/.bashrc && \
+    printf '%s\n' \
+        'PasswordAuthentication yes' \
+        'PermitRootLogin yes' \
+        'SetEnv SSH_AUTH_SOCK=/ssh-agent' \
+        > /etc/ssh/sshd_config.d/99-shasta.conf && \
+    rm -f /etc/ssh/sshrc && \
+    chmod 0644 \
+        /etc/ssh/shasta.bash_env \
+        /etc/ssh/sshd_config.d/99-shasta.conf && \
+    /usr/sbin/sshd -t
+
+# Build-time smoke test for the complete command-line environment.
+RUN source /etc/profile.d/nvm.sh && \
+    source "${SDKMAN_DIR}/bin/sdkman-init.sh" && \
+    python --version && \
+    node --version && \
+    npm --version && \
+    nvm --version && \
+    codex --version && \
+    claude --version && \
+    gh --version | head -n 1 && \
+    deno --version | head -n 1 && \
+    rustc --version && \
+    go version && \
+    java -version && \
+    mvn --version | head -n 1 && \
+    gradle --version | sed -n '/^Gradle /p' && \
+    kotlin -version && \
+    docker --version && \
+    docker compose version && \
+    docker buildx version && \
+    aws --version && \
+    cloudflared --version && \
+    terraform version | head -n 1 && \
+    cmake --version | head -n 1 && \
+    kafka-topics.sh --version
+
+EXPOSE 22
+
+CMD ["/usr/sbin/sshd", "-D", "-e"]
