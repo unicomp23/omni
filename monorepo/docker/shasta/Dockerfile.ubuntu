@@ -65,13 +65,13 @@ RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | b
 
 # Set up NVM environment
 ENV NVM_DIR=/root/.nvm
-ENV NODE_VERSION=18
 
 # Install Node.js and npm
 ENV NODE_VERSION=20.x
+ENV NPM_VERSION=10.9.9
 RUN curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION} | bash - && \
     apt-get install -y nodejs && \
-    npm install -g npm@latest
+    npm install -g npm@${NPM_VERSION}
 
 # Verify installation
 RUN node --version && npm --version
